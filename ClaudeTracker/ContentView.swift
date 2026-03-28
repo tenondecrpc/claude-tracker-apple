@@ -3,145 +3,85 @@ import SwiftUI
 // MARK: - ContentView
 
 struct ContentView: View {
-    let authState: AuthState
-    let client: AnthropicAPIClient
-
-    @State private var pastedCode = ""
-    @State private var isSubmitting = false
-    @State private var signInError: String?
+    let iCloudReader: iCloudUsageReader
 
     var body: some View {
-        if authState.isAuthenticated {
-            connectedView
-        } else if authState.isAwaitingCode {
-            codeEntryView
-        } else {
-            signInView
+        switch iCloudReader.syncStatus {
+        case .syncing:
+            syncingView
+        case .stale(let since):
+            staleView(since: since)
+        case .waiting:
+            waitingView
         }
     }
 
-    // MARK: - Sign-in Screen
+    // MARK: - Waiting (no file detected yet)
 
-    private var signInView: some View {
+    private var waitingView: some View {
         VStack(spacing: 24) {
             Spacer()
-            Image(systemName: "sparkles")
+            Image(systemName: "desktopcomputer")
                 .font(.system(size: 64))
                 .foregroundStyle(.tint)
-            Text("Claude Tracker")
+            Text("Connect via Mac App")
                 .font(.title.bold())
-            Text("Sign in to sync your Claude usage to Apple Watch.")
+            Text("Open ClaudeTracker on your Mac and sign in to start syncing Claude usage to your Apple Watch.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            if let error = signInError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal)
-            }
             Spacer()
-            Button {
-                signInError = nil
-                client.startOAuthFlow()
-            } label: {
-                Text("Sign in with Claude")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
-            .padding(.bottom)
+            Text("Waiting for Mac to sync…")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.bottom)
         }
     }
 
-    // MARK: - Code Entry Screen
+    // MARK: - Syncing (fresh data)
 
-    private var codeEntryView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 48))
-                .foregroundStyle(.tint)
-            Text("Paste Authorization Code")
-                .font(.title2.bold())
-            Text("After authorizing in the browser, paste the code shown on screen.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            TextField("code#state", text: $pastedCode)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .padding(.horizontal)
-            if let error = signInError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal)
-            }
-            Spacer()
-            Button {
-                Task { await submitCode() }
-            } label: {
-                Group {
-                    if isSubmitting {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Text("Submit")
-                    }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(pastedCode.isEmpty || isSubmitting)
-            .padding(.horizontal)
-
-            Button("Cancel") {
-                pastedCode = ""
-                signInError = nil
-                authState.isAwaitingCode = false
-            }
-            .padding(.bottom)
-        }
-    }
-
-    // MARK: - Connected Screen
-
-    private var connectedView: some View {
+    private var syncingView: some View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.green)
-            Text("Connected")
+            Text("Syncing from Mac")
                 .font(.title.bold())
-            Text("Your Claude usage is syncing to Apple Watch.")
+            Text("Claude usage is being synced from your Mac to Apple Watch.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            Spacer()
-            Button("Sign Out", role: .destructive) {
-                client.signOut()
+            if let receivedAt = iCloudReader.lastReceivedAt {
+                Text("Updated \(receivedAt, style: .relative) ago")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.bottom)
+            Spacer()
         }
     }
 
-    // MARK: - Submit Code
+    // MARK: - Stale (data older than 30 min)
 
-    private func submitCode() async {
-        isSubmitting = true
-        signInError = nil
-        defer { isSubmitting = false }
-        do {
-            try await client.submitOAuthCode(pastedCode)
-            pastedCode = ""
-        } catch {
-            signInError = error.localizedDescription
+    private func staleView(since: Date) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 64))
+                .foregroundStyle(.orange)
+            Text("Mac App Not Responding")
+                .font(.title.bold())
+            Text("Usage data hasn't been updated in a while. Make sure ClaudeTracker is running on your Mac.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Text("Last updated \(since, style: .relative) ago")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Spacer()
         }
     }
 }

@@ -3,7 +3,7 @@
 **Architecture**: Two complementary data sources feed the watch:
 
 1. **Stop hook pipeline** (session events): Claude Code Stop hook → iCloud Drive JSON → iOS companion → WatchConnectivity → watchOS haptic + session sheet
-2. **OAuth API** (utilization ring): iOS polls `GET /api/oauth/usage` → WatchConnectivity → watchOS usage ring
+2. **OAuth API** (utilization ring): macOS menu bar app polls `GET /api/oauth/usage` → iCloud Drive → iOS reads via `NSMetadataQuery` → WatchConnectivity → watchOS usage ring
 
 The hook alone cannot provide utilization % or reset timestamps — those require OAuth because the plan limit (5h/7d token ceiling) is account-specific and never exposed locally.
 
@@ -26,6 +26,30 @@ Three distinct data sources — each with a different role. None replaces the ot
 ### Why the local DB matters for Phase 8
 
 The local DB (`~/.claude/`) already contains the full session history (209 sessions, activity grid, model breakdown). Phase 8 (`StatsView`) can read this directly instead of building a custom history store from scratch via hooks. Confirm the exact file path and schema in Phase 0.
+
+---
+
+## iCloud Transport — Opciones
+
+El relay macOS → iOS usa iCloud Drive como canal. El entitlement "iCloud Documents" **requiere una cuenta Apple Developer de pago ($99/año)**. Con Personal Team gratuita, la escritura desde macOS funciona (path directo), pero la lectura desde iOS vía `NSMetadataQuery` queda bloqueada.
+
+### Estado actual (2026-03-28)
+- ✅ macOS escribe `usage.json` a `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/` sin entitlement
+- ⚠️ iOS no puede leer vía `NSMetadataQuery` sin iCloud entitlement — pantalla "Connect via Mac app" estática
+- ✅ Todo el código está implementado y listo — solo falta activar el entitlement
+
+### Opción A — Cuenta Apple Developer ($99/año) ⭐ recomendada
+Activa iCloud Documents en ambos targets (macOS + iOS) usando el mismo container ID. El código actual funciona sin cambios. Desbloquea también Push Notifications y distribución en App Store.
+
+### Opción B — Cloudflare Workers KV (gratuito)
+Reemplazar `UsagePoller.writeToiCloud()` y `iCloudUsageReader` por HTTP PUT/GET a un KV store gratuito. Requiere:
+- Cuenta Cloudflare (gratis)
+- Worker con endpoint autenticado (token compartido en `credentials.json`)
+- Refactor de `UsagePoller.swift` (write) e `iCloudUsageReader.swift` (read → HTTP polling cada 60s)
+- Sin entitlements de Apple requeridos
+
+### Opción C — Diferir iOS sync (situación actual)
+macOS app funciona standalone: OAuth, polling, datos visibles en el menu bar. iOS queda en pantalla "Connect via Mac app" sin sincronizar. Watch sin datos reales. Aceptable como v0 mientras se decide el transporte.
 
 ---
 
@@ -75,43 +99,49 @@ THEN:  6 (reset alarm) → 7 (QA) → 8 (stats) → 9 (context window)
 
 ---
 
-## Phase 1: OAuth iOS — Real Utilization Data
+## Phase 1: macOS OAuth — Real Utilization Data
 **TIER 1 — Track A / Makes the usage ring real**
 
-**Goal**: iOS authenticates with Anthropic, polls usage, sends real `UsageState` to watch. The mock badge disappears.
+**Goal**: macOS menu bar app authenticates with Anthropic, polls usage, writes `UsageState` to iCloud Drive. iOS reads via `NSMetadataQuery` and relays to watch. Mock badge disappears.
 
-**What to implement:**
+**Architecture (macOS-first, per `macos-oauth-desktop` change):**
 
-1. **`AnthropicAPIClient.swift`** (iOS target) — OAuth PKCE client:
-   - ✅ Browser-based sign-in via `UIApplication.shared.open()` + paste-code flow (code#state format)
-   - ✅ Token storage in iOS Keychain (`kSecAttrAccessibleAfterFirstUnlock`)
-   - ✅ Auto-refresh on 401 via `refreshAccessToken()`
-   - Exponential backoff on 429 (up to 60-minute cap)
-   - ✅ Graceful logout on `invalid_grant` / 401
-   - ⚠️ **Known UX gap**: after entering email on Anthropic web, browser does not auto-redirect back to the app. User must manually copy/paste the code. Next: improve redirect flow.
+```
+macOS menu bar app
+  └─ MacOSAPIClient (OAuth PKCE, browser + paste-code)
+  └─ CredentialStore (~/.config/claude-tracker/credentials.json, 0600 perms)
+  └─ UsagePoller (15-min poll → UsageState → iCloud Drive)
+      └─ ~/Library/Mobile Documents/.../ClaudeTracker/usage.json
 
-2. **`UsageStatePoller.swift`** (iOS target):
-   - Polls `GET /api/oauth/usage` every 15 minutes
-   - Maps response → `UsageState` (confirmed field names from Phase 0)
-   - Reset-timestamp reconciliation: preserve previous value if server omits it; detect rollover when utilization drops
+iOS companion (no sign-in required)
+  └─ iCloudUsageReader (NSMetadataQuery → decode UsageState)
+  └─ WatchRelayManager (transferUserInfo → watchOS)
 
-3. **`WatchRelayManager.swift`** (iOS target) — initial version, `UsageState` only:
-   - `WCSession.default.activate()`
-   - Encodes `UsageState` as `[String: Any]` via `transferUserInfo(_:)`
+watchOS → TokenStore → usage ring
+```
 
-4. **Wire to iOS app launch** — start poller on `applicationDidBecomeActive`
+**What to implement:** ✅ Complete (`macos-oauth-desktop` change implemented)
 
-**Status (2026-03-28):** OAuth sign-in working end-to-end with paste-code flow. Token exchange, refresh, and keychain storage confirmed. Remaining: usage polling (`UsageStatePoller`), `WatchRelayManager`, and auto-redirect UX improvement.
+1. **`ClaudeTracker macOS/`** — new macOS target (SwiftUI MenuBarExtra, `LSUIElement = YES`)
+   - ✅ `CredentialStore.swift` — file-based token storage (`0600`/`0700` perms)
+   - ✅ `MacOSAPIClient.swift` — OAuth PKCE, `NSWorkspace.shared.open()`, auto-restore, token refresh, sign-out
+   - ✅ `UsagePoller.swift` — 15-min poll, exponential backoff on 429, iCloud write
+   - ✅ `ClaudeTrackerMacApp.swift` — `@main` App with `MenuBarExtra`
+   - ✅ `SignInView.swift` / `AuthenticatedView.swift` — minimal menu bar UI
 
-**Verification checklist:**
-- ✅ Sign in via OAuth → credentials in Keychain
-- [ ] Poll fires → `UsageState` printed to console with real values
-- [ ] `transferUserInfo` delivers payload to watch simulator
+2. **iOS changes**:
+   - ✅ `iCloudUsageReader.swift` — `NSMetadataQuery` watching `usage.json`, download handling, restart on foreground
+   - ✅ `ContentView.swift` — "Connect via Mac app" / "Syncing from Mac" / staleness indicator
+
+**Remaining manual setup (Xcode):**
+- Add macOS app target "ClaudeTracker macOS" to `ClaudeTracker.xcodeproj` (`LSUIElement = YES`)
+- Link `Shared/` folder to macOS target via `PBXFileSystemSynchronizedRootGroup`
+- Enable iCloud capability with "iCloud Documents" on both macOS and iOS targets (same container ID)
 
 **Anti-pattern guards:**
-- Do NOT store OAuth tokens in `UserDefaults`
+- Do NOT store OAuth tokens in `UserDefaults` or iCloud
 - Do NOT poll more than every 15 minutes
-- Do NOT show the ring as real until `isMocked == false`
+- Do NOT reuse Claude Code's own OAuth tokens (they are not exposed in a reusable format)
 
 ---
 

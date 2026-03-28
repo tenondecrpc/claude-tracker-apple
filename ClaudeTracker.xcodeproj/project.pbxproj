@@ -38,6 +38,7 @@
 		7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7731EEF82F76AD3900C84A59 /* ClaudeTracker Watch Extension.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker Watch Extension.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -59,6 +60,11 @@
 		7731EEFC2F76AD3900C84A59 /* ClaudeTracker Watch Extension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "ClaudeTracker Watch Extension";
+			sourceTree = "<group>";
+		};
+		7765DF712F78226F00A8EEB8 /* ClaudeTracker macOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "ClaudeTracker macOS";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +91,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7765DF6D2F78226F00A8EEB8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -95,6 +108,7 @@
 				7731EEED2F76AD3700C84A59 /* ClaudeTracker Watch */,
 				7731EEFC2F76AD3900C84A59 /* ClaudeTracker Watch Extension */,
 				7731EEAA2F76AD0000C84A59 /* Shared */,
+				7765DF712F78226F00A8EEB8 /* ClaudeTracker macOS */,
 				7731EEDB2F76AD1800C84A59 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,6 +119,7 @@
 				7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */,
 				7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */,
 				7731EEF82F76AD3900C84A59 /* ClaudeTracker Watch Extension.app */,
+				7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -183,6 +198,29 @@
 			productReference = 7731EEF82F76AD3900C84A59 /* ClaudeTracker Watch Extension.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7765DF6F2F78226F00A8EEB8 /* ClaudeTracker macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "ClaudeTracker macOS" */;
+			buildPhases = (
+				7765DF6C2F78226F00A8EEB8 /* Sources */,
+				7765DF6D2F78226F00A8EEB8 /* Frameworks */,
+				7765DF6E2F78226F00A8EEB8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7731EEAA2F76AD0000C84A59 /* Shared */,
+				7765DF712F78226F00A8EEB8 /* ClaudeTracker macOS */,
+			);
+			name = "ClaudeTracker macOS";
+			packageProductDependencies = (
+			);
+			productName = "ClaudeTracker macOS";
+			productReference = 7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -200,6 +238,9 @@
 						CreatedOnToolsVersion = 26.4;
 					};
 					7731EEF72F76AD3900C84A59 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					7765DF6F2F78226F00A8EEB8 = {
 						CreatedOnToolsVersion = 26.4;
 					};
 				};
@@ -221,6 +262,7 @@
 				7731EED92F76AD1800C84A59 /* ClaudeTracker */,
 				7731EEEB2F76AD3700C84A59 /* ClaudeTracker Watch */,
 				7731EEF72F76AD3900C84A59 /* ClaudeTracker Watch Extension */,
+				7765DF6F2F78226F00A8EEB8 /* ClaudeTracker macOS */,
 			);
 		};
 /* End PBXProject section */
@@ -247,6 +289,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7765DF6E2F78226F00A8EEB8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -265,6 +314,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7731EEF42F76AD3900C84A59 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7765DF6C2F78226F00A8EEB8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -614,6 +670,96 @@
 			};
 			name = Release;
 		};
+		7765DF792F78227100A8EEB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "tenondevcloud.ClaudeTracker-macOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7765DF7A2F78227100A8EEB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "tenondevcloud.ClaudeTracker-macOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -649,6 +795,15 @@
 			buildConfigurations = (
 				7731EF082F76AD3A00C84A59 /* Debug */,
 				7731EF092F76AD3A00C84A59 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "ClaudeTracker macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7765DF792F78227100A8EEB8 /* Debug */,
+				7765DF7A2F78227100A8EEB8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

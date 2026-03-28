@@ -4,7 +4,7 @@
 
 Apple Watch app that tracks Claude Code token/credit usage and delivers haptic alerts when a session ends.
 
-**Pipeline**: Claude Code Stop hook → iCloud JSON → iOS companion → WatchConnectivity (`transferUserInfo`) → watchOS haptic + UI
+**Pipeline**: macOS app (OAuth + poll) → iCloud JSON → iOS companion → WatchConnectivity (`transferUserInfo`) → watchOS haptic + UI
 
 See `docs/FUTURE_PLAN.md` for the full roadmap.
 
@@ -12,11 +12,14 @@ See `docs/FUTURE_PLAN.md` for the full roadmap.
 
 Open `ClaudeTracker.xcodeproj` in Xcode. No CLI build system.
 
+> **macOS target**: requiere "Outgoing Connections (Client)" activado en App Sandbox (Signing & Capabilities) para que las llamadas HTTP a `platform.claude.com` funcionen.
+
 ## Targets
 
 | Folder | Target | Role |
 |---|---|---|
-| `ClaudeTracker/` | iOS app | iCloud monitor, WatchConnectivity sender, OAuth poller |
+| `ClaudeTracker macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
+| `ClaudeTracker/` | iOS app | iCloud reader (`NSMetadataQuery`), WatchConnectivity sender |
 | `ClaudeTracker Watch/` | watchOS app shell | Entry point only |
 | `ClaudeTracker Watch Extension/` | watchOS extension | All watch UI and logic |
 
