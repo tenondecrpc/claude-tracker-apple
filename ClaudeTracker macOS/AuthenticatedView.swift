@@ -4,6 +4,7 @@ import SwiftUI
 
 struct AuthenticatedMenuView: View {
     let coordinator: MacAppCoordinator
+    @Environment(\.openWindow) private var openWindow
     @State private var launchAtLogin = false
 
     var body: some View {
@@ -96,8 +97,11 @@ struct AuthenticatedMenuView: View {
 
     private var actionItems: some View {
         VStack(spacing: 0) {
-            // Usage History (placeholder)
-            Button { } label: {
+            // Usage History — opens stats detail window
+            Button {
+                openWindow(id: "stats-detail")
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
                 HStack {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                     Text("Usage History")

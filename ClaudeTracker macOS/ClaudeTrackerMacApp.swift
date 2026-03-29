@@ -8,18 +8,27 @@ final class MacAppCoordinator {
     let authState: MacAuthState
     let client: MacOSAPIClient
     let poller: UsagePoller
+    let history: UsageHistory
+    let localDB: ClaudeLocalDBReader
     private var hasLaunched = false
 
     init() {
         let authState = MacAuthState()
         let client = MacOSAPIClient(authState: authState)
         let poller = UsagePoller(client: client)
+        let history = UsageHistory()
+        let localDB = ClaudeLocalDBReader()
 
         self.authState = authState
         self.client = client
         self.poller = poller
+        self.history = history
+        self.localDB = localDB
 
         client.onSignOut = { [weak poller] in poller?.stop() }
+        poller.onUsageState = { [weak history] state in
+            history?.append(state)
+        }
     }
 
     func onLaunch() async {
@@ -64,6 +73,11 @@ struct ClaudeTrackerMacApp: App {
         Window("Welcome", id: "welcome") {
             WelcomeWindowView(coordinator: coordinator)
                 .frame(minWidth: 580, minHeight: 480)
+        }
+        .windowResizability(.contentSize)
+
+        Window("Stats", id: "stats-detail") {
+            StatsDetailView(coordinator: coordinator, history: coordinator.history, localDB: coordinator.localDB)
         }
         .windowResizability(.contentSize)
     }
