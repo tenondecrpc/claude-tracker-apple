@@ -31,18 +31,9 @@ Code shared between targets lives in `Shared/`. The project uses `PBXFileSystemS
 
 **Does NOT belong in `Shared/`:** views, `WCSession` logic, iCloud/`NSMetadataQuery` code, haptic code.
 
-## Technical Patterns
+## References
 
-### SwiftUI @Observable & Bindings
-- **Problem**: Compiler fails to infer types or provide bindings for `@Observable` properties in `@State`.
-- **Solution**: Use `@Bindable` inside `body` with explicit type annotations in closures.
-  ```swift
-  var body: some View {
-      @Bindable var bindableStore = store
-      ...
-      .sheet(item: $bindableStore.pendingCompletion) { (item: SessionInfo) in ... }
-  }
-  ```
+- Code style, patterns, and architecture: `docs/CONVENTIONS.md`
 
 ## Workflow
 
