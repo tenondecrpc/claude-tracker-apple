@@ -5,7 +5,6 @@ import SwiftUI
 struct AuthenticatedMenuView: View {
     let coordinator: MacAppCoordinator
     @Environment(\.openWindow) private var openWindow
-    @State private var launchAtLogin = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -131,19 +130,6 @@ struct AuthenticatedMenuView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-
-            // Launch at Login (placeholder toggle)
-            HStack {
-                Image(systemName: "power")
-                Text("Launch at Login")
-                Spacer()
-                Toggle("", isOn: $launchAtLogin)
-                    .labelsHidden()
-                    .tint(ClaudeTheme.accent)
-            }
-            .foregroundStyle(ClaudeTheme.textPrimary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
 
             // Logout
             Button {

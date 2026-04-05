@@ -37,13 +37,13 @@ extension NSImage {
         
         for i in 0..<barCount {
             let x = startX + CGFloat(i) * (barWidth + barSpacing)
-            let height = minHeight + (maxHeight - minHeight) * CGFloat(barCount - i) / CGFloat(barCount)
+            let height = minHeight + (maxHeight - minHeight) * CGFloat(i + 1) / CGFloat(barCount)
             let y = baseY
-            
+
             let rect = CGRect(x: x, y: y, width: barWidth, height: height)
-            
-            // Fill from right to left (battery style)
-            if i >= barCount - filledBars {
+
+            // Fill from left to right (signal strength style)
+            if i < filledBars {
                 context.setFillColor(NSColor.black.cgColor)
             } else {
                 context.setFillColor(NSColor.black.withAlphaComponent(0.3).cgColor)
