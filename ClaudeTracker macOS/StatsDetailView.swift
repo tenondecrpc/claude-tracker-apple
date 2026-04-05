@@ -142,49 +142,46 @@ struct StatsDetailView: View {
                 let visibleSnapshots = filteredSnapshots().sorted(by: { $0.date < $1.date })
                 
                 Chart {
+                    // 80% warning threshold
+                    RuleMark(y: .value("Warning", 80))
+                        .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+
+                    // "Now" vertical marker
+                    RuleMark(x: .value("Now", Date()))
+                        .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .top, alignment: .trailing) {
+                            Text("Now")
+                                .font(.system(size: 9))
+                                .foregroundStyle(ClaudeTheme.textSecondary)
+                        }
+
                     if showSession {
                         ForEach(visibleSnapshots) { snap in
-                            AreaMark(
-                                x: .value("Time", snap.date),
-                                yStart: .value("Zero", 0),
-                                yEnd: .value("Session", snap.utilization5h * 100)
-                            )
-                            .foregroundStyle(by: .value("Type", "SessionArea"))
-                            .interpolationMethod(.catmullRom)
-                            
                             LineMark(
                                 x: .value("Time", snap.date),
                                 y: .value("Session", snap.utilization5h * 100)
                             )
                             .foregroundStyle(by: .value("Type", "Session"))
-                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
                             .interpolationMethod(.catmullRom)
                         }
                     }
                     if showWeekly {
                         ForEach(visibleSnapshots) { snap in
-                            AreaMark(
-                                x: .value("Time", snap.date),
-                                yStart: .value("Zero", 0),
-                                yEnd: .value("Weekly", snap.utilization7d * 100)
-                            )
-                            .foregroundStyle(by: .value("Type", "WeeklyArea"))
-                            .interpolationMethod(.catmullRom)
-
                             LineMark(
                                 x: .value("Time", snap.date),
                                 y: .value("Weekly", snap.utilization7d * 100)
                             )
                             .foregroundStyle(by: .value("Type", "Weekly"))
-                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
                             .interpolationMethod(.catmullRom)
                         }
                     }
                 }
                 .chartForegroundStyleScale([
-                    "SessionArea": Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.15),
                     "Session": Color(red: 0.16, green: 0.50, blue: 0.95),
-                    "WeeklyArea": Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.2),
                     "Weekly": Color(red: 0.8, green: 0.3, blue: 0.2)
                 ])
                 .chartLegend(.hidden)
