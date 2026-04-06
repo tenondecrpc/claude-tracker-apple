@@ -50,17 +50,27 @@ struct AuthenticatedMenuView: View {
         use24HourTime: Bool,
         showServiceStatus: Bool
     ) -> some View {
+        let shouldShowServiceStatus = showServiceStatus && coordinator.serviceStatusMonitor.state != .operational
+
         VStack(alignment: .leading, spacing: 10) {
-            if usage.isDoubleLimitPromoActive == true {
-                HStack(spacing: 4) {
-                    Spacer()
-                    Image(systemName: "sparkles")
-                        .font(.caption)
-                        .foregroundStyle(.yellow)
-                    Text("2x promo active")
-                        .font(.caption)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+            if usage.isDoubleLimitPromoActive == true || shouldShowServiceStatus {
+                VStack(alignment: .trailing, spacing: 4) {
+                    if usage.isDoubleLimitPromoActive == true {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                            Text("2x promo active")
+                                .font(.caption)
+                                .foregroundStyle(ClaudeTheme.textSecondary)
+                        }
+                    }
+
+                    if shouldShowServiceStatus {
+                        serviceStatusRow
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             // Current Session
@@ -99,10 +109,6 @@ struct AuthenticatedMenuView: View {
             )
                 .font(.caption)
                 .foregroundStyle(ClaudeTheme.textSecondary)
-
-            if showServiceStatus {
-                serviceStatusRow
-            }
 
             // Extra Usage (only when enabled)
             if let extra = usage.extraUsage, extra.isEnabled {
@@ -158,8 +164,12 @@ struct AuthenticatedMenuView: View {
         VStack(spacing: 0) {
             // Usage History — opens stats detail window
             Button {
+                let menuWindow = NSApp.keyWindow
                 openWindow(id: "stats-detail")
                 NSApp.activate(ignoringOtherApps: true)
+                DispatchQueue.main.async {
+                    menuWindow?.close()
+                }
             } label: {
                 HStack {
                     Image(systemName: "chart.line.uptrend.xyaxis")

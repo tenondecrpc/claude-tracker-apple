@@ -131,7 +131,7 @@ struct StatsDetailView: View {
             settingsToggleRow(
                 icon: "clock.arrow.2.circlepath",
                 title: "24-Hour Time",
-                subtitle: "Times shown as 14:30",
+                subtitle: chartUse24HourTime ? "Times shown as 14:30" : "Times shown as 02:30 PM",
                 isOn: Binding(
                     get: { chartUse24HourTime },
                     set: { newValue in
