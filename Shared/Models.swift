@@ -50,6 +50,18 @@ struct UsageState: Codable {
     var extraUsage: ExtraUsage?
     var isDoubleLimitPromoActive: Bool?
 
+    var isUsingExtraUsage5h: Bool {
+        extraUsage?.isEnabled == true && utilization5h >= 0.999
+    }
+
+    var isUsingExtraUsage7d: Bool {
+        extraUsage?.isEnabled == true && utilization7d >= 0.999
+    }
+
+    var isUsingExtraUsage: Bool {
+        isUsingExtraUsage5h || isUsingExtraUsage7d
+    }
+
     static var mock: UsageState {
         UsageState(
             utilization5h: 0.42,

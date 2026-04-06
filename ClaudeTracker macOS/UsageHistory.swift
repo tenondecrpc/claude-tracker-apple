@@ -7,12 +7,57 @@ struct UsageSnapshot: Codable, Identifiable {
     let date: Date
     let utilization5h: Double
     let utilization7d: Double
+    let isUsingExtraUsage5h: Bool
+    let isUsingExtraUsage7d: Bool
 
-    init(date: Date, utilization5h: Double, utilization7d: Double) {
+    enum CodingKeys: String, CodingKey {
+        case id
+        case date
+        case utilization5h
+        case utilization7d
+        case isUsingExtraUsage
+        case isUsingExtraUsage5h
+        case isUsingExtraUsage7d
+    }
+
+    var isUsingExtraUsage: Bool {
+        isUsingExtraUsage5h || isUsingExtraUsage7d
+    }
+
+    init(
+        date: Date,
+        utilization5h: Double,
+        utilization7d: Double,
+        isUsingExtraUsage5h: Bool = false,
+        isUsingExtraUsage7d: Bool = false
+    ) {
         self.id = UUID()
         self.date = date
         self.utilization5h = utilization5h
         self.utilization7d = utilization7d
+        self.isUsingExtraUsage5h = isUsingExtraUsage5h
+        self.isUsingExtraUsage7d = isUsingExtraUsage7d
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        date = try container.decode(Date.self, forKey: .date)
+        utilization5h = try container.decode(Double.self, forKey: .utilization5h)
+        utilization7d = try container.decode(Double.self, forKey: .utilization7d)
+        let legacyFlag = try container.decodeIfPresent(Bool.self, forKey: .isUsingExtraUsage) ?? false
+        isUsingExtraUsage5h = try container.decodeIfPresent(Bool.self, forKey: .isUsingExtraUsage5h) ?? legacyFlag
+        isUsingExtraUsage7d = try container.decodeIfPresent(Bool.self, forKey: .isUsingExtraUsage7d) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(date, forKey: .date)
+        try container.encode(utilization5h, forKey: .utilization5h)
+        try container.encode(utilization7d, forKey: .utilization7d)
+        try container.encode(isUsingExtraUsage5h, forKey: .isUsingExtraUsage5h)
+        try container.encode(isUsingExtraUsage7d, forKey: .isUsingExtraUsage7d)
     }
 }
 
@@ -48,7 +93,9 @@ final class UsageHistory {
         let snapshot = UsageSnapshot(
             date: Date(),
             utilization5h: state.utilization5h,
-            utilization7d: state.utilization7d
+            utilization7d: state.utilization7d,
+            isUsingExtraUsage5h: state.isUsingExtraUsage5h,
+            isUsingExtraUsage7d: state.isUsingExtraUsage7d
         )
         snapshots.append(snapshot)
         pruneOld()
@@ -143,6 +190,8 @@ final class UsageHistory {
         let timestamp = Int(snapshot.date.timeIntervalSince1970)
         let utilization5h = Int((snapshot.utilization5h * 10_000).rounded())
         let utilization7d = Int((snapshot.utilization7d * 10_000).rounded())
-        return "\(timestamp)|\(utilization5h)|\(utilization7d)"
+        let extraUsage5hFlag = snapshot.isUsingExtraUsage5h ? 1 : 0
+        let extraUsage7dFlag = snapshot.isUsingExtraUsage7d ? 1 : 0
+        return "\(timestamp)|\(utilization5h)|\(utilization7d)|\(extraUsage5hFlag)|\(extraUsage7dFlag)"
     }
 }

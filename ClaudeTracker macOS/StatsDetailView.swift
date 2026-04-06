@@ -3,6 +3,26 @@ import Charts
 import AppKit
 import UniformTypeIdentifiers
 
+private struct SessionChartSegment: Identifiable {
+    let snapshots: [UsageSnapshot]
+    let isUsingExtraUsage: Bool
+
+    var id: String {
+        let first = snapshots.first?.date.timeIntervalSince1970 ?? 0
+        let last = snapshots.last?.date.timeIntervalSince1970 ?? 0
+        return "\(first)-\(last)-\(isUsingExtraUsage)"
+    }
+}
+
+private struct ExtraUsageWindow: Identifiable {
+    let start: Date
+    let end: Date
+
+    var id: String {
+        "\(start.timeIntervalSince1970)-\(end.timeIntervalSince1970)"
+    }
+}
+
 // MARK: - StatsDetailView
 
 struct StatsDetailView: View {
@@ -36,7 +56,7 @@ struct StatsDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let usage = coordinator.poller.latestUsage {
                         TimelineView(.periodic(from: .now, by: 30)) { context in
-                            chartSection(use24HourTime: use24HourTime)
+                            chartSection(use24HourTime: use24HourTime, usage: usage)
                             Divider().overlay(ClaudeTheme.progressTrack)
                             heatmapSection
                             Divider().overlay(ClaudeTheme.progressTrack)
@@ -216,12 +236,18 @@ struct StatsDetailView: View {
     }
 
     @ViewBuilder
-    private func chartSection(use24HourTime: Bool) -> some View {
+    private func chartSection(use24HourTime: Bool, usage: UsageState) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Usage Over Time")
-                    .font(.headline)
-                    .foregroundStyle(ClaudeTheme.textPrimary)
+                HStack(spacing: 10) {
+                    Text("Usage Over Time")
+                        .font(.headline)
+                        .foregroundStyle(ClaudeTheme.textPrimary)
+
+                    if usage.isUsingExtraUsage {
+                        extraUsageStatusChip(label: "Extra Usage Active")
+                    }
+                }
                 Spacer()
                 Menu {
                     ForEach(TimeRange.allCases) { range in
@@ -283,7 +309,36 @@ struct StatsDetailView: View {
 
             let visibleSnapshots = visibleSnapshotsForCurrentRange
             let sessionSnapshots = sessionSnapshotsForDisplay(from: visibleSnapshots)
-            let sessionSegments = splitSessionSegments(sessionSnapshots, maxGap: maxGapForCurrentRange)
+            let sessionSegments = splitUsageSegments(
+                sessionSnapshots,
+                maxGap: maxGapForCurrentRange,
+                value: \.utilization5h,
+                extraUsage: \.isUsingExtraUsage5h
+            )
+            let weeklySegments = splitUsageSegments(
+                visibleSnapshots,
+                maxGap: maxGapForCurrentRange,
+                value: \.utilization7d,
+                extraUsage: \.isUsingExtraUsage7d
+            )
+            let xDomain = dateDomain()
+            let sessionExtraUsageWindows = extraUsageWindows(
+                in: sessionSnapshots,
+                upperBound: xDomain.upperBound,
+                extraUsage: \.isUsingExtraUsage5h
+            )
+            let weeklyExtraUsageWindows = extraUsageWindows(
+                in: visibleSnapshots,
+                upperBound: xDomain.upperBound,
+                extraUsage: \.isUsingExtraUsage7d
+            )
+            let hasVisibleExtraUsage = visibleSnapshots.contains { $0.isUsingExtraUsage }
+
+            if hasVisibleExtraUsage || usage.isUsingExtraUsage {
+                Text("Dashed blue and orange marks billable Extra Usage after the included limit.")
+                    .font(.caption)
+                    .foregroundStyle(ClaudeTheme.textSecondary)
+            }
 
             if visibleSnapshots.isEmpty {
                 HStack {
@@ -296,6 +351,30 @@ struct StatsDetailView: View {
                 .padding(.vertical, 60)
             } else {
                 Chart {
+                    if showSession {
+                        ForEach(sessionExtraUsageWindows) { window in
+                            RectangleMark(
+                                xStart: .value("Extra Usage Start", window.start),
+                                xEnd: .value("Extra Usage End", window.end),
+                                yStart: .value("Extra Usage Min", 0),
+                                yEnd: .value("Extra Usage Max", 105)
+                            )
+                            .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.10))
+                        }
+                    }
+
+                    if showWeekly {
+                        ForEach(weeklyExtraUsageWindows) { window in
+                            RectangleMark(
+                                xStart: .value("Weekly Extra Usage Start", window.start),
+                                xEnd: .value("Weekly Extra Usage End", window.end),
+                                yStart: .value("Weekly Extra Usage Min", 0),
+                                yEnd: .value("Weekly Extra Usage Max", 105)
+                            )
+                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.07))
+                        }
+                    }
+
                     // 80% warning threshold
                     RuleMark(y: .value("Warning", 80))
                         .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.5))
@@ -330,7 +409,7 @@ struct StatsDetailView: View {
                     if showSession {
                         ForEach(Array(sessionSegments.enumerated()), id: \.offset) { segmentIndex, segment in
                             let sessionSeriesKey = "session-\(segmentIndex)"
-                            ForEach(segment) { snap in
+                            ForEach(segment.snapshots) { snap in
                                 AreaMark(
                                     x: .value("Time", snap.date),
                                     yStart: .value("Session Area Min", 0),
@@ -341,8 +420,8 @@ struct StatsDetailView: View {
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.34),
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.08)
+                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
+                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -355,7 +434,12 @@ struct StatsDetailView: View {
                                     series: .value("Series", sessionSeriesKey)
                                 )
                                 .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95))
-                                .lineStyle(StrokeStyle(lineWidth: 2.5))
+                                .lineStyle(
+                                    StrokeStyle(
+                                        lineWidth: segment.isUsingExtraUsage ? 3 : 2.5,
+                                        dash: segment.isUsingExtraUsage ? [7, 5] : []
+                                    )
+                                )
                                 .interpolationMethod(.catmullRom)
                             }
                         }
@@ -369,6 +453,22 @@ struct StatsDetailView: View {
                             .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
                             .interpolationMethod(.catmullRom)
+                        }
+
+                        ForEach(Array(weeklySegments.enumerated()), id: \.offset) { segmentIndex, segment in
+                            if segment.isUsingExtraUsage {
+                                let weeklySeriesKey = "weekly-extra-\(segmentIndex)"
+                                ForEach(segment.snapshots) { snap in
+                                    LineMark(
+                                        x: .value("Time", snap.date),
+                                        y: .value("Weekly Extra Usage", snap.utilization7d * 100),
+                                        series: .value("Series", weeklySeriesKey)
+                                    )
+                                    .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                                    .lineStyle(StrokeStyle(lineWidth: 3, dash: [7, 5]))
+                                    .interpolationMethod(.catmullRom)
+                                }
+                            }
                         }
                     }
                 }
@@ -432,7 +532,7 @@ struct StatsDetailView: View {
                     }
                 }
                 .chartYScale(domain: 0...105)
-                .chartXScale(domain: dateDomain())
+                .chartXScale(domain: xDomain)
                 .frame(height: 220)
                 .id("chart-time-format-\(use24HourTime)")
             }
@@ -442,6 +542,9 @@ struct StatsDetailView: View {
                 Spacer()
                 legendToggle(label: "Session", color: Color(red: 0.16, green: 0.50, blue: 0.95), isOn: $showSession)
                 legendToggle(label: "Weekly", color: Color(red: 0.8, green: 0.3, blue: 0.2), isOn: $showWeekly)
+                if hasVisibleExtraUsage || usage.isUsingExtraUsage {
+                    extraUsageLegendKey
+                }
                 Spacer()
                 Button { exportCSV() } label: {
                     HStack(spacing: 6) {
@@ -543,8 +646,9 @@ struct StatsDetailView: View {
             let current = snapshots[lastMeaningfulIndex]
             let previous = snapshots[lastMeaningfulIndex - 1]
             let sessionChanged = abs(current.utilization5h - previous.utilization5h) > epsilon
+            let extraUsageChanged = current.isUsingExtraUsage5h != previous.isUsingExtraUsage5h
 
-            if sessionChanged {
+            if sessionChanged || extraUsageChanged || current.isUsingExtraUsage5h {
                 break
             }
             lastMeaningfulIndex -= 1
@@ -553,27 +657,50 @@ struct StatsDetailView: View {
         return Array(snapshots[...lastMeaningfulIndex])
     }
 
-    private func splitSessionSegments(_ snapshots: [UsageSnapshot], maxGap: TimeInterval) -> [[UsageSnapshot]] {
+    private func splitUsageSegments(
+        _ snapshots: [UsageSnapshot],
+        maxGap: TimeInterval,
+        value: KeyPath<UsageSnapshot, Double>,
+        extraUsage: KeyPath<UsageSnapshot, Bool>
+    ) -> [SessionChartSegment] {
         guard !snapshots.isEmpty else { return [] }
         let sorted = snapshots.sorted(by: { $0.date < $1.date })
-        var segments: [[UsageSnapshot]] = []
+        var segments: [SessionChartSegment] = []
         var currentSegment: [UsageSnapshot] = [sorted[0]]
         let resetDropThreshold = 0.25
 
         for snapshot in sorted.dropFirst() {
             guard let last = currentSegment.last else { continue }
             let hasLargeGap = snapshot.date.timeIntervalSince(last.date) > maxGap
-            let hasResetDrop = (last.utilization5h - snapshot.utilization5h) > resetDropThreshold
+            let hasResetDrop = (last[keyPath: value] - snapshot[keyPath: value]) > resetDropThreshold
             if hasLargeGap || hasResetDrop {
-                segments.append(currentSegment)
+                segments.append(
+                    SessionChartSegment(
+                        snapshots: currentSegment,
+                        isUsingExtraUsage: currentSegment.first?[keyPath: extraUsage] ?? false
+                    )
+                )
                 currentSegment = [snapshot]
+            } else if snapshot[keyPath: extraUsage] != last[keyPath: extraUsage] {
+                segments.append(
+                    SessionChartSegment(
+                        snapshots: currentSegment,
+                        isUsingExtraUsage: currentSegment.first?[keyPath: extraUsage] ?? false
+                    )
+                )
+                currentSegment = [last, snapshot]
             } else {
                 currentSegment.append(snapshot)
             }
         }
 
         if !currentSegment.isEmpty {
-            segments.append(currentSegment)
+            segments.append(
+                SessionChartSegment(
+                    snapshots: currentSegment,
+                    isUsingExtraUsage: currentSegment.first?[keyPath: extraUsage] ?? false
+                )
+            )
         }
         return segments
     }
@@ -591,8 +718,11 @@ struct StatsDetailView: View {
 
             let sessionChanged = abs(current.utilization5h - previous.utilization5h) > epsilon
             let weeklyChanged = abs(current.utilization7d - previous.utilization7d) > epsilon
+            let extraUsageChanged =
+                current.isUsingExtraUsage5h != previous.isUsingExtraUsage5h
+                || current.isUsingExtraUsage7d != previous.isUsingExtraUsage7d
 
-            if sessionChanged || weeklyChanged {
+            if sessionChanged || weeklyChanged || extraUsageChanged || current.isUsingExtraUsage {
                 break
             }
             lastMeaningfulIndex -= 1
@@ -621,6 +751,36 @@ struct StatsDetailView: View {
         return cutoff...now
     }
 
+    private func extraUsageWindows(
+        in snapshots: [UsageSnapshot],
+        upperBound: Date,
+        extraUsage: KeyPath<UsageSnapshot, Bool>
+    ) -> [ExtraUsageWindow] {
+        let sorted = snapshots.sorted(by: { $0.date < $1.date })
+        guard !sorted.isEmpty else { return [] }
+
+        var windows: [ExtraUsageWindow] = []
+        var start: Date?
+        var lastExtraDate: Date?
+
+        for snapshot in sorted {
+            if snapshot[keyPath: extraUsage] {
+                start = start ?? snapshot.date
+                lastExtraDate = snapshot.date
+            } else if let rangeStart = start, let rangeEnd = lastExtraDate {
+                windows.append(ExtraUsageWindow(start: rangeStart, end: max(rangeStart, rangeEnd)))
+                start = nil
+                lastExtraDate = nil
+            }
+        }
+
+        if let rangeStart = start, let rangeEnd = lastExtraDate {
+            windows.append(ExtraUsageWindow(start: rangeStart, end: max(rangeEnd, upperBound)))
+        }
+
+        return windows
+    }
+
     private func legendToggle(label: String, color: Color, isOn: Binding<Bool>) -> some View {
         Button {
             isOn.wrappedValue.toggle()
@@ -635,6 +795,39 @@ struct StatsDetailView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private var extraUsageLegendKey: some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .stroke(
+                    Color(red: 0.16, green: 0.50, blue: 0.95),
+                    style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                )
+                .frame(width: 20, height: 8)
+            Text("Extra Usage")
+                .font(.subheadline)
+                .foregroundStyle(ClaudeTheme.textSecondary)
+        }
+    }
+
+    private func extraUsageStatusChip(label: String) -> some View {
+        Text(label)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color(red: 0.72, green: 0.86, blue: 1.0))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.18))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(
+                        Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.55),
+                        style: StrokeStyle(lineWidth: 1, dash: [5, 3])
+                    )
+            )
     }
 
     private var visibleSnapshotsForCurrentRange: [UsageSnapshot] {
@@ -1010,10 +1203,10 @@ struct StatsDetailView: View {
         panel.nameFieldStringValue = "claude-usage-history.csv"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        var csv = "date,utilization5h,utilization7d\n"
+        var csv = "date,utilization5h,utilization7d,isUsingExtraUsage5h,isUsingExtraUsage7d\n"
         let fmt = ISO8601DateFormatter()
         for snap in history.snapshots {
-            csv += "\(fmt.string(from: snap.date)),\(snap.utilization5h),\(snap.utilization7d)\n"
+            csv += "\(fmt.string(from: snap.date)),\(snap.utilization5h),\(snap.utilization7d),\(snap.isUsingExtraUsage5h),\(snap.isUsingExtraUsage7d)\n"
         }
         try? csv.write(to: url, atomically: true, encoding: .utf8)
     }
@@ -1279,8 +1472,30 @@ private struct StatsShareCardView: View {
         sessionSnapshotsForDisplay(from: snapshots)
     }
 
-    private var sessionSegments: [[UsageSnapshot]] {
-        splitSessionSegments(sessionSnapshots, maxGap: maxGap)
+    private var sessionSegments: [SessionChartSegment] {
+        splitUsageSegments(
+            sessionSnapshots,
+            maxGap: maxGap,
+            value: \.utilization5h,
+            extraUsage: \.isUsingExtraUsage5h
+        )
+    }
+
+    private var weeklySegments: [SessionChartSegment] {
+        splitUsageSegments(
+            snapshots,
+            maxGap: maxGap,
+            value: \.utilization7d,
+            extraUsage: \.isUsingExtraUsage7d
+        )
+    }
+
+    private var sessionExtraUsageWindows: [ExtraUsageWindow] {
+        extraUsageWindows(in: sessionSnapshots, upperBound: xDomain.upperBound, extraUsage: \.isUsingExtraUsage5h)
+    }
+
+    private var weeklyExtraUsageWindows: [ExtraUsageWindow] {
+        extraUsageWindows(in: snapshots, upperBound: xDomain.upperBound, extraUsage: \.isUsingExtraUsage7d)
     }
 
     var body: some View {
@@ -1307,6 +1522,26 @@ private struct StatsShareCardView: View {
                         .foregroundStyle(.white)
 
                     Chart {
+                        ForEach(sessionExtraUsageWindows) { window in
+                            RectangleMark(
+                                xStart: .value("Extra Usage Start", window.start),
+                                xEnd: .value("Extra Usage End", window.end),
+                                yStart: .value("Extra Usage Min", 0),
+                                yEnd: .value("Extra Usage Max", 105)
+                            )
+                            .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.10))
+                        }
+
+                        ForEach(weeklyExtraUsageWindows) { window in
+                            RectangleMark(
+                                xStart: .value("Weekly Extra Usage Start", window.start),
+                                xEnd: .value("Weekly Extra Usage End", window.end),
+                                yStart: .value("Weekly Extra Usage Min", 0),
+                                yEnd: .value("Weekly Extra Usage Max", 105)
+                            )
+                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.07))
+                        }
+
                         RuleMark(y: .value("Warning", 80))
                             .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.45))
                             .lineStyle(StrokeStyle(lineWidth: 2, dash: [8, 6]))
@@ -1332,7 +1567,7 @@ private struct StatsShareCardView: View {
 
                         ForEach(Array(sessionSegments.enumerated()), id: \.offset) { segmentIndex, segment in
                             let sessionSeriesKey = "session-\(segmentIndex)"
-                            ForEach(segment) { snap in
+                            ForEach(segment.snapshots) { snap in
                                 AreaMark(
                                     x: .value("Time", snap.date),
                                     yStart: .value("Session Area Min", 0),
@@ -1343,8 +1578,8 @@ private struct StatsShareCardView: View {
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.34),
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.08)
+                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
+                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -1357,7 +1592,12 @@ private struct StatsShareCardView: View {
                                     series: .value("Series", sessionSeriesKey)
                                 )
                                 .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95))
-                                .lineStyle(StrokeStyle(lineWidth: 4))
+                                .lineStyle(
+                                    StrokeStyle(
+                                        lineWidth: segment.isUsingExtraUsage ? 4.5 : 4,
+                                        dash: segment.isUsingExtraUsage ? [10, 6] : []
+                                    )
+                                )
                                 .interpolationMethod(.catmullRom)
                             }
                         }
@@ -1370,6 +1610,22 @@ private struct StatsShareCardView: View {
                             .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
                             .lineStyle(StrokeStyle(lineWidth: 4))
                             .interpolationMethod(.catmullRom)
+                        }
+
+                        ForEach(Array(weeklySegments.enumerated()), id: \.offset) { segmentIndex, segment in
+                            if segment.isUsingExtraUsage {
+                                let weeklySeriesKey = "weekly-extra-\(segmentIndex)"
+                                ForEach(segment.snapshots) { snap in
+                                    LineMark(
+                                        x: .value("Time", snap.date),
+                                        y: .value("Weekly Extra Usage", snap.utilization7d * 100),
+                                        series: .value("Series", weeklySeriesKey)
+                                    )
+                                    .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                                    .lineStyle(StrokeStyle(lineWidth: 4.5, dash: [10, 6]))
+                                    .interpolationMethod(.catmullRom)
+                                }
+                            }
                         }
                     }
                     .chartLegend(.hidden)
@@ -1399,6 +1655,9 @@ private struct StatsShareCardView: View {
 
                     HStack(spacing: 26) {
                         legendItem(color: Color(red: 0.16, green: 0.50, blue: 0.95), title: "Session")
+                        if snapshots.contains(where: { $0.isUsingExtraUsage }) {
+                            legendItem(color: Color(red: 0.16, green: 0.50, blue: 0.95), title: "Extra Usage", dashed: true)
+                        }
                         legendItem(color: Color(red: 0.8, green: 0.3, blue: 0.2), title: "Weekly")
                     }
                 }
@@ -1466,27 +1725,50 @@ private struct StatsShareCardView: View {
         return trimTrailingIdleSessionSnapshots(Array(visibleSessionRange))
     }
 
-    private func splitSessionSegments(_ snapshots: [UsageSnapshot], maxGap: TimeInterval) -> [[UsageSnapshot]] {
+    private func splitUsageSegments(
+        _ snapshots: [UsageSnapshot],
+        maxGap: TimeInterval,
+        value: KeyPath<UsageSnapshot, Double>,
+        extraUsage: KeyPath<UsageSnapshot, Bool>
+    ) -> [SessionChartSegment] {
         guard !snapshots.isEmpty else { return [] }
         let sorted = snapshots.sorted(by: { $0.date < $1.date })
-        var result: [[UsageSnapshot]] = []
+        var result: [SessionChartSegment] = []
         var current: [UsageSnapshot] = [sorted[0]]
         let resetDropThreshold = 0.25
 
         for snapshot in sorted.dropFirst() {
             guard let previous = current.last else { continue }
             let hasLargeGap = snapshot.date.timeIntervalSince(previous.date) > maxGap
-            let hasResetDrop = (previous.utilization5h - snapshot.utilization5h) > resetDropThreshold
+            let hasResetDrop = (previous[keyPath: value] - snapshot[keyPath: value]) > resetDropThreshold
             if hasLargeGap || hasResetDrop {
-                result.append(current)
+                result.append(
+                    SessionChartSegment(
+                        snapshots: current,
+                        isUsingExtraUsage: current.first?[keyPath: extraUsage] ?? false
+                    )
+                )
                 current = [snapshot]
+            } else if snapshot[keyPath: extraUsage] != previous[keyPath: extraUsage] {
+                result.append(
+                    SessionChartSegment(
+                        snapshots: current,
+                        isUsingExtraUsage: current.first?[keyPath: extraUsage] ?? false
+                    )
+                )
+                current = [previous, snapshot]
             } else {
                 current.append(snapshot)
             }
         }
 
         if !current.isEmpty {
-            result.append(current)
+            result.append(
+                SessionChartSegment(
+                    snapshots: current,
+                    isUsingExtraUsage: current.first?[keyPath: extraUsage] ?? false
+                )
+            )
         }
         return result
     }
@@ -1501,8 +1783,9 @@ private struct StatsShareCardView: View {
             let current = snapshots[lastMeaningfulIndex]
             let previous = snapshots[lastMeaningfulIndex - 1]
             let sessionChanged = abs(current.utilization5h - previous.utilization5h) > epsilon
+            let extraUsageChanged = current.isUsingExtraUsage5h != previous.isUsingExtraUsage5h
 
-            if sessionChanged {
+            if sessionChanged || extraUsageChanged || current.isUsingExtraUsage5h {
                 break
             }
             lastMeaningfulIndex -= 1
@@ -1512,15 +1795,51 @@ private struct StatsShareCardView: View {
     }
 
     @ViewBuilder
-    private func legendItem(color: Color, title: String) -> some View {
+    private func legendItem(color: Color, title: String, dashed: Bool = false) -> some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(color)
-                .frame(width: 10, height: 10)
+            if dashed {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .stroke(color, style: StrokeStyle(lineWidth: 2, dash: [8, 5]))
+                    .frame(width: 18, height: 8)
+            } else {
+                Circle()
+                    .fill(color)
+                    .frame(width: 10, height: 10)
+            }
             Text(title)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.white.opacity(0.9))
         }
+    }
+
+    private func extraUsageWindows(
+        in snapshots: [UsageSnapshot],
+        upperBound: Date,
+        extraUsage: KeyPath<UsageSnapshot, Bool>
+    ) -> [ExtraUsageWindow] {
+        let sorted = snapshots.sorted(by: { $0.date < $1.date })
+        guard !sorted.isEmpty else { return [] }
+
+        var windows: [ExtraUsageWindow] = []
+        var start: Date?
+        var lastExtraDate: Date?
+
+        for snapshot in sorted {
+            if snapshot[keyPath: extraUsage] {
+                start = start ?? snapshot.date
+                lastExtraDate = snapshot.date
+            } else if let rangeStart = start, let rangeEnd = lastExtraDate {
+                windows.append(ExtraUsageWindow(start: rangeStart, end: max(rangeStart, rangeEnd)))
+                start = nil
+                lastExtraDate = nil
+            }
+        }
+
+        if let rangeStart = start, let rangeEnd = lastExtraDate {
+            windows.append(ExtraUsageWindow(start: rangeStart, end: max(rangeEnd, upperBound)))
+        }
+
+        return windows
     }
 
     @ViewBuilder
