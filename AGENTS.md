@@ -2,6 +2,10 @@
 
 Guidelines for agentic coding agents operating in this repository.
 
+## Language
+
+All agent communication and written outputs in this repository must be in English.
+
 ## Project
 
 Apple Watch app that tracks Claude Code token/credit usage and delivers haptic alerts when a session ends.
@@ -36,6 +40,11 @@ Code shared between targets lives in `Shared/` (auto-synced via `PBXFileSystemSy
 
 ## Workflow
 
-- **Design**: use `/opsx:propose` to draft changes before implementing
+- **OpenSpec in Codex (stable alternative)**:
+  - In Codex, use `/skills` and select: `openspec-propose`, `openspec-apply-change`, `openspec-explore`, `openspec-archive-change`
+  - You can also invoke skills directly by name: `$openspec-propose`, `$openspec-apply-change`, `$openspec-explore`, `$openspec-archive-change`
+- **OpenSpec in OpenCode**:
+  - Use legacy commands: `/opsx:propose`, `/opsx:apply`, `/opsx:explore`, `/opsx:archive`
+- **Design**: use `openspec-propose` (`/skills` or `$openspec-propose`) to draft before implementation
 - **SwiftUI**: invoke `/swiftui-expert-skill` when writing or reviewing any Swift/SwiftUI code
-- **Implementation**: use `/opsx:apply` to implement tasks from OpenSpec change documents
+- **Implementation**: use `openspec-apply-change` (`/skills` or `$openspec-apply-change`) to implement OpenSpec tasks

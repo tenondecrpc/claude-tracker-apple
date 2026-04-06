@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Language
+
+All agent communication and written outputs in this repository must be in English.
+
 ## Project
 
 Apple Watch app that tracks Claude Code token/credit usage and delivers haptic alerts when a session ends.
@@ -12,7 +16,7 @@ See `docs/FUTURE_PLAN.md` for the full roadmap.
 
 Open `ClaudeTracker.xcodeproj` in Xcode. No CLI build system.
 
-> **macOS target**: requiere "Outgoing Connections (Client)" activado en App Sandbox (Signing & Capabilities) para que las llamadas HTTP a `platform.claude.com` funcionen.
+> **macOS target**: requires "Outgoing Connections (Client)" enabled in App Sandbox (Signing & Capabilities) so HTTP calls to `platform.claude.com` work.
 
 ## Targets
 
