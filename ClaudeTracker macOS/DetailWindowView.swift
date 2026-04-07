@@ -23,20 +23,29 @@ private struct ExtraUsageWindow: Identifiable {
     }
 }
 
-// MARK: - StatsDetailView
+// MARK: - DetailTab
 
-struct StatsDetailView: View {
+enum DetailTab: String, CaseIterable {
+    case overview    = "Overview"
+    case activity    = "Activity"
+    case insights    = "Insights"
+    case preferences = "Preferences"
+}
+
+// MARK: - DetailWindowView
+
+struct DetailWindowView: View {
     let coordinator: MacAppCoordinator
     let history: UsageHistory
     let localDB: ClaudeLocalDBReader
 
+    @State private var selectedTab: DetailTab = .overview
     @State private var chartUse24HourTime: Bool
     @State private var showSession = true
     @State private var showWeekly = true
     @State private var shareAnchorView: NSView?
     @State private var shareErrorMessage = ""
     @State private var showShareError = false
-    @State private var showSettings = false
 
     init(coordinator: MacAppCoordinator, history: UsageHistory, localDB: ClaudeLocalDBReader) {
         self.coordinator = coordinator
@@ -46,33 +55,21 @@ struct StatsDetailView: View {
     }
 
     var body: some View {
-        let use24HourTime = chartUse24HourTime
-
         VStack(spacing: 0) {
-            header
-            Divider().overlay(ClaudeTheme.progressTrack)
+            windowHeader
+            Divider().overlay(TempoTheme.progressTrack)
+            tabBar
+            Divider().overlay(TempoTheme.progressTrack)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let usage = coordinator.poller.latestUsage {
-                        TimelineView(.periodic(from: .now, by: 30)) { context in
-                            chartSection(use24HourTime: use24HourTime, usage: usage)
-                            Divider().overlay(ClaudeTheme.progressTrack)
-                            heatmapSection
-                            Divider().overlay(ClaudeTheme.progressTrack)
-                            insightsSection(usage: usage, now: context.date)
-                            Divider().overlay(ClaudeTheme.progressTrack)
-                            claudeCodeStatsSection
-                        }
-                    } else {
-                        loadingView
-                    }
-                }
+                tabContent
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 24)
             }
         }
-        .background(ClaudeTheme.background)
+        .background(TempoTheme.background)
         .preferredColorScheme(.dark)
-        .frame(minWidth: 850, minHeight: 750)
+        .frame(minWidth: 900, minHeight: 780)
         .alert("Unable to Share Chart", isPresented: $showShareError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -80,142 +77,662 @@ struct StatsDetailView: View {
         }
     }
 
-    // MARK: - Header
+    // MARK: - Window Header
 
-    private var header: some View {
+    private var windowHeader: some View {
         HStack {
-            Text("Usage History")
-                .font(.headline)
-                .foregroundStyle(ClaudeTheme.textPrimary)
+            Text("Tempo for Claude")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(TempoTheme.textPrimary)
             Spacer()
             if let email = coordinator.authState.accountEmail {
                 Text(email)
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-            Button {
-                showSettings.toggle()
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showSettings, arrowEdge: .top) {
-                settingsPopover
-                    .frame(width: 430)
-                    .padding(16)
-                    .background(ClaudeTheme.background)
-                    .preferredColorScheme(.dark)
+                    .font(.callout)
+                    .foregroundStyle(TempoTheme.textSecondary)
             }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 14)
     }
 
-    @ViewBuilder
-    private var settingsPopover: some View {
-        @Bindable var settings = coordinator.settings
+    // MARK: - Tab Bar
 
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Settings")
-                .font(.headline)
-                .foregroundStyle(ClaudeTheme.textPrimary)
-                .padding(.bottom, 14)
-
-            Divider().overlay(ClaudeTheme.progressTrack)
-
-            settingsToggleRow(
-                icon: "power",
-                title: "Launch at Login",
-                subtitle: coordinator.launchAtLoginManager.helperMessage ?? "Start app when you log in",
-                isOn: Binding(
-                    get: { coordinator.launchAtLoginManager.isEnabled },
-                    set: { coordinator.setLaunchAtLoginEnabled($0) }
-                ),
-                isDisabled: !coordinator.launchAtLoginManager.isSupportedInstallLocation
-            )
-
-            Divider().overlay(ClaudeTheme.progressTrack)
-
-            settingsToggleRow(
-                icon: "percent",
-                title: "Show Percentage in Menu Bar",
-                subtitle: "Display session usage percentage next to the icon",
-                isOn: $settings.showPercentageInMenuBar
-            )
-
-            Divider().overlay(ClaudeTheme.progressTrack)
-
-            settingsToggleRow(
-                icon: "clock.arrow.2.circlepath",
-                title: "24-Hour Time",
-                subtitle: chartUse24HourTime ? "Times shown as 14:30" : "Times shown as 02:30 PM",
-                isOn: Binding(
-                    get: { chartUse24HourTime },
-                    set: { newValue in
-                        chartUse24HourTime = newValue
-                        settings.use24HourTime = newValue
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(DetailTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedTab = tab
                     }
-                )
-            )
+                } label: {
+                    Text(tab.rawValue)
+                        .font(selectedTab == tab ? .subheadline.weight(.semibold) : .subheadline)
+                        .foregroundStyle(selectedTab == tab ? TempoTheme.accent : TempoTheme.textSecondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(
+                            selectedTab == tab
+                                ? TempoTheme.accentMuted
+                                : Color.clear,
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
 
-            Divider().overlay(ClaudeTheme.progressTrack)
+    // MARK: - Tab Content
 
-            settingsToggleRow(
-                icon: "dot.radiowaves.left.and.right",
-                title: "Service Status Monitoring",
-                subtitle: "Show Claude service status in the menu bar icon",
-                isOn: $settings.serviceStatusMonitoring
-            )
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .overview:
+            overviewTab
+        case .activity:
+            activityTab
+        case .insights:
+            insightsTab
+        case .preferences:
+            preferencesTab
+        }
+    }
 
-            Divider().overlay(ClaudeTheme.progressTrack)
+    // MARK: - Overview Tab
 
-            settingsToggleRow(
-                icon: "icloud",
-                title: "Sync History via iCloud",
-                subtitle: "Sync usage history across your Macs",
-                isOn: $settings.syncHistoryViaICloud
-            )
+    @ViewBuilder
+    private var overviewTab: some View {
+        if let usage = coordinator.poller.latestUsage {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                VStack(alignment: .leading, spacing: 20) {
+                    // Chart card
+                    chartCardContainer(use24HourTime: chartUse24HourTime, usage: usage)
+
+                    // 2-column card grid
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                        sessionCard(usage: usage, now: context.date)
+                        weeklyCard(usage: usage)
+                        if let extra = usage.extraUsage, extra.isEnabled {
+                            extraUsageCard(extra: extra)
+                        }
+                        burnStatusCard(usage: usage, now: context.date)
+                    }
+                }
+            }
+        } else {
+            loadingView
+        }
+    }
+
+    // Chart wrapped in card container
+    @ViewBuilder
+    private func chartCardContainer(use24HourTime: Bool, usage: UsageState) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            chartSection(use24HourTime: use24HourTime, usage: usage)
+        }
+        .padding(16)
+        .background(TempoTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    // Session card
+    private func sessionCard(usage: UsageState, now: Date) -> some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(TempoTheme.accent)
+                .frame(width: 4)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    UsageRingView(
+                        sessionProgress: usage.utilization5h,
+                        weeklyProgress: 0
+                    )
+                    .frame(width: 64, height: 64)
+                    Spacer()
+                }
+                Text("\(Int(usage.utilization5h * 100))%")
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text(TimeFormatPolicy.sessionResetString(
+                    resetAt: usage.resetAt5h,
+                    now: now,
+                    use24HourTime: chartUse24HourTime
+                ))
+                .font(.footnote)
+                .foregroundStyle(TempoTheme.textSecondary)
+                Text("Session")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            .padding(16)
+        }
+        .background(TempoTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    // Weekly card
+    private func weeklyCard(usage: UsageState) -> some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(TempoTheme.info)
+                .frame(width: 4)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    UsageRingView(
+                        sessionProgress: 0,
+                        weeklyProgress: usage.utilization7d
+                    )
+                    .frame(width: 64, height: 64)
+                    Spacer()
+                }
+                Text("\(Int(usage.utilization7d * 100))%")
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text(TimeFormatPolicy.weeklyResetString(
+                    resetAt: usage.resetAt7d,
+                    use24HourTime: chartUse24HourTime
+                ))
+                .font(.footnote)
+                .foregroundStyle(TempoTheme.textSecondary)
+                Text("Weekly")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            .padding(16)
+        }
+        .background(TempoTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    // Extra Usage card
+    private func extraUsageCard(extra: ExtraUsage) -> some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(TempoTheme.info)
+                .frame(width: 4)
+            VStack(alignment: .leading, spacing: 8) {
+                if let used = extra.usedCreditsAmount, let limit = extra.monthlyLimitAmount {
+                    Text("\(ExtraUsage.formatUSD(used)) / \(ExtraUsage.formatUSD(limit))")
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundStyle(TempoTheme.textPrimary)
+                    UsageProgressBar(
+                        progress: (extra.utilization ?? 0) / 100.0,
+                        color: TempoTheme.info
+                    )
+                }
+                Text("Resets monthly")
+                    .font(.footnote)
+                    .foregroundStyle(TempoTheme.textSecondary)
+                Text("Extra Usage")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            .padding(16)
+        }
+        .background(TempoTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    // Burn Status card
+    private func burnStatusCard(usage: UsageState, now: Date) -> some View {
+        let rate = burnRate(usage: usage, now: now)
+        let onTrack = rate < 20
+        let stripeColor: Color = onTrack ? TempoTheme.success : TempoTheme.warning
+
+        return HStack(spacing: 0) {
+            Rectangle()
+                .fill(stripeColor)
+                .frame(width: 4)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(stripeColor)
+                        .frame(width: 8, height: 8)
+                    Text(onTrack ? "On track" : "High burn")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(TempoTheme.textPrimary)
+                }
+                Text("\(String(format: "%.1f", rate))%/hr")
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text(etaText(usage: usage, rate: rate, now: now))
+                    .font(.footnote)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            .padding(16)
+        }
+        .background(TempoTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    // MARK: - Activity Tab
+
+    private var activityTab: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            // Heatmap
+            Text("Usage Activity")
+                .font(.headline)
+                .foregroundStyle(TempoTheme.textPrimary)
+
+            if !localDB.isAvailable {
+                unavailableView("Activity data unavailable")
+            } else {
+                ActivityHeatmapView(dailyActivity: localDB.dailyActivity)
+            }
+
+            Divider().overlay(TempoTheme.progressTrack)
+
+            // Claude Code section
+            claudeCodeStatsSection
+        }
+    }
+
+    // MARK: - Insights Tab
+
+    @ViewBuilder
+    private var insightsTab: some View {
+        if let usage = coordinator.poller.latestUsage {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                VStack(alignment: .leading, spacing: 24) {
+                    HStack(spacing: 16) {
+                        warningCard(usage: usage, now: context.date)
+                        subscriptionCard()
+                    }
+
+                    HStack(spacing: 16) {
+                        compactStatCard(icon: "info.circle", title: "Avg Session", value: avgSession, subtitle: "average usage", color: TempoTheme.critical)
+                        compactStatCard(icon: "calendar", title: "Avg Weekly", value: avgWeekly, subtitle: "average usage", color: TempoTheme.textPrimary)
+                        compactStatCard(icon: "exclamationmark.triangle", title: "High Usage", value: "\(highUsageDays)", subtitle: "days at 90%+", color: TempoTheme.critical)
+                        compactStatCard(icon: "arrow.up.right", title: "Peak", value: peakSession, subtitle: "highest session", color: TempoTheme.critical)
+                    }
+                }
+            }
+        } else {
+            loadingView
+        }
+    }
+
+    private func warningCard(usage: UsageState, now: Date) -> some View {
+        let rate = burnRate(usage: usage, now: now)
+        let onTrack = rate < 20
+        let remaining = 1.0 - usage.utilization5h
+        let hoursToLimit: Double? = (!onTrack && rate > 0 && remaining > 0) ? remaining * 100.0 / rate : nil
+
+        return HStack(alignment: .top, spacing: 16) {
+            Image(systemName: onTrack ? "checkmark.circle" : "clock.badge.exclamationmark")
+                .font(.system(size: 24))
+                .foregroundStyle(onTrack ? TempoTheme.success : TempoTheme.critical)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(onTrack ? "Session Usage Normal" : "Weekly Limit Warning")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(TempoTheme.textPrimary)
+
+                if let h = hoursToLimit {
+                    Text("At current rate, you'll hit your weekly limit in less than \(etaString(hours: h))")
+                        .font(.caption)
+                        .foregroundStyle(TempoTheme.critical)
+                } else if onTrack {
+                    Text("Your usage is well within normal limits.")
+                        .font(.caption)
+                        .foregroundStyle(TempoTheme.textSecondary)
+                } else {
+                    Text("You've reached your session limit.")
+                        .font(.caption)
+                        .foregroundStyle(TempoTheme.critical)
+                }
+
+                Text("Current rate: \(String(format: "%.1f", rate))%/hr")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func subscriptionCard() -> some View {
+        let pct = avgWeeklyValue
+        let message: String
+        if history.snapshots.isEmpty {
+            message = "Not enough data yet to evaluate subscription value."
+        } else if pct < 0.30 {
+            message = "Moderate usage. You have plenty of headroom in your weekly allocation."
+        } else if pct < 0.70 {
+            message = "Good utilization! You're making solid use of your subscription."
+        } else {
+            message = "High utilization. You're getting excellent value from your subscription."
+        }
+
+        return HStack(alignment: .top, spacing: 16) {
+            Image(systemName: "dollarsign.circle")
+                .font(.system(size: 24))
+                .foregroundStyle(TempoTheme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Subscription Value")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+                Text("Average weekly usage: \(avgWeekly)")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func compactStatCard(icon: String, title: String, value: String, subtitle: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+            Text(value)
+                .font(.title2.bold().monospacedDigit())
+                .foregroundStyle(color)
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(TempoTheme.textSecondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Preferences Tab
+
+    private var preferencesTab: some View {
+        HStack {
+            Spacer()
+            preferencesContent
+                .frame(maxWidth: 560)
+            Spacer()
         }
     }
 
     @ViewBuilder
-    private func settingsToggleRow(
+    private var preferencesContent: some View {
+        @Bindable var settings = coordinator.settings
+
+        VStack(alignment: .leading, spacing: 24) {
+            // General card
+            preferencesCard(title: "General") {
+                settingsRow(
+                    icon: "power",
+                    title: "Launch at Login",
+                    subtitle: coordinator.launchAtLoginManager.helperMessage ?? "Start app when you log in",
+                    toggle: Binding(
+                        get: { coordinator.launchAtLoginManager.isEnabled },
+                        set: { coordinator.setLaunchAtLoginEnabled($0) }
+                    ),
+                    isDisabled: !coordinator.launchAtLoginManager.isSupportedInstallLocation
+                )
+                Divider().overlay(TempoTheme.progressTrack)
+                settingsRow(
+                    icon: "percent",
+                    title: "Show Percentage in Menu Bar",
+                    subtitle: "Display session usage percentage next to the icon",
+                    toggle: $settings.showPercentageInMenuBar
+                )
+                Divider().overlay(TempoTheme.progressTrack)
+                settingsRow(
+                    icon: "clock.arrow.2.circlepath",
+                    title: "24-Hour Time",
+                    subtitle: chartUse24HourTime ? "Times shown as 14:30" : "Times shown as 02:30 PM",
+                    toggle: Binding(
+                        get: { chartUse24HourTime },
+                        set: { newValue in
+                            chartUse24HourTime = newValue
+                            settings.use24HourTime = newValue
+                        }
+                    )
+                )
+            }
+
+            // Data & Sync card
+            preferencesCard(title: "Data & Sync") {
+                settingsRow(
+                    icon: "icloud",
+                    title: "Sync History via iCloud",
+                    subtitle: "Sync usage history across your Macs",
+                    toggle: $settings.syncHistoryViaICloud
+                )
+                Divider().overlay(TempoTheme.progressTrack)
+                settingsRow(
+                    icon: "dot.radiowaves.left.and.right",
+                    title: "Service Status Monitoring",
+                    subtitle: "Show Claude service status in the menu bar",
+                    toggle: $settings.serviceStatusMonitoring
+                )
+            }
+
+            // Account card
+            preferencesCard(title: "Account") {
+                if let email = coordinator.authState.accountEmail {
+                    Text(email)
+                        .font(.callout)
+                        .foregroundStyle(TempoTheme.textSecondary)
+                        .padding(.vertical, 8)
+                }
+                Button("Sign Out") {
+                    coordinator.client.signOut()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(TempoTheme.critical)
+                .font(.subheadline.weight(.semibold))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func preferencesCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(TempoTheme.textSecondary)
+                .padding(.bottom, 10)
+
+            VStack(alignment: .leading, spacing: 0) {
+                content()
+            }
+            .padding(24)
+            .background(TempoTheme.card)
+            .clipShape(.rect(cornerRadius: 12))
+        }
+    }
+
+    @ViewBuilder
+    private func settingsRow(
         icon: String,
         title: String,
         subtitle: String,
-        isOn: Binding<Bool>,
+        toggle: Binding<Bool>,
         isDisabled: Bool = false
     ) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95))
+                .foregroundStyle(TempoTheme.accent)
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(isDisabled ? ClaudeTheme.textSecondary : ClaudeTheme.textPrimary)
+                    .foregroundStyle(isDisabled ? TempoTheme.textSecondary : TempoTheme.textPrimary)
                     .lineLimit(1)
                 Text(subtitle)
                     .font(.callout)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 12)
 
-            Toggle("", isOn: isOn)
+            Toggle("", isOn: toggle)
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .tint(ClaudeTheme.accent)
+                .tint(TempoTheme.accent)
                 .disabled(isDisabled)
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 2)
+    }
+
+    // MARK: - Claude Code Stats Section
+
+    private var claudeCodeStatsSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 8) {
+                Image(systemName: "terminal")
+                    .foregroundStyle(TempoTheme.textSecondary)
+                Text("Claude Code")
+                    .font(.headline)
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text("7 days")
+                    .font(.caption.bold())
+                    .foregroundStyle(TempoTheme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(TempoTheme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
+            }
+
+            if !localDB.isAvailable {
+                unavailableView("Claude Code history unavailable — local DB not found")
+            } else {
+                compactAggregateRow
+                projectTable
+            }
+        }
+    }
+
+    private var compactAggregateRow: some View {
+        let models = localDB.modelUsage.isEmpty ? localDB.modelTokens7d : localDB.modelUsage.mapValues { $0.inputTokens + $0.outputTokens }
+
+        let opus = models.filter { $0.key.contains("opus") }.values.reduce(0, +)
+        let sonnet = models.filter { $0.key.contains("sonnet") }.values.reduce(0, +)
+        let haiku = models.filter { $0.key.contains("haiku") }.values.reduce(0, +)
+
+        let msgCount = localDB.projectStats.reduce(0) { $0 + $1.messages7d }
+        let toolCount = localDB.projectStats.reduce(0) { $0 + $1.toolCalls7d }
+        let sessionCount = localDB.projectStats.reduce(0) { $0 + $1.sessions7d }
+        let costEquiv7d = localDB.projectStats.reduce(0.0) { $0 + $1.costEquiv7d }
+
+        return HStack(spacing: 0) {
+            statItem(icon: "bubble.left", label: "Messages", value: msgCount.formatted())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            statItem(icon: "wrench.and.screwdriver", label: "Tool Calls", value: toolCount.formatted())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            statItem(icon: "square.stack.3d.up", label: "Sessions", value: sessionCount.formatted())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            statItem(icon: "dollarsign.circle", label: "API Equiv.", value: costEquiv7d > 0 ? String(format: "$%.0f", costEquiv7d) : "—")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            statItem(icon: "network", label: "Subagents", value: localDB.totalSubagents.formatted())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if opus > 0 {
+                modelTokenVStack("Opus", value: formatTokens(opus), color: .purple)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if sonnet > 0 {
+                modelTokenVStack("Sonnet", value: formatTokens(sonnet), color: .orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if haiku > 0 {
+                modelTokenVStack("Haiku", value: formatTokens(haiku), color: .green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func statItem(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundStyle(TempoTheme.textSecondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(TempoTheme.textPrimary)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(TempoTheme.textSecondary)
+            }
+        }
+    }
+
+    private func modelTokenVStack(_ label: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption.bold())
+                .foregroundStyle(color)
+            Text(value)
+                .font(.subheadline.bold())
+                .foregroundStyle(TempoTheme.textPrimary)
+        }
+    }
+
+    private var projectTable: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Project")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Group {
+                    Text("Sessions").frame(width: 80, alignment: .trailing)
+                    Text("Messages").frame(width: 80, alignment: .trailing)
+                    Text("Tools").frame(width: 80, alignment: .trailing)
+                    Text("Tokens").frame(width: 80, alignment: .trailing)
+                    Text("Cost").frame(width: 80, alignment: .trailing)
+                }
+                .font(.caption)
+                .foregroundStyle(TempoTheme.textSecondary)
+            }
+            Divider().overlay(TempoTheme.progressTrack)
+
+            if localDB.projectStats.isEmpty {
+                Text("No project data available")
+                    .font(.caption)
+                    .foregroundStyle(TempoTheme.textSecondary)
+                    .padding(.top, 8)
+            } else {
+                ForEach(localDB.projectStats.filter { $0.hasActivity7d }) { stat in
+                    HStack {
+                        Text(stat.displayName)
+                            .font(.caption)
+                            .foregroundStyle(TempoTheme.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Group {
+                            Text(stat.sessions7d > 0 ? "\(stat.sessions7d)" : "—").frame(width: 80, alignment: .trailing)
+                            Text(stat.messages7d > 0 ? stat.messages7d.formatted() : "—").frame(width: 80, alignment: .trailing)
+                            Text(stat.toolCalls7d > 0 ? stat.toolCalls7d.formatted() : "—").frame(width: 80, alignment: .trailing)
+                            Text(stat.totalTokens7d > 0 ? formatTokens(stat.totalTokens7d) : "—").frame(width: 80, alignment: .trailing)
+                            Text(stat.costEquiv7d > 0 ? String(format: "$%.2f", stat.costEquiv7d) : "—").frame(width: 80, alignment: .trailing)
+                        }
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(TempoTheme.textPrimary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .padding(.top, 16)
     }
 
     // MARK: - Chart Section
@@ -242,7 +759,7 @@ struct StatsDetailView: View {
                 HStack(spacing: 10) {
                     Text("Usage Over Time")
                         .font(.headline)
-                        .foregroundStyle(ClaudeTheme.textPrimary)
+                        .foregroundStyle(TempoTheme.textPrimary)
 
                     if usage.isUsingExtraUsage {
                         extraUsageStatusChip(label: "Extra Usage Active")
@@ -263,7 +780,7 @@ struct StatsDetailView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .font(.caption)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
                 .frame(width: 80)
 
                 Button {
@@ -271,7 +788,7 @@ struct StatsDetailView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(canShareCurrentRange ? ClaudeTheme.textSecondary : ClaudeTheme.textSecondary.opacity(0.5))
+                        .foregroundStyle(canShareCurrentRange ? TempoTheme.textSecondary : TempoTheme.textSecondary.opacity(0.5))
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
@@ -287,7 +804,7 @@ struct StatsDetailView: View {
                         .labelsHidden()
                     Text("to")
                         .font(.caption)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+                        .foregroundStyle(TempoTheme.textSecondary)
                     DatePicker("", selection: $customEnd, in: customStart..., displayedComponents: .date)
                         .datePickerStyle(.compact)
                         .labelsHidden()
@@ -296,7 +813,7 @@ struct StatsDetailView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.caption)
-                            .foregroundStyle(ClaudeTheme.textSecondary)
+                            .foregroundStyle(TempoTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -337,7 +854,7 @@ struct StatsDetailView: View {
             if hasVisibleExtraUsage || usage.isUsingExtraUsage {
                 Text("Dashed blue and orange marks billable Extra Usage after the included limit.")
                     .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
             }
 
             if visibleSnapshots.isEmpty {
@@ -345,7 +862,7 @@ struct StatsDetailView: View {
                     Spacer()
                     Text("No history yet — check back after the next poll")
                         .font(.caption)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+                        .foregroundStyle(TempoTheme.textSecondary)
                     Spacer()
                 }
                 .padding(.vertical, 60)
@@ -359,7 +876,7 @@ struct StatsDetailView: View {
                                 yStart: .value("Extra Usage Min", 0),
                                 yEnd: .value("Extra Usage Max", 105)
                             )
-                            .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.10))
+                            .foregroundStyle(TempoTheme.info.opacity(0.10))
                         }
                     }
 
@@ -371,18 +888,16 @@ struct StatsDetailView: View {
                                 yStart: .value("Weekly Extra Usage Min", 0),
                                 yEnd: .value("Weekly Extra Usage Max", 105)
                             )
-                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.07))
+                            .foregroundStyle(TempoTheme.critical.opacity(0.07))
                         }
                     }
 
-                    // 80% warning threshold
                     RuleMark(y: .value("Warning", 80))
-                        .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.5))
+                        .foregroundStyle(TempoTheme.critical.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
-                    // "Now" vertical marker
                     RuleMark(x: .value("Now", Date()))
-                        .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.4))
+                        .foregroundStyle(TempoTheme.info.opacity(0.4))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
                     if showWeekly {
@@ -396,8 +911,8 @@ struct StatsDetailView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.16),
-                                        Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.02)
+                                        TempoTheme.critical.opacity(0.16),
+                                        TempoTheme.critical.opacity(0.02)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -420,8 +935,8 @@ struct StatsDetailView: View {
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
+                                            TempoTheme.info.opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
+                                            TempoTheme.info.opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -433,7 +948,7 @@ struct StatsDetailView: View {
                                     y: .value("Session", snap.utilization5h * 100),
                                     series: .value("Series", sessionSeriesKey)
                                 )
-                                .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95))
+                                .foregroundStyle(TempoTheme.info)
                                 .lineStyle(
                                     StrokeStyle(
                                         lineWidth: segment.isUsingExtraUsage ? 3 : 2.5,
@@ -450,7 +965,7 @@ struct StatsDetailView: View {
                                 x: .value("Time", snap.date),
                                 y: .value("Weekly", snap.utilization7d * 100)
                             )
-                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                            .foregroundStyle(TempoTheme.critical)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
                             .interpolationMethod(.catmullRom)
                         }
@@ -464,7 +979,7 @@ struct StatsDetailView: View {
                                         y: .value("Weekly Extra Usage", snap.utilization7d * 100),
                                         series: .value("Series", weeklySeriesKey)
                                     )
-                                    .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                                    .foregroundStyle(TempoTheme.critical)
                                     .lineStyle(StrokeStyle(lineWidth: 3, dash: [7, 5]))
                                     .interpolationMethod(.catmullRom)
                                 }
@@ -475,12 +990,12 @@ struct StatsDetailView: View {
                 .chartLegend(.hidden)
                 .chartYAxis {
                     AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                        AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
                                 Text("\(Int(v))%")
                                     .font(.caption)
-                                    .foregroundStyle(ClaudeTheme.textSecondary)
+                                    .foregroundStyle(TempoTheme.textSecondary)
                             }
                         }
                     }
@@ -489,45 +1004,45 @@ struct StatsDetailView: View {
                     let customSpan = customEnd.timeIntervalSince(customStart)
                     if timeRange == .hours24 {
                         AxisMarks(values: .stride(by: .hour, count: 3)) { value in
-                            AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                                .foregroundStyle(ClaudeTheme.textSecondary)
+                            .foregroundStyle(TempoTheme.textSecondary)
                         }
                     } else if timeRange == .hours5 {
                         AxisMarks(values: .stride(by: .hour)) { value in
-                            AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                                .foregroundStyle(ClaudeTheme.textSecondary)
+                            .foregroundStyle(TempoTheme.textSecondary)
                         }
                     } else if timeRange == .custom && customSpan <= 24 * 3600 {
                         AxisMarks(values: .stride(by: .hour, count: 3)) { value in
-                            AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                                .foregroundStyle(ClaudeTheme.textSecondary)
+                            .foregroundStyle(TempoTheme.textSecondary)
                         }
                     } else if timeRange == .custom && customSpan <= 7 * 24 * 3600 {
                         AxisMarks(values: .stride(by: .day)) { _ in
-                            AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                             AxisValueLabel(format: .dateTime.month().day())
-                                .foregroundStyle(ClaudeTheme.textSecondary)
+                                .foregroundStyle(TempoTheme.textSecondary)
                         }
                     } else {
                         AxisMarks(preset: .aligned, values: .automatic) { value in
-                            AxisGridLine().foregroundStyle(ClaudeTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
                             AxisValueLabel()
-                                .foregroundStyle(ClaudeTheme.textSecondary)
+                                .foregroundStyle(TempoTheme.textSecondary)
                         }
                     }
                 }
@@ -540,8 +1055,8 @@ struct StatsDetailView: View {
             // Legend
             HStack(spacing: 24) {
                 Spacer()
-                legendToggle(label: "Session", color: Color(red: 0.16, green: 0.50, blue: 0.95), isOn: $showSession)
-                legendToggle(label: "Weekly", color: Color(red: 0.8, green: 0.3, blue: 0.2), isOn: $showWeekly)
+                legendToggle(label: "Session", color: TempoTheme.info, isOn: $showSession)
+                legendToggle(label: "Weekly", color: TempoTheme.critical, isOn: $showWeekly)
                 if hasVisibleExtraUsage || usage.isUsingExtraUsage {
                     extraUsageLegendKey
                 }
@@ -552,22 +1067,19 @@ struct StatsDetailView: View {
                         Text("Export CSV")
                     }
                     .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 6).stroke(ClaudeTheme.progressTrack))
+                    .background(RoundedRectangle(cornerRadius: 6).stroke(TempoTheme.progressTrack))
                 }
                 .buttonStyle(.plain)
             }
 
             Text("Scroll to view earlier data")
                 .font(.caption2)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
                 .opacity(history.snapshots.count > 10 ? 1 : 0)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .padding(.bottom, 20)
     }
 
     private func chartHourAxisLabel(for date: Date, use24HourTime: Bool) -> String {
@@ -787,11 +1299,11 @@ struct StatsDetailView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: isOn.wrappedValue ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(isOn.wrappedValue ? color : ClaudeTheme.textSecondary)
+                    .foregroundStyle(isOn.wrappedValue ? color : TempoTheme.textSecondary)
                     .font(.system(size: 14))
                 Text(label)
                     .font(.subheadline)
-                    .foregroundStyle(ClaudeTheme.textPrimary)
+                    .foregroundStyle(TempoTheme.textPrimary)
             }
         }
         .buttonStyle(.plain)
@@ -801,30 +1313,30 @@ struct StatsDetailView: View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(
-                    Color(red: 0.16, green: 0.50, blue: 0.95),
+                    TempoTheme.info,
                     style: StrokeStyle(lineWidth: 2, dash: [6, 4])
                 )
                 .frame(width: 20, height: 8)
             Text("Extra Usage")
                 .font(.subheadline)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
         }
     }
 
     private func extraUsageStatusChip(label: String) -> some View {
         Text(label)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(Color(red: 0.72, green: 0.86, blue: 1.0))
+            .foregroundStyle(TempoTheme.accentLight)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(
                 Capsule(style: .continuous)
-                    .fill(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.18))
+                    .fill(TempoTheme.accent.opacity(0.18))
             )
             .overlay(
                 Capsule(style: .continuous)
                     .stroke(
-                        Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.55),
+                        TempoTheme.accent.opacity(0.55),
                         style: StrokeStyle(lineWidth: 1, dash: [5, 3])
                     )
             )
@@ -838,323 +1350,16 @@ struct StatsDetailView: View {
         !visibleSnapshotsForCurrentRange.isEmpty
     }
 
-    // MARK: - Heatmap Section
-
-    private var heatmapSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Usage Activity")
-                .font(.headline)
-                .foregroundStyle(ClaudeTheme.textPrimary)
-
-            if !localDB.isAvailable {
-                unavailableView("Activity data unavailable")
-            } else {
-                ActivityHeatmapView(dailyActivity: localDB.dailyActivity)
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
-    }
-
-    // MARK: - Insights Section
-
-    private func insightsSection(usage: UsageState, now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Insights")
-                .font(.headline)
-                .foregroundStyle(ClaudeTheme.textPrimary)
-
-            HStack(spacing: 16) {
-                warningCard(usage: usage, now: now)
-                subscriptionCard()
-            }
-
-            HStack(spacing: 16) {
-                compactStatCard(icon: "info.circle", title: "Avg Session", value: avgSession, subtitle: "average usage", color: Color(red: 0.8, green: 0.3, blue: 0.2))
-                compactStatCard(icon: "calendar", title: "Avg Weekly", value: avgWeekly, subtitle: "average usage", color: ClaudeTheme.textPrimary)
-                compactStatCard(icon: "exclamationmark.triangle", title: "High Usage", value: "\(highUsageDays)", subtitle: "days at 90%+", color: Color(red: 0.8, green: 0.3, blue: 0.2))
-                compactStatCard(icon: "arrow.up.right", title: "Peak", value: peakSession, subtitle: "highest session", color: Color(red: 0.8, green: 0.3, blue: 0.2))
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
-    }
-
-    private func warningCard(usage: UsageState, now: Date) -> some View {
-        let rate = burnRate(usage: usage, now: now)
-        let onTrack = rate < 20
-        let remaining = 1.0 - usage.utilization5h
-        let hoursToLimit: Double? = (!onTrack && rate > 0 && remaining > 0) ? remaining * 100.0 / rate : nil
-
-        return HStack(alignment: .top, spacing: 16) {
-            Image(systemName: onTrack ? "checkmark.circle" : "clock.badge.exclamationmark")
-                .font(.system(size: 24))
-                .foregroundStyle(onTrack ? Color.green : Color(red: 0.8, green: 0.3, blue: 0.2))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(onTrack ? "Session Usage Normal" : "Weekly Limit Warning")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
-
-                if let h = hoursToLimit {
-                    Text("At current rate, you'll hit your weekly limit in less than \(etaString(hours: h))")
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
-                } else if onTrack {
-                    Text("Your usage is well within normal limits.")
-                        .font(.caption)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                } else {
-                    Text("You've reached your session limit.")
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
-                }
-
-                Text("Current rate: \(String(format: "%.1f", rate))%/hr")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // No explicit background block in UI? The user screenshots show an empty/no background or very subtle surface.
-        // I will stick to ClaudeTheme.background for these specific ones, to look like just text over background
-    }
-
-    private func subscriptionCard() -> some View {
-        let pct = avgWeeklyValue
-        let message: String
-        if history.snapshots.isEmpty {
-            message = "Not enough data yet to evaluate subscription value."
-        } else if pct < 0.30 {
-            message = "Moderate usage. You have plenty of headroom in your weekly allocation."
-        } else if pct < 0.70 {
-            message = "Good utilization! You're making solid use of your subscription."
-        } else {
-            message = "High utilization. You're getting excellent value from your subscription."
-        }
-
-        return HStack(alignment: .top, spacing: 16) {
-            Image(systemName: "dollarsign.circle")
-                .font(.system(size: 24))
-                .foregroundStyle(ClaudeTheme.textSecondary)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Subscription Value")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                Text("Average weekly usage: \(avgWeekly)")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func compactStatCard(icon: String, title: String, value: String, subtitle: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(color)
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-            Text(value)
-                .font(.title2.bold().monospacedDigit())
-                .foregroundStyle(color)
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(ClaudeTheme.textSecondary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Claude Code Stats Section
-
-    private var claudeCodeStatsSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(spacing: 8) {
-                Image(systemName: "terminal")
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                Text("Claude Code")
-                    .font(.headline)
-                    .foregroundStyle(ClaudeTheme.textPrimary)
-                Text("7 days")
-                    .font(.caption.bold())
-                    .foregroundStyle(ClaudeTheme.accent)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(ClaudeTheme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
-            }
-
-            if !localDB.isAvailable {
-                unavailableView("Claude Code history unavailable — local DB not found")
-            } else {
-                compactAggregateRow
-                projectTable
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
-    }
-
-    private var compactAggregateRow: some View {
-        let models = localDB.modelUsage.isEmpty ? localDB.modelTokens7d : localDB.modelUsage.mapValues { $0.inputTokens + $0.outputTokens }
-        
-        let opus = models.filter { $0.key.contains("opus") }.values.reduce(0, +)
-        let sonnet = models.filter { $0.key.contains("sonnet") }.values.reduce(0, +)
-        let haiku = models.filter { $0.key.contains("haiku") }.values.reduce(0, +)
-
-        let msgCount = localDB.projectStats.reduce(0) { $0 + $1.messages7d }
-        let toolCount = localDB.projectStats.reduce(0) { $0 + $1.toolCalls7d }
-        let sessionCount = localDB.projectStats.reduce(0) { $0 + $1.sessions7d }
-        let costEquiv7d = localDB.projectStats.reduce(0.0) { $0 + $1.costEquiv7d }
-
-        return HStack(spacing: 0) {
-            statItem(icon: "bubble.left", label: "Messages", value: msgCount.formatted())
-                .frame(maxWidth: .infinity, alignment: .leading)
-            statItem(icon: "wrench.and.screwdriver", label: "Tool Calls", value: toolCount.formatted())
-                .frame(maxWidth: .infinity, alignment: .leading)
-            statItem(icon: "square.stack.3d.up", label: "Sessions", value: sessionCount.formatted())
-                .frame(maxWidth: .infinity, alignment: .leading)
-            statItem(icon: "dollarsign.circle", label: "API Equiv.", value: costEquiv7d > 0 ? String(format: "$%.0f", costEquiv7d) : "—")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            statItem(icon: "network", label: "Subagents", value: localDB.totalSubagents.formatted())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if opus > 0 { 
-                modelTokenVStack("Opus", value: formatTokens(opus), color: Color.purple)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if sonnet > 0 { 
-                modelTokenVStack("Sonnet", value: formatTokens(sonnet), color: Color.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if haiku > 0 { 
-                modelTokenVStack("Haiku", value: formatTokens(haiku), color: Color.green)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(.vertical, 8)
-    }
-
-    private func computeCostEquiv() -> String {
-        // Simple heuristic for Anthropic API equivalent costs
-        // Sonnet 3.5: $3/M in, $15/M out.  Opus 3: $15/M in, $75/M out. Haiku 3.5: $1/M in, $5/M out.
-        var totalCost: Double = 0.0
-        for (model, usage) in localDB.modelUsage {
-            let isIn = Double(usage.inputTokens) / 1_000_000.0
-            let isOut = Double(usage.outputTokens) / 1_000_000.0
-            
-            if model.contains("opus") {
-                totalCost += (isIn * 15.0) + (isOut * 75.0)
-            } else if model.contains("sonnet") {
-                totalCost += (isIn * 3.0) + (isOut * 15.0)
-            } else if model.contains("haiku") {
-                totalCost += (isIn * 1.0) + (isOut * 5.0)
-            }
-        }
-        if totalCost == 0.0 { return "—" }
-        return String(format: "$%.0f", totalCost)
-    }
-
-    private func statItem(icon: String, label: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(ClaudeTheme.textSecondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-        }
-    }
-
-    private func modelTokenVStack(_ label: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption.bold())
-                .foregroundStyle(color)
-            Text(value)
-                .font(.subheadline.bold())
-                .foregroundStyle(ClaudeTheme.textPrimary)
-        }
-    }
-
-    private var projectTable: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Project")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Group {
-                    Text("Sessions").frame(width: 80, alignment: .trailing)
-                    Text("Messages").frame(width: 80, alignment: .trailing)
-                    Text("Tools").frame(width: 80, alignment: .trailing)
-                    Text("Tokens").frame(width: 80, alignment: .trailing)
-                    Text("Cost").frame(width: 80, alignment: .trailing)
-                }
-                .font(.caption)
-                .foregroundStyle(ClaudeTheme.textSecondary)
-            }
-            Divider().overlay(ClaudeTheme.progressTrack)
-
-            if localDB.projectStats.isEmpty {
-                Text("No project data available")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                    .padding(.top, 8)
-            } else {
-                ForEach(localDB.projectStats.filter { $0.hasActivity7d }) { stat in
-                    HStack {
-                        Text(stat.displayName)
-                            .font(.caption)
-                            .foregroundStyle(ClaudeTheme.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Group {
-                            Text(stat.sessions7d > 0 ? "\(stat.sessions7d)" : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.messages7d > 0 ? stat.messages7d.formatted() : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.toolCalls7d > 0 ? stat.toolCalls7d.formatted() : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.totalTokens7d > 0 ? formatTokens(stat.totalTokens7d) : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.costEquiv7d > 0 ? String(format: "$%.2f", stat.costEquiv7d) : "—").frame(width: 80, alignment: .trailing)
-                        }
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(ClaudeTheme.textPrimary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-        }
-        .padding(.top, 16)
-    }
-
     // MARK: - Loading / Unavailable Views
 
     private var loadingView: some View {
         VStack(spacing: 10) {
             ProgressView()
                 .controlSize(.regular)
-                .tint(ClaudeTheme.textSecondary)
+                .tint(TempoTheme.textSecondary)
             Text("Fetching usage…")
                 .font(.caption)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(40)
@@ -1164,16 +1369,29 @@ struct StatsDetailView: View {
     private func unavailableView(_ reason: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
             Text(reason)
                 .font(.caption)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
             Spacer()
         }
         .padding(.vertical, 8)
     }
 
     // MARK: - Helpers
+
+    private func etaText(usage: UsageState, rate: Double, now: Date) -> String {
+        let remaining = 1.0 - usage.utilization5h
+        if rate > 0 && remaining > 0 && rate >= 20 {
+            let hours = remaining * 100.0 / rate
+            return "Limit in ~\(etaString(hours: hours))"
+        }
+        return TimeFormatPolicy.sessionResetString(
+            resetAt: usage.resetAt5h,
+            now: now,
+            use24HourTime: chartUse24HourTime
+        )
+    }
 
     private func formatTokens(_ n: Int) -> String {
         if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
@@ -1195,6 +1413,35 @@ struct StatsDetailView: View {
         let hoursUntilReset = max(0, usage.resetAt5h.timeIntervalSince(now) / 3600)
         let hoursElapsed = max(0.1, 5.0 - hoursUntilReset)
         return usage.utilization5h * 100.0 / hoursElapsed
+    }
+
+    private var avgSession: String {
+        let values = history.snapshots.map(\.utilization5h)
+        guard !values.isEmpty else { return "—" }
+        return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
+    }
+
+    private var avgWeekly: String {
+        let values = history.snapshots.map(\.utilization7d)
+        guard !values.isEmpty else { return "—" }
+        return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
+    }
+
+    private var avgWeeklyValue: Double {
+        let values = history.snapshots.map(\.utilization7d)
+        guard !values.isEmpty else { return 0 }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    private var peakSession: String {
+        guard let peak = history.snapshots.map(\.utilization5h).max() else { return "—" }
+        return "\(Int(peak * 100))%"
+    }
+
+    private var highUsageDays: Int {
+        let cal = Calendar.current
+        let grouped = Dictionary(grouping: history.snapshots) { cal.startOfDay(for: $0.date) }
+        return grouped.values.filter { ($0.map(\.utilization5h).max() ?? 0) >= 0.9 }.count
     }
 
     private func exportCSV() {
@@ -1268,7 +1515,7 @@ struct StatsDetailView: View {
             throw ShareError.encodingFailed
         }
 
-        let filename = "claude-usage-stats-\(Int(exportDate.timeIntervalSince1970)).png"
+        let filename = "tempo-usage-stats-\(Int(exportDate.timeIntervalSince1970)).png"
         let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
 
         do {
@@ -1292,36 +1539,6 @@ struct StatsDetailView: View {
             return
         }
         picker.show(relativeTo: windowView.bounds, of: windowView, preferredEdge: .minY)
-    }
-
-    // Derived stats
-    private var avgSession: String {
-        let values = history.snapshots.map(\.utilization5h)
-        guard !values.isEmpty else { return "—" }
-        return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
-    }
-
-    private var avgWeekly: String {
-        let values = history.snapshots.map(\.utilization7d)
-        guard !values.isEmpty else { return "—" }
-        return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
-    }
-
-    private var avgWeeklyValue: Double {
-        let values = history.snapshots.map(\.utilization7d)
-        guard !values.isEmpty else { return 0 }
-        return values.reduce(0, +) / Double(values.count)
-    }
-
-    private var peakSession: String {
-        guard let peak = history.snapshots.map(\.utilization5h).max() else { return "—" }
-        return "\(Int(peak * 100))%"
-    }
-
-    private var highUsageDays: Int {
-        let cal = Calendar.current
-        let grouped = Dictionary(grouping: history.snapshots) { cal.startOfDay(for: $0.date) }
-        return grouped.values.filter { ($0.map(\.utilization5h).max() ?? 0) >= 0.9 }.count
     }
 
     private enum ShareError: Error {
@@ -1369,27 +1586,24 @@ struct ActivityHeatmapView: View {
         let monthLabels = generateMonthLabels()
 
         HStack(alignment: .top, spacing: 8) {
-            // Day Labels
             VStack(spacing: gap) {
-                Text(" ").frame(height: cellSize) // For Month row height
-                Text("Mon").font(.system(size: 9)).foregroundStyle(ClaudeTheme.textSecondary).frame(height: cellSize * 2 + gap)
-                Text("Wed").font(.system(size: 9)).foregroundStyle(ClaudeTheme.textSecondary).frame(height: cellSize * 2 + gap)
-                Text("Fri").font(.system(size: 9)).foregroundStyle(ClaudeTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text(" ").frame(height: cellSize)
+                Text("Mon").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text("Wed").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text("Fri").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
             }
             .padding(.top, 14)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Month labels
                 HStack(spacing: 0) {
-                    ForEach(monthLabels, id: \.text) { label in
+                    ForEach(monthLabels) { label in
                         Text(label.text)
                             .font(.system(size: 10))
-                            .foregroundStyle(ClaudeTheme.textSecondary)
+                            .foregroundStyle(TempoTheme.textSecondary)
                             .frame(width: CGFloat(label.weeksSpan) * (cellSize + gap), alignment: .leading)
                     }
                 }
 
-                // Grid
                 HStack(alignment: .top, spacing: gap) {
                     ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
                         VStack(spacing: gap) {
@@ -1399,7 +1613,7 @@ struct ActivityHeatmapView: View {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(count == 0
                                         ? Color.white.opacity(0.05)
-                                        : Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.3 + intensity * 0.7))
+                                        : TempoTheme.accent.opacity(0.3 + intensity * 0.7))
                                     .frame(width: cellSize, height: cellSize)
                             }
                         }
@@ -1409,7 +1623,8 @@ struct ActivityHeatmapView: View {
         }
     }
 
-    struct MonthLabel {
+    struct MonthLabel: Identifiable {
+        let id: Int
         let text: String
         let weeksSpan: Int
     }
@@ -1428,7 +1643,7 @@ struct ActivityHeatmapView: View {
             let month = cal.component(.month, from: firstDay)
             if month != currentMonth {
                 if currentSpan > 0 {
-                    labels.append(MonthLabel(text: currentMonthName, weeksSpan: currentSpan))
+                    labels.append(MonthLabel(id: labels.count, text: currentMonthName, weeksSpan: currentSpan))
                 }
                 currentMonth = month
                 currentMonthName = formatter.string(from: firstDay)
@@ -1438,7 +1653,7 @@ struct ActivityHeatmapView: View {
             }
         }
         if currentSpan > 0 {
-            labels.append(MonthLabel(text: currentMonthName, weeksSpan: currentSpan))
+            labels.append(MonthLabel(id: labels.count, text: currentMonthName, weeksSpan: currentSpan))
         }
         return labels
     }
@@ -1449,6 +1664,8 @@ struct ActivityHeatmapView: View {
         return f
     }()
 }
+
+// MARK: - StatsShareCardView (export only — retains its own visual style)
 
 private struct StatsShareCardView: View {
     let timeRangeLabel: String
@@ -1506,7 +1723,7 @@ private struct StatsShareCardView: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Usage For Claude")
+                        Text("Tempo for Claude")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundStyle(.white)
                     }
@@ -1529,7 +1746,7 @@ private struct StatsShareCardView: View {
                                 yStart: .value("Extra Usage Min", 0),
                                 yEnd: .value("Extra Usage Max", 105)
                             )
-                            .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95).opacity(0.10))
+                            .foregroundStyle(Color(red: 0.486, green: 0.302, blue: 0.929).opacity(0.10))
                         }
 
                         ForEach(weeklyExtraUsageWindows) { window in
@@ -1539,11 +1756,11 @@ private struct StatsShareCardView: View {
                                 yStart: .value("Weekly Extra Usage Min", 0),
                                 yEnd: .value("Weekly Extra Usage Max", 105)
                             )
-                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.07))
+                            .foregroundStyle(Color(red: 0.937, green: 0.325, blue: 0.388).opacity(0.07))
                         }
 
                         RuleMark(y: .value("Warning", 80))
-                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.45))
+                            .foregroundStyle(Color(red: 0.937, green: 0.325, blue: 0.388).opacity(0.45))
                             .lineStyle(StrokeStyle(lineWidth: 2, dash: [8, 6]))
 
                         ForEach(snapshots) { snap in
@@ -1556,8 +1773,8 @@ private struct StatsShareCardView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.16),
-                                        Color(red: 0.8, green: 0.3, blue: 0.2).opacity(0.02)
+                                        Color(red: 0.937, green: 0.325, blue: 0.388).opacity(0.16),
+                                        Color(red: 0.937, green: 0.325, blue: 0.388).opacity(0.02)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -1578,8 +1795,8 @@ private struct StatsShareCardView: View {
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
-                                            Color(red: 0.16, green: 0.50, blue: 0.95).opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
+                                            Color(red: 0.302, green: 0.600, blue: 0.878).opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
+                                            Color(red: 0.302, green: 0.600, blue: 0.878).opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -1591,7 +1808,7 @@ private struct StatsShareCardView: View {
                                     y: .value("Session", snap.utilization5h * 100),
                                     series: .value("Series", sessionSeriesKey)
                                 )
-                                .foregroundStyle(Color(red: 0.16, green: 0.50, blue: 0.95))
+                                .foregroundStyle(Color(red: 0.302, green: 0.600, blue: 0.878))
                                 .lineStyle(
                                     StrokeStyle(
                                         lineWidth: segment.isUsingExtraUsage ? 4.5 : 4,
@@ -1607,7 +1824,7 @@ private struct StatsShareCardView: View {
                                 x: .value("Time", snap.date),
                                 y: .value("Weekly", snap.utilization7d * 100)
                             )
-                            .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                            .foregroundStyle(Color(red: 0.937, green: 0.325, blue: 0.388))
                             .lineStyle(StrokeStyle(lineWidth: 4))
                             .interpolationMethod(.catmullRom)
                         }
@@ -1621,7 +1838,7 @@ private struct StatsShareCardView: View {
                                         y: .value("Weekly Extra Usage", snap.utilization7d * 100),
                                         series: .value("Series", weeklySeriesKey)
                                     )
-                                    .foregroundStyle(Color(red: 0.8, green: 0.3, blue: 0.2))
+                                    .foregroundStyle(Color(red: 0.937, green: 0.325, blue: 0.388))
                                     .lineStyle(StrokeStyle(lineWidth: 4.5, dash: [10, 6]))
                                     .interpolationMethod(.catmullRom)
                                 }
@@ -1654,11 +1871,11 @@ private struct StatsShareCardView: View {
                     .frame(height: 320)
 
                     HStack(spacing: 26) {
-                        legendItem(color: Color(red: 0.16, green: 0.50, blue: 0.95), title: "Session")
+                        legendItem(color: Color(red: 0.302, green: 0.600, blue: 0.878), title: "Session")
                         if snapshots.contains(where: { $0.isUsingExtraUsage }) {
-                            legendItem(color: Color(red: 0.16, green: 0.50, blue: 0.95), title: "Extra Usage", dashed: true)
+                            legendItem(color: Color(red: 0.302, green: 0.600, blue: 0.878), title: "Extra Usage", dashed: true)
                         }
-                        legendItem(color: Color(red: 0.8, green: 0.3, blue: 0.2), title: "Weekly")
+                        legendItem(color: Color(red: 0.937, green: 0.325, blue: 0.388), title: "Weekly")
                     }
                 }
                 .padding(.horizontal, 24)
@@ -1676,7 +1893,7 @@ private struct StatsShareCardView: View {
                 }
 
                 HStack {
-                    Text("Usage For Claude")
+                    Text("Tempo for Claude")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(.white)
                     Spacer()
@@ -1688,7 +1905,7 @@ private struct StatsShareCardView: View {
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(red: 0.78, green: 0.42, blue: 0.31))
+                        .fill(Color(red: 0.486, green: 0.302, blue: 0.929))
                 )
             }
             .padding(28)
@@ -1850,7 +2067,7 @@ private struct StatsShareCardView: View {
                 .foregroundStyle(Color.white.opacity(0.72))
             Text(value)
                 .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(Color(red: 0.95, green: 0.56, blue: 0.44))
+                .foregroundStyle(Color(red: 0.608, green: 0.463, blue: 0.976))
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1862,6 +2079,8 @@ private struct StatsShareCardView: View {
         )
     }
 }
+
+// MARK: - ShareAnchorView
 
 private struct ShareAnchorView: NSViewRepresentable {
     @Binding var anchorView: NSView?

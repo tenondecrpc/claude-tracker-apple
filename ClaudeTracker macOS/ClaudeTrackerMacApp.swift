@@ -97,12 +97,12 @@ struct ClaudeTrackerMacApp: App {
     var body: some Scene {
         MenuBarExtra {
             MacMenuView(coordinator: coordinator)
-                .frame(width: 310)
+                .frame(width: 320)
                 .task {
                     await coordinator.onLaunch()
                 }
         } label: {
-            DynamicMenuBarIconView(
+            MenuBarIconView(
                 usage: coordinator.poller.latestUsage,
                 isAuthenticated: coordinator.authState.isAuthenticated,
                 showPercentage: coordinator.settings.showPercentageInMenuBar
@@ -116,8 +116,8 @@ struct ClaudeTrackerMacApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window("Stats", id: "stats-detail") {
-            StatsDetailView(coordinator: coordinator, history: coordinator.history, localDB: coordinator.localDB)
+        Window("Tempo for Claude", id: "stats-detail") {
+            DetailWindowView(coordinator: coordinator, history: coordinator.history, localDB: coordinator.localDB)
         }
         .windowResizability(.contentSize)
     }

@@ -13,7 +13,7 @@ struct WelcomeWindowView: View {
 
     var body: some View {
         ZStack {
-            ClaudeTheme.background.ignoresSafeArea()
+            TempoTheme.background.ignoresSafeArea()
 
             if coordinator.authState.isAwaitingCode {
                 codeEntryView
@@ -34,13 +34,13 @@ struct WelcomeWindowView: View {
     private var welcomeView: some View {
         VStack(spacing: 28) {
             VStack(spacing: 10) {
-                Text("Welcome to Usage for Claude")
+                Text("Welcome to Tempo for Claude")
                     .font(.largeTitle.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
+                    .foregroundStyle(TempoTheme.textPrimary)
                     .multilineTextAlignment(.center)
-                Text("Track your Claude Usage for Claude right from your menu bar or widget.")
+                Text("Track your Claude usage right from your menu bar.")
                     .font(.body)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 8)
@@ -87,8 +87,8 @@ struct WelcomeWindowView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .background(ClaudeTheme.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .background(TempoTheme.accent)
+                .clipShape(.rect(cornerRadius: 10))
                 .disabled(isRestoringSession)
 
                 Button {
@@ -96,16 +96,16 @@ struct WelcomeWindowView: View {
                 } label: {
                     Label("Sign in with Email", systemImage: "envelope")
                         .font(.headline)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+                        .foregroundStyle(TempoTheme.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.plain)
-                .background(ClaudeTheme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .background(TempoTheme.surface)
+                .clipShape(.rect(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(ClaudeTheme.progressTrack, lineWidth: 1)
+                        .stroke(TempoTheme.progressTrack, lineWidth: 1)
                 )
                 .disabled(true)
                 .help("Coming Soon")
@@ -122,15 +122,15 @@ struct WelcomeWindowView: View {
 
             Image(systemName: "doc.on.clipboard")
                 .font(.system(size: 48))
-                .foregroundStyle(ClaudeTheme.accent)
+                .foregroundStyle(TempoTheme.accent)
 
             VStack(spacing: 8) {
                 Text("Paste Authorization Code")
                     .font(.title2.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
+                    .foregroundStyle(TempoTheme.textPrimary)
                 Text("After authorizing in the browser, paste the code shown on screen.")
                     .font(.body)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -141,7 +141,7 @@ struct WelcomeWindowView: View {
             if let error = signInError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(ClaudeTheme.destructive)
+                    .foregroundStyle(TempoTheme.destructive)
                     .multilineTextAlignment(.center)
             }
 
@@ -152,7 +152,7 @@ struct WelcomeWindowView: View {
                     coordinator.authState.isAwaitingCode = false
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(ClaudeTheme.textSecondary)
+                .foregroundStyle(TempoTheme.textSecondary)
 
                 Button("Submit") {
                     Task { await submitCode() }
@@ -161,8 +161,8 @@ struct WelcomeWindowView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(pastedCode.isEmpty || isSubmitting ? ClaudeTheme.progressTrack : ClaudeTheme.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .background(pastedCode.isEmpty || isSubmitting ? TempoTheme.progressTrack : TempoTheme.accent)
+                .clipShape(.rect(cornerRadius: 8))
                 .disabled(pastedCode.isEmpty || isSubmitting)
             }
 
@@ -171,86 +171,51 @@ struct WelcomeWindowView: View {
         .padding(40)
     }
 
-    // MARK: - Menu Bar Preview Mockup
+    // MARK: - Menu Bar Preview (ring gauge mockup)
 
     private var menuBarPreview: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Text("Usage for Claude")
+                Text("Tempo")
                     .font(.subheadline.bold())
-                    .foregroundStyle(ClaudeTheme.textPrimary)
+                    .foregroundStyle(TempoTheme.textPrimary)
                 Spacer()
-                Image(systemName: "questionmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
-                Image(systemName: "message")
-                    .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                Circle()
+                    .fill(TempoTheme.success)
+                    .frame(width: 8, height: 8)
+                    .opacity(0.4)
                 Image(systemName: "arrow.clockwise")
                     .font(.caption)
-                    .foregroundStyle(ClaudeTheme.textSecondary)
+                    .foregroundStyle(TempoTheme.textSecondary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
-            Divider().overlay(ClaudeTheme.progressTrack)
+            Divider().overlay(TempoTheme.progressTrack)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Group {
-                    Text("Current Session")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                    Text("49%")
-                        .font(.title3.bold())
-                        .foregroundStyle(ClaudeTheme.textPrimary)
-                    UsageProgressBar(progress: 0.49)
-                    Text("Resets in 13 min (20:00)")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                }
+            VStack(alignment: .leading, spacing: 10) {
+                // Ring preview
+                UsageRingView(
+                    sessionProgress: 0.49,
+                    weeklyProgress: 0.04,
+                    centerLabel: "49%"
+                )
+                .frame(width: 100, height: 100)
+                .frame(maxWidth: .infinity)
 
-                Spacer().frame(height: 2)
-
-                Group {
-                    Text("Weekly Limit")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                    Text("4%")
-                        .font(.title3.bold())
-                        .foregroundStyle(ClaudeTheme.textPrimary)
-                    UsageProgressBar(progress: 0.04)
-                    Text("Resets Sun, 15:00")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                }
-
-                Spacer().frame(height: 2)
-
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.caption2)
-                        .foregroundStyle(.green)
-                    Text("On track · 10.5%/hr")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                }
-
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
-                    Text("just now")
-                        .font(.caption2)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+                // Pill chips
+                HStack(spacing: 6) {
+                    SessionPillChip(value: "49%", label: "Resets in 13 min", accentColor: TempoTheme.accent)
+                    SessionPillChip(value: "4%", label: "Resets Sun", accentColor: TempoTheme.info)
                 }
             }
             .padding(14)
         }
-        .background(ClaudeTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(TempoTheme.surface)
+        .clipShape(.rect(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(ClaudeTheme.progressTrack, lineWidth: 1)
+                .stroke(TempoTheme.progressTrack, lineWidth: 1)
         )
     }
 

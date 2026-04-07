@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Settings surface exposes persistent toggles for enabled features
 The macOS app SHALL provide a settings surface that exposes the following toggles with persisted values:
@@ -8,9 +8,11 @@ The macOS app SHALL provide a settings surface that exposes the following toggle
 - Service Status Monitoring
 - Sync History via iCloud
 
-#### Scenario: User opens settings surface
-- **WHEN** the user opens settings from the stats/history experience
-- **THEN** the settings UI displays all five toggles with their current persisted values
+The settings surface SHALL be the Preferences tab of the stats detail window, organized in grouped card sections. The previous gear-icon floating popover is removed.
+
+#### Scenario: User opens settings via Preferences tab
+- **WHEN** the user opens the stats detail window and clicks the "Preferences" tab
+- **THEN** the settings UI displays all five toggles with their current persisted values, organized in grouped cards
 
 #### Scenario: Toggle values persist across relaunch
 - **WHEN** the user changes one or more settings and relaunches the app
@@ -28,15 +30,15 @@ The system SHALL manage launch-at-login state through `SMAppService.mainApp` whe
 - **THEN** the Launch at Login toggle is disabled and the UI shows helper text explaining the constraint
 
 ### Requirement: Show Percentage preference controls menu bar percentage label
-The system SHALL conditionally show the percentage text next to the menu bar icon according to the Show Percentage preference.
+The system SHALL conditionally show the percentage text next to the menu bar pulse dot icon according to the Show Percentage preference.
 
 #### Scenario: Percentage enabled
 - **WHEN** Show Percentage in Menu Bar is enabled and authenticated usage is available
-- **THEN** the menu bar item includes the numeric session percentage text next to the icon
+- **THEN** the menu bar item includes the numeric session percentage text next to the pulse dot icon
 
 #### Scenario: Percentage disabled
 - **WHEN** Show Percentage in Menu Bar is disabled
-- **THEN** the menu bar item shows icon-only presentation and omits percentage text
+- **THEN** the menu bar item shows the pulse dot icon only and omits percentage text
 
 ### Requirement: 24-Hour Time preference controls reset-time formatting
 The system SHALL format reset-time labels according to the 24-Hour Time preference.

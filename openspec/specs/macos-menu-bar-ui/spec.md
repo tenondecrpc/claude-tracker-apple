@@ -1,18 +1,18 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Popover header with title and action icons
-The menu bar popover SHALL display a header row containing "Usage for Claude" as a bold title on the left, and help (questionmark.circle) and chat (message) icon buttons on the right. A horizontal divider SHALL separate the header from the content below.
+The menu bar popover SHALL display a header row containing "Tempo" as a bold title on the left, a service status dot (8pt circle, color per `ServiceHealthState`), and a refresh icon button on the right. The help (questionmark.circle) and chat (message) icon buttons SHALL be removed. A horizontal divider SHALL separate the header from the content below.
 
 #### Scenario: Header displayed in all states
 - **WHEN** the menu bar popover is opened
-- **THEN** the header row with "Usage for Claude" title and icon buttons is visible at the top
+- **THEN** the header row with "Tempo" title, a status dot, and refresh icon is visible at the top
 
 ### Requirement: Not-signed-in state shows lock and sign-in button
-When the user is not authenticated, the popover SHALL display a centered blue lock icon (lock.fill), "Not Signed In" as a bold headline, a subtitle "Sign in to view your Claude Usage", and a full-width coral (#E07850) "Sign In" button. A "Quit" text button in red SHALL appear at the bottom below a divider.
+When the user is not authenticated, the popover SHALL display a centered lock icon using `TempoTheme.info` color (`lock.fill`), "Not Signed In" as a bold headline, a subtitle "Sign in to view your usage", and a full-width violet (`TempoTheme.accent`) "Sign In" button. A "Quit" text button in `TempoTheme.critical` SHALL appear at the bottom below a divider.
 
 #### Scenario: Unauthenticated popover appearance
 - **WHEN** the popover opens and the user is not authenticated
-- **THEN** the lock icon, "Not Signed In" headline, subtitle, coral "Sign In" button, and "Quit" link are displayed
+- **THEN** the lock icon, "Not Signed In" headline, subtitle, violet "Sign In" button, and "Quit" link are displayed
 
 #### Scenario: Sign In button opens Welcome window
 - **WHEN** the user clicks the "Sign In" button
@@ -23,57 +23,44 @@ The menu bar item SHALL respect the Show Percentage in Menu Bar preference for a
 
 #### Scenario: Percentage text is shown
 - **WHEN** the user has Show Percentage in Menu Bar enabled and usage data is available
-- **THEN** the menu bar item displays the numeric session percentage next to the icon
+- **THEN** the menu bar item displays the numeric session percentage next to the pulse dot icon
 
 #### Scenario: Percentage text is hidden
 - **WHEN** the user disables Show Percentage in Menu Bar
-- **THEN** the menu bar item displays icon-only usage state and no percentage text
+- **THEN** the menu bar item displays the pulse dot icon only with no percentage text
 
-### Requirement: Authenticated state shows usage dashboard
-When the user is authenticated and usage data is available, the popover SHALL display:
-1. "Current Session" label with session utilization as a bold percentage and a coral progress bar, with a reset subtitle formatted according to time-format preference (`24h` or `12h`)
-2. "Weekly Limit" label with weekly utilization as a bold percentage and a progress bar, with reset day/time subtitle formatted according to time-format preference
-3. A status line showing burn-rate assessment ("On track" or "High burn") with rate in %/hr
-4. Last-polled relative timestamp
+### Requirement: Authenticated state shows ring dashboard
+When the user is authenticated and usage data is available, the popover SHALL display the ring gauge dashboard as defined in the `popover-ring-dashboard` spec. The previous flat VStack layout with `UsageProgressBar` blocks for session, weekly, and extra usage SHALL be replaced entirely.
 
-#### Scenario: Session usage displayed in 24-hour format
-- **WHEN** the poller reports `utilization5h = 0.49`, `resetAt5h` is 13 minutes from now, and 24-hour time is enabled
-- **THEN** the popover shows "Current Session", "49%", a progress bar at 49%, and a subtitle like "Resets in 13 min (20:00)"
-
-#### Scenario: Session usage displayed in 12-hour format
-- **WHEN** the poller reports `utilization5h = 0.49`, `resetAt5h` is 13 minutes from now, and 24-hour time is disabled
-- **THEN** the popover shows a subtitle like "Resets in 13 min (8:00 PM)"
-
-#### Scenario: Weekly usage displayed
-- **WHEN** the poller reports `utilization7d = 0.04` and `resetAt7d` is next Sunday at 15:00
-- **THEN** the popover shows "Weekly Limit", "4%", a progress bar at 4%, and a weekly reset subtitle using the selected time format
+#### Scenario: Ring dashboard renders with live data
+- **WHEN** the poller reports `utilization5h = 0.42` and `utilization7d = 0.18`
+- **THEN** the popover shows concentric rings at 42% (inner, violet) and 18% (outer, blue), center label "42", session chip "42% · Xh Ym", weekly chip "18%"
 
 #### Scenario: Last polled timestamp shown
 - **WHEN** the last successful poll was 2 minutes ago
-- **THEN** the popover shows "2 min ago" as the last-polled time
+- **THEN** the popover shows "2 min ago" as the last-polled time (in `.footnote` in `TempoTheme.textSecondary`)
 
 ### Requirement: Promo indicator is shown only when double-limit promotion is active
-When usage payload decoding indicates an active double-limit promotion, the authenticated popover SHALL show a `2x promo active` indicator above Current Session and aligned to the right.
+When usage payload decoding indicates an active double-limit promotion, the authenticated popover SHALL show a `2x promo active` indicator above the ring gauge, right-aligned, using `TempoTheme.warning` accent color.
 
 #### Scenario: Promotion active
 - **WHEN** `isDoubleLimitPromoActive` is `true` in the latest usage state
-- **THEN** the popover shows `2x promo active` above Current Session, right-aligned
+- **THEN** the popover shows `2x promo active` above the ring gauge, right-aligned
 
 #### Scenario: Promotion inactive or unknown
 - **WHEN** `isDoubleLimitPromoActive` is `false` or `nil`
 - **THEN** the promo indicator is not shown
 
 ### Requirement: Authenticated popover has action menu items
-Below the usage data, after a divider, the popover SHALL show:
-- "Usage History" with a chart.line.uptrend icon that opens the stats detail window
-- "Logout" with an arrow.right.square icon that triggers sign-out
-- "Quit" text in coral at the bottom
+Below the burn rate card, after a divider, the popover SHALL show:
+- "Usage History" button that opens the stats detail window
+- "Logout" button (with account email in `.footnote` below)
+- A divider
+- "Quit" text in `TempoTheme.critical` at the bottom
 
-Settings controls (Launch at Login, Show Percentage, 24-Hour Time, Service Status Monitoring, Sync History via iCloud) SHALL be available from the stats/history settings surface rather than inline in this action list.
-
-#### Scenario: Usage history opens stats detail with settings access
+#### Scenario: Usage history opens stats detail
 - **WHEN** the user clicks "Usage History"
-- **THEN** the stats detail window opens and provides access to the settings surface
+- **THEN** the stats detail window opens
 
 #### Scenario: Logout clears auth and returns to sign-in state
 - **WHEN** the user clicks "Logout"
@@ -90,33 +77,27 @@ When the user clicks "Logout", the app SHALL:
 3. Stop the usage poller
 4. Transition the popover immediately to the not-signed-in state
 
-Credentials on disk are NOT deleted — they can be reused on the next explicit sign-in. No confirmation dialog is required.
-
-The `requiresExplicitSignIn` flag ensures that reopening the menu bar popover (which triggers `onLaunch`) does NOT auto-restore the session. Only an explicit user action ("Sign in with Claude Code") resets this flag and allows credential reuse.
+Credentials on disk are NOT deleted. No confirmation dialog is required.
 
 #### Scenario: Poller stops on logout
 - **WHEN** the user clicks "Logout"
-- **THEN** the 15-minute usage polling timer is cancelled and no further API requests are made
+- **THEN** the 30-minute usage polling timer is cancelled and no further API requests are made
 
 #### Scenario: Popover switches to not-signed-in immediately
 - **WHEN** the user clicks "Logout"
-- **THEN** the popover transitions to the not-signed-in state (lock icon + "Sign In" button) without app restart
+- **THEN** the popover transitions to the not-signed-in state without app restart
 
 #### Scenario: Reopening menu bar after logout stays signed out
 - **WHEN** the user clicks "Logout" and then reopens the menu bar popover
 - **THEN** the popover shows "Not Signed In" — no auto-restore occurs even if credentials exist on disk
-
-#### Scenario: Logging out while Welcome window is open
-- **WHEN** the Welcome window is open and the user triggers logout from another path
-- **THEN** the Welcome window remains open (no automatic close — user is already in the sign-in flow)
 
 #### Scenario: Credentials reusable via explicit sign-in
 - **WHEN** the user clicks "Sign in with Claude Code" after a logout
 - **THEN** `requiresExplicitSignIn` is reset to `false`, the app checks stored credentials, and restores the session without opening the browser
 
 ### Requirement: Dark theme applied to popover
-The popover content SHALL use a dark color scheme (`.preferredColorScheme(.dark)`) with ClaudeTheme colors for background, text, and accents.
+The popover content SHALL use a dark color scheme (`.preferredColorScheme(.dark)`) with `TempoTheme` colors for background, text, and accents. `TempoTheme.background` (#19191C) SHALL be the popover window background.
 
 #### Scenario: Popover uses dark appearance
 - **WHEN** the popover opens regardless of system appearance setting
-- **THEN** the popover renders with dark navy background and light text
+- **THEN** the popover renders with dark charcoal background (#19191C) and light text

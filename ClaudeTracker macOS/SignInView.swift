@@ -7,7 +7,7 @@ struct MacMenuView: View {
 
     var body: some View {
         if coordinator.authState.isAuthenticated {
-            AuthenticatedMenuView(coordinator: coordinator)
+            DashboardPopoverView(coordinator: coordinator)
         } else {
             NotSignedInMenuView(coordinator: coordinator)
         }
@@ -27,22 +27,22 @@ struct NotSignedInMenuView: View {
             VStack(spacing: 16) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(ClaudeTheme.lockIcon)
+                    .foregroundStyle(TempoTheme.info)
                     .padding(.top, 24)
 
                 VStack(spacing: 6) {
                     Text("Not Signed In")
                         .font(.headline)
-                        .foregroundStyle(ClaudeTheme.textPrimary)
-                    Text("Sign in to view your Claude Usage")
+                        .foregroundStyle(TempoTheme.textPrimary)
+                    Text("Sign in to view your usage")
                         .font(.caption)
-                        .foregroundStyle(ClaudeTheme.textSecondary)
+                        .foregroundStyle(TempoTheme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 16)
 
                 Button {
-                    NSApp.keyWindow?.close()   // cierra el panel antes de abrir la welcome
+                    NSApp.keyWindow?.close()
                     openWindow(id: "welcome")
                 } label: {
                     Text("Sign In")
@@ -53,28 +53,28 @@ struct NotSignedInMenuView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .background(ClaudeTheme.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .background(TempoTheme.accent)
+                .clipShape(.rect(cornerRadius: 10))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
             }
 
             Divider()
-                .overlay(ClaudeTheme.progressTrack)
+                .overlay(TempoTheme.progressTrack)
 
             HStack {
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(ClaudeTheme.destructive)
+                .foregroundStyle(TempoTheme.critical)
                 .font(.caption)
                 Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(ClaudeTheme.background)
+        .background(TempoTheme.background)
         .preferredColorScheme(.dark)
     }
 }
