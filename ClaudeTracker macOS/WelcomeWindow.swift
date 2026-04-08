@@ -134,9 +134,22 @@ struct WelcomeWindowView: View {
                     .multilineTextAlignment(.center)
             }
 
-            TextField("code#state", text: $pastedCode)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 400)
+            HStack(spacing: 8) {
+                TextField("code#state", text: $pastedCode)
+                    .textFieldStyle(.roundedBorder)
+
+                Button {
+                    if let string = NSPasteboard.general.string(forType: .string) {
+                        pastedCode = string
+                    }
+                } label: {
+                    Image(systemName: "clipboard")
+                        .foregroundStyle(TempoTheme.accent)
+                }
+                .buttonStyle(.plain)
+                .help("Paste from clipboard")
+            }
+            .frame(maxWidth: 400)
 
             if let error = signInError {
                 Text(error)
