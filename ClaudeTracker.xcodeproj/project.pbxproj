@@ -38,7 +38,7 @@
 		7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7731EEF82F76AD3900C84A59 /* ClaudeTracker Watch Extension.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker Watch Extension.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7765DF702F78226F00A8EEB8 /* TempoForClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TempoForClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -119,7 +119,7 @@
 				7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */,
 				7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */,
 				7731EEF82F76AD3900C84A59 /* ClaudeTracker Watch Extension.app */,
-				7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */,
+				7765DF702F78226F00A8EEB8 /* TempoForClaude.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -218,7 +218,7 @@
 			packageProductDependencies = (
 			);
 			productName = "ClaudeTracker macOS";
-			productReference = 7765DF702F78226F00A8EEB8 /* ClaudeTracker macOS.app */;
+			productReference = 7765DF702F78226F00A8EEB8 /* TempoForClaude.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

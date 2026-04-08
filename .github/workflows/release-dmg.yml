@@ -37,7 +37,7 @@ jobs:
       - name: Extract app from archive
         run: |
           mkdir -p ${{ runner.temp }}/app
-          cp -R "${{ runner.temp }}/Tempo.xcarchive/Products/Applications/ClaudeTracker macOS.app" \
+          cp -R "${{ runner.temp }}/Tempo.xcarchive/Products/Applications/TempoForClaude.app" \
             "${{ runner.temp }}/app/Tempo.app"
 
       - name: Create DMG
