@@ -91,24 +91,6 @@ struct WelcomeWindowView: View {
                 .clipShape(.rect(cornerRadius: 10))
                 .disabled(isRestoringSession)
 
-                Button {
-                    // Placeholder — Coming Soon
-                } label: {
-                    Label("Sign in with Email", systemImage: "envelope")
-                        .font(.headline)
-                        .foregroundStyle(TempoTheme.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.plain)
-                .background(TempoTheme.surface)
-                .clipShape(.rect(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(TempoTheme.progressTrack, lineWidth: 1)
-                )
-                .disabled(true)
-                .help("Coming Soon")
             }
         }
         .padding(40)
