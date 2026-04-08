@@ -1,4 +1,4 @@
-# Tempo — Claude Code Usage Tracker
+# Tempo for Claude
 
 A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends.
 
