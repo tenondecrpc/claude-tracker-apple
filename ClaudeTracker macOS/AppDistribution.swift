@@ -5,15 +5,12 @@ enum AppDistribution {
     case directDownload
 
     static var current: AppDistribution {
-        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
-            return .directDownload
-        }
+        let receiptURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("_MASReceipt", isDirectory: true)
+            .appendingPathComponent("receipt", isDirectory: false)
 
-        let receiptPath = receiptURL.path
-        let hasAppStoreReceiptPath = receiptPath.contains("/_MASReceipt/")
-        let hasReceiptFile = FileManager.default.fileExists(atPath: receiptPath)
-
-        return hasAppStoreReceiptPath && hasReceiptFile ? .appStore : .directDownload
+        return FileManager.default.fileExists(atPath: receiptURL.path) ? .appStore : .directDownload
     }
 
     var supportsInAppUpdates: Bool {

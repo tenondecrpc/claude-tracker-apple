@@ -4,26 +4,52 @@ import WatchConnectivity
 // MARK: - WatchRelayManager (Tasks 5.1–5.4)
 
 final class WatchRelayManager: NSObject {
+    private let session = WCSession.default
+    private var didAssignDelegate = false
+    private var pendingState: UsageState?
+    private var hasRequestedActivation = false
 
     // MARK: - Activation (Task 5.2)
 
     func activate() {
         guard WCSession.isSupported() else { return }
-        WCSession.default.delegate = self
-        WCSession.default.activate()
+        ensureDelegate()
+        guard session.activationState != .activated else { return }
+        guard !hasRequestedActivation else { return }
+        hasRequestedActivation = true
+        session.activate()
+    }
+
+    private func ensureDelegate() {
+        if !didAssignDelegate {
+            session.delegate = self
+            didAssignDelegate = true
+        }
     }
 
     // MARK: - Send UsageState (Task 5.4)
 
     func send(_ state: UsageState) {
-        guard WCSession.default.activationState == .activated else { return }
+        ensureDelegate()
+        guard session.activationState == .activated else {
+            pendingState = state
+            activate()
+            return
+        }
+
         // Cancel stale UsageState transfers before enqueueing a new one.
         // This prevents a burst of outdated snapshots when the watch reconnects.
         // NOTE: Never cancel SessionInfo transfers — every session event must be delivered.
-        WCSession.default.outstandingUserInfoTransfers
+        session.outstandingUserInfoTransfers
             .filter { ($0.userInfo["type"] as? String) == "UsageState" }
             .forEach { $0.cancel() }
-        WCSession.default.transferUserInfo(state.toUserInfo())
+        session.transferUserInfo(state.toUserInfo())
+    }
+
+    private func flushPendingStateIfPossible() {
+        guard let state = pendingState else { return }
+        pendingState = nil
+        send(state)
     }
 }
 
@@ -36,7 +62,9 @@ extension WatchRelayManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        // Activation complete; any queued transferUserInfo calls can now proceed.
+        hasRequestedActivation = (activationState == .activated)
+        // Activation complete; send latest pending state if we have one.
+        flushPendingStateIfPossible()
     }
 
     func sessionDidBecomeInactive(_ session: WCSession) {
@@ -44,8 +72,8 @@ extension WatchRelayManager: WCSessionDelegate {
     }
 
     func sessionDidDeactivate(_ session: WCSession) {
-        // Re-activate for the newly paired watch.
-        WCSession.default.activate()
+        // Wait for the next outbound payload to trigger activation.
+        hasRequestedActivation = false
     }
 }
 

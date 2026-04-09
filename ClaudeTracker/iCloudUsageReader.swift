@@ -2,22 +2,26 @@ import Foundation
 
 // MARK: - iCloudUsageReader
 
-/// Watches `ClaudeTracker/usage.json` in the shared iCloud ubiquity container via
-/// `NSMetadataQuery`. When the file changes, decodes `UsageState` and fires `onUsageState`.
-///
-/// The macOS ClaudeTracker app is responsible for writing this file after each usage poll.
+/// Watches `usage.json` and `usage-history.json` in the shared iCloud ubiquity container.
+/// Decoded usage state drives dashboard/watch relay; history drives activity charts.
 @Observable
 @MainActor
 final class iCloudUsageReader: NSObject {
 
     enum SyncStatus {
-        case waiting   // No file detected yet
-        case syncing   // File present and fresh (< 30 min old)
-        case stale(since: Date)  // File older than 30 minutes
+        case waiting
+        case syncing
+        case stale(since: Date)
     }
 
     var syncStatus: SyncStatus = .waiting
+    var historySyncStatus: SyncStatus = .waiting
     var lastReceivedAt: Date?
+    var lastHistoryReceivedAt: Date?
+    var latestUsage: UsageState?
+    var historySnapshots: [UsageHistorySnapshot] = []
+    var usageReadError: String?
+    var historyReadError: String?
 
     var onUsageState: ((UsageState) -> Void)?
 
@@ -28,11 +32,36 @@ final class iCloudUsageReader: NSObject {
     func start() {
         stop()
 
+        #if targetEnvironment(simulator)
+        // Simulator cannot reliably access ubiquity containers; avoid metadata query setup
+        // because it triggers CoreServices CRIT container URL logs.
+        latestUsage = nil
+        historySnapshots = []
+        lastReceivedAt = nil
+        lastHistoryReceivedAt = nil
+        syncStatus = .waiting
+        historySyncStatus = .waiting
+        let message = Self.unavailableMessage
+        usageReadError = message
+        historyReadError = message
+        return
+        #endif
+
         let q = NSMetadataQuery()
         q.predicate = NSPredicate(
-            format: "%K == %@", NSMetadataItemFSNameKey, "usage.json"
+            format: "%K IN %@", NSMetadataItemFSNameKey, ["usage.json", "usage-history.json"]
         )
-        q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+        let documentsScope = Self.iCloudDocumentsScope()
+        if let documentsScope {
+            q.searchScopes = [documentsScope]
+            usageReadError = nil
+            historyReadError = nil
+        } else {
+            q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+            let message = Self.unavailableMessage
+            usageReadError = message
+            historyReadError = message
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -49,6 +78,7 @@ final class iCloudUsageReader: NSObject {
 
         q.start()
         query = q
+        bootstrapReadFromKnownPaths(documentsScope: documentsScope)
     }
 
     func stop() {
@@ -67,6 +97,40 @@ final class iCloudUsageReader: NSObject {
     /// Restart the query to pick up iCloud changes that occurred while backgrounded (Task 5.3).
     func restart() {
         start()
+    }
+
+    private static var unavailableMessage: String {
+        #if targetEnvironment(simulator)
+        "iCloud container is unavailable in iOS Simulator. Use a physical device for live iCloud sync."
+        #else
+        "iCloud container unavailable (\(ClaudeTrackerICloud.containerIdentifier)). Check iCloud Drive + app container entitlement."
+        #endif
+    }
+
+    private static func iCloudDocumentsScope() -> URL? {
+        #if targetEnvironment(simulator)
+        // Avoid simulator-only CoreServices CRIT logs for container URL lookups.
+        return nil
+        #else
+        FileManager.default
+            .url(forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier)?
+            .appendingPathComponent("Documents", isDirectory: true)
+        #endif
+    }
+
+    private func bootstrapReadFromKnownPaths(documentsScope: URL?) {
+        guard let documentsScope else { return }
+        let trackerDirectory = documentsScope.appendingPathComponent("ClaudeTracker", isDirectory: true)
+
+        let usageURL = trackerDirectory.appendingPathComponent("usage.json")
+        if FileManager.default.fileExists(atPath: usageURL.path) {
+            readUsageFile(at: usageURL)
+        }
+
+        let historyURL = trackerDirectory.appendingPathComponent("usage-history.json")
+        if FileManager.default.fileExists(atPath: historyURL.path) {
+            readHistoryFile(at: historyURL)
+        }
     }
 
     // MARK: - Query Callbacks
@@ -90,54 +154,131 @@ final class iCloudUsageReader: NSObject {
             guard let item = q.result(at: i) as? NSMetadataItem,
                   let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { continue }
 
-            let downloadStatus = item.value(
-                forAttribute: NSMetadataUbiquitousItemDownloadingStatusKey
-            ) as? String
+            let fileName = (item.value(forAttribute: NSMetadataItemFSNameKey) as? String) ?? url.lastPathComponent
+            guard fileName == "usage.json" || fileName == "usage-history.json" else { continue }
+            guard ensureDownloaded(item: item, url: url) else { continue }
 
-            if downloadStatus != NSMetadataUbiquitousItemDownloadingStatusCurrent {
-                // File not yet downloaded — request it and wait for next update (Task 5.2)
-                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
-                continue
+            if fileName == "usage.json" {
+                readUsageFile(at: url)
+            } else {
+                readHistoryFile(at: url)
             }
-
-            readFile(at: url)
         }
+
+        refreshStaleness()
+    }
+
+    private func ensureDownloaded(item: NSMetadataItem, url: URL) -> Bool {
+        let downloadStatus = item.value(
+            forAttribute: NSMetadataUbiquitousItemDownloadingStatusKey
+        ) as? String
+
+        if downloadStatus != NSMetadataUbiquitousItemDownloadingStatusCurrent {
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            return false
+        }
+        return true
     }
 
     // MARK: - File Read
 
-    private func readFile(at url: URL) {
-        Task.detached { [weak self] in
-            var coordinatorError: NSError?
-            var decoded: UsageState?
+    private func readUsageFile(at url: URL) {
+        Task { [weak self] in
+            let result: Result<UsageState, Error> = Self.decodeFile(at: url, as: UsageState.self)
 
-            NSFileCoordinator().coordinate(readingItemAt: url, error: &coordinatorError) { coordURL in
-                guard let data = try? Data(contentsOf: coordURL) else { return }
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                decoded = try? decoder.decode(UsageState.self, from: data)
-            }
-
-            guard let state = decoded else { return }
-
-            await MainActor.run { [weak self] in
-                guard let self else { return }
+            guard let self else { return }
+            switch result {
+            case .success(let state):
+                self.latestUsage = state
                 self.lastReceivedAt = Date()
+                self.usageReadError = nil
                 self.syncStatus = .syncing
                 self.onUsageState?(state)
+            case .failure(let error):
+                self.usageReadError = error.localizedDescription
+                self.refreshStaleness()
             }
         }
     }
 
+    private func readHistoryFile(at url: URL) {
+        Task { [weak self] in
+            let result: Result<[UsageHistorySnapshot], Error> = Self.decodeFile(at: url, as: [UsageHistorySnapshot].self)
+
+            guard let self else { return }
+            switch result {
+            case .success(let snapshots):
+                self.historySnapshots = snapshots.sorted { $0.date < $1.date }
+                self.lastHistoryReceivedAt = Date()
+                self.historyReadError = nil
+                self.historySyncStatus = .syncing
+            case .failure(let error):
+                self.historyReadError = error.localizedDescription
+                self.refreshStaleness()
+            }
+        }
+    }
+
+    private static func decodeFile<T: Decodable>(at url: URL, as type: T.Type) -> Result<T, Error> {
+        do {
+            let data = try coordinatedRead(at: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return .success(try decoder.decode(type, from: data))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private static func coordinatedRead(at url: URL) throws -> Data {
+        var coordinationError: NSError?
+        var readError: Error?
+        var payload: Data?
+
+        NSFileCoordinator().coordinate(readingItemAt: url, error: &coordinationError) { coordinatedURL in
+            do {
+                payload = try Data(contentsOf: coordinatedURL)
+            } catch {
+                readError = error
+            }
+        }
+
+        if let coordinationError {
+            throw coordinationError
+        }
+        if let readError {
+            throw readError
+        }
+        guard let payload else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        return payload
+    }
+
     // MARK: - Staleness Check
 
-    /// Call periodically (e.g., from a timer or `TimelineView`) to refresh staleness status.
-    func refreshStaleness() {
-        guard let receivedAt = lastReceivedAt else {
-            syncStatus = .waiting
-            return
+    var combinedSyncStatus: SyncStatus {
+        switch (syncStatus, historySyncStatus) {
+        case (.stale(let date), _), (_, .stale(let date)):
+            return .stale(since: date)
+        case (.syncing, _), (_, .syncing):
+            return .syncing
+        default:
+            return .waiting
         }
-        let age = Date().timeIntervalSince(receivedAt)
-        syncStatus = age > 30 * 60 ? .stale(since: receivedAt) : .syncing
+    }
+
+    /// Call periodically to refresh both usage and history staleness flags.
+    func refreshStaleness(now: Date = Date()) {
+        syncStatus = Self.mapFreshness(ICloudFreshnessPolicy.status(lastReceivedAt: lastReceivedAt, now: now))
+        historySyncStatus = Self.mapFreshness(ICloudFreshnessPolicy.status(lastReceivedAt: lastHistoryReceivedAt, now: now))
+    }
+
+    private static func mapFreshness(_ freshness: ICloudDataFreshness) -> SyncStatus {
+        switch freshness {
+        case .waiting: return .waiting
+        case .syncing: return .syncing
+        case .stale(let date): return .stale(since: date)
+        }
     }
 }

@@ -145,7 +145,9 @@ final class UsageHistory {
     }
 
     private static func iCloudMirrorURL() -> URL {
-        if let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil) {
+        if let containerURL = FileManager.default.url(
+            forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier
+        ) {
             return containerURL.appendingPathComponent("Documents/ClaudeTracker/usage-history.json")
         }
         return FileManager.default.homeDirectoryForCurrentUser

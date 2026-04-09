@@ -19,15 +19,15 @@ When the user is not authenticated, the popover SHALL display a centered lock ic
 - **THEN** the Welcome window opens as a separate centered macOS window
 
 ### Requirement: Menu bar percentage text visibility follows user preference
-The menu bar item SHALL respect the Show Percentage in Menu Bar preference for authenticated usage display.
+The menu bar item SHALL support five independent label segment toggles: `show5hPercentage`, `show5hResetTime`, `show7dPercentage`, `show7dResetTime`, and `showExtraUsageCredits`. The existing `showPercentageInMenuBar` preference is replaced by `show5hPercentage`. All toggles default to off. Segments render according to the `menubar-rich-label` spec.
 
-#### Scenario: Percentage text is shown
-- **WHEN** the user has Show Percentage in Menu Bar enabled and usage data is available
-- **THEN** the menu bar item displays the numeric session percentage next to the pulse dot icon
+#### Scenario: No segments enabled (default)
+- **WHEN** all label segment toggles are false
+- **THEN** the menu bar item displays the pulse dot icon only with no text
 
-#### Scenario: Percentage text is hidden
-- **WHEN** the user disables Show Percentage in Menu Bar
-- **THEN** the menu bar item displays the pulse dot icon only with no percentage text
+#### Scenario: Mixed segments enabled
+- **WHEN** `show5hPercentage` and `show7dPercentage` are true but reset time toggles are false
+- **THEN** the menu bar label shows `42% · 18%`
 
 ### Requirement: Authenticated state shows ring dashboard
 When the user is authenticated and usage data is available, the popover SHALL display the ring gauge dashboard as defined in the `popover-ring-dashboard` spec. The previous flat VStack layout with `UsageProgressBar` blocks for session, weekly, and extra usage SHALL be replaced entirely.

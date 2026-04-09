@@ -193,7 +193,9 @@ final class UsagePoller {
     /// Returns the ClaudeTracker directory in the shared iCloud ubiquity container.
     /// Falls back to the generic iCloud Drive path when the container URL is unavailable.
     private func iCloudTrackerDirectory() -> URL {
-        if let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil) {
+        if let containerURL = FileManager.default.url(
+            forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier
+        ) {
             return containerURL.appendingPathComponent("Documents/ClaudeTracker")
         }
         // Fallback: generic iCloud Drive path (macOS only, requires iCloud Drive to be enabled)

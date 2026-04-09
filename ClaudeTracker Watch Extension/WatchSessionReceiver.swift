@@ -9,8 +9,9 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         self.store = store
         super.init()
         guard WCSession.isSupported() else { return }
-        WCSession.default.delegate = self
-        WCSession.default.activate()
+        let session = WCSession.default
+        session.delegate = self
+        session.activate()
     }
 
     // MARK: - WCSessionDelegate
@@ -20,10 +21,18 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        // Activation complete; ready to receive transferUserInfo payloads.
+        // No-op. We rely on didReceiveUserInfo updates.
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        applyUserInfo(userInfo)
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        // No-op — reachability changes don't affect transferUserInfo delivery.
+    }
+
+    private func applyUserInfo(_ userInfo: [String: Any]) {
         guard (userInfo["type"] as? String) == "UsageState" else { return }
         guard
             let utilization5h = userInfo["utilization5h"] as? Double,
@@ -46,9 +55,5 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         Task { @MainActor in
             self.store.apply(state)
         }
-    }
-
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        // No-op — reachability changes don't affect transferUserInfo delivery.
     }
 }

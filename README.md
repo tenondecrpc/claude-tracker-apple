@@ -32,15 +32,16 @@ A macOS menu bar app that tracks your Claude Code token and credit usage in real
 
 - Shows your **5-hour and 7-day utilization** as a ring gauge in the macOS menu bar
 - Displays **burn rate**, extra usage, and next reset time at a glance
+- Includes an iOS companion UI (**Dashboard**, **Activity**, **Settings**) styled with Claude tokens
 - Delivers a **haptic alert on your Apple Watch** the moment a Claude Code session ends
-- Relays live usage data from macOS → iCloud → iOS → Apple Watch
+- Relays live usage data from macOS → iCloud (`usage.json`, `usage-history.json`) → iOS → Apple Watch
 
 ## Architecture
 
 ```
 macOS menu bar app (OAuth + poll every 15 min)
-  └─ iCloud Drive (usage.json / latest.json)
-      └─ iOS companion (NSMetadataQuery)
+  └─ iCloud Drive (usage.json / usage-history.json)
+      └─ iOS companion (NSMetadataQuery + dashboard/activity/settings)
           └─ WatchConnectivity (transferUserInfo)
               └─ watchOS haptic + usage ring
 ```

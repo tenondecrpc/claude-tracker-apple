@@ -1,87 +1,60 @@
 import SwiftUI
 
-// MARK: - ContentView
+private enum IOSTab: Hashable {
+    case dashboard
+    case activity
+    case settings
+}
 
 struct ContentView: View {
-    let iCloudReader: iCloudUsageReader
+    let store: IOSAppStore
+    @State private var selectedTab: IOSTab = .dashboard
+    @State private var showsLaunchOverlay = true
 
     var body: some View {
-        switch iCloudReader.syncStatus {
-        case .syncing:
-            syncingView
-        case .stale(let since):
-            staleView(since: since)
-        case .waiting:
-            waitingView
-        }
-    }
+        ZStack {
+            ClaudeCodeTheme.background
+                .ignoresSafeArea()
 
-    // MARK: - Waiting (no file detected yet)
-
-    private var waitingView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "desktopcomputer")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-            Text("Connect via Mac App")
-                .font(.title.bold())
-            Text("Open ClaudeTracker on your Mac and sign in to start syncing Claude usage to your Apple Watch.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Spacer()
-            Text("Waiting for Mac to sync…")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.bottom)
-        }
-    }
-
-    // MARK: - Syncing (fresh data)
-
-    private var syncingView: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("Syncing from Mac")
-                .font(.title.bold())
-            Text("Claude usage is being synced from your Mac to Apple Watch.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            if let receivedAt = iCloudReader.lastReceivedAt {
-                Text("Updated \(receivedAt, style: .relative) ago")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            TabView(selection: $selectedTab) {
+                Tab("Dashboard", systemImage: "gauge.with.dots.needle.67percent", value: IOSTab.dashboard) {
+                    DashboardTabView(store: store)
+                }
+                Tab("Activity", systemImage: "chart.xyaxis.line", value: IOSTab.activity) {
+                    ActivityTabView(store: store)
+                }
+                Tab("Settings", systemImage: "gearshape", value: IOSTab.settings) {
+                    SettingsTabView(store: store)
+                }
             }
-            Spacer()
+
+            if showsLaunchOverlay {
+                launchOverlay
+                    .transition(.opacity)
+            }
         }
+        .task {
+            guard showsLaunchOverlay else { return }
+            try? await Task.sleep(for: .milliseconds(450))
+            withAnimation(.easeOut(duration: 0.2)) {
+                showsLaunchOverlay = false
+            }
+        }
+        .preferredColorScheme(.dark)
+        .tint(ClaudeCodeTheme.accent)
     }
 
-    // MARK: - Stale (data older than 30 min)
-
-    private func staleView(since: Date) -> some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "exclamationmark.circle")
-                .font(.system(size: 64))
-                .foregroundStyle(.orange)
-            Text("Mac App Not Responding")
-                .font(.title.bold())
-            Text("Usage data hasn't been updated in a while. Make sure ClaudeTracker is running on your Mac.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Text("Last updated \(since, style: .relative) ago")
-                .font(.caption)
-                .foregroundStyle(.orange)
-            Spacer()
+    private var launchOverlay: some View {
+        ZStack {
+            ClaudeCodeTheme.background
+                .ignoresSafeArea()
+            VStack(spacing: 10) {
+                ProgressView()
+                    .tint(ClaudeCodeTheme.accent)
+                Text("Loading dashboard...")
+                    .font(.footnote)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            }
         }
     }
 }
