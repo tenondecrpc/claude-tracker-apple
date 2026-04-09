@@ -27,16 +27,16 @@ struct NotSignedInMenuView: View {
             VStack(spacing: 16) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(TempoTheme.info)
+                    .foregroundStyle(ClaudeCodeTheme.info)
                     .padding(.top, 24)
 
                 VStack(spacing: 6) {
                     Text("Not Signed In")
                         .font(.headline)
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     Text("Sign in to view your usage")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 16)
@@ -53,28 +53,28 @@ struct NotSignedInMenuView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .background(TempoTheme.accent)
+                .background(ClaudeCodeTheme.accent)
                 .clipShape(.rect(cornerRadius: 10))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
             }
 
             Divider()
-                .overlay(TempoTheme.progressTrack)
+                .overlay(ClaudeCodeTheme.progressTrack)
 
             HStack {
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(TempoTheme.critical)
+                .foregroundStyle(ClaudeCodeTheme.error)
                 .font(.caption)
                 Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(TempoTheme.background)
+        .background(ClaudeCodeTheme.background)
         .preferredColorScheme(.dark)
     }
 }

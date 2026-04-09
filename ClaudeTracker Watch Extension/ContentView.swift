@@ -19,7 +19,7 @@ struct ContentView: View {
                     if store.usageState.isMocked {
                         Text("⚠ mock")
                             .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Color.claudeAccent)
+                            .foregroundStyle(ClaudeCodeTheme.accent)
                     }
                 }
             }
@@ -33,11 +33,11 @@ struct ContentView: View {
         ZStack {
             // Track rings (background)
             Circle()
-                .stroke(Color.claudeRingTrack, lineWidth: 7)
+                .stroke(ClaudeCodeTheme.ringTrack, lineWidth: 7)
                 .padding(4)
 
             Circle()
-                .stroke(Color.claudeRingTrackInner, lineWidth: 4)
+                .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 4)
                 .padding(16)
 
             // Primary ring — 5h utilization
@@ -55,7 +55,7 @@ struct ContentView: View {
             Circle()
                 .trim(from: 0, to: store.usageState.utilization7d)
                 .stroke(
-                    Color.claudeBlue,
+                    ClaudeCodeTheme.highlight,
                     style: StrokeStyle(lineWidth: 4, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -66,9 +66,9 @@ struct ContentView: View {
 
     private func ringColor(utilization: Double) -> Color {
         switch utilization {
-        case ..<0.6: return .claudeGreen
-        case ..<0.85: return .claudeYellow
-        default: return .claudeRed
+        case ..<0.6: return ClaudeCodeTheme.success
+        case ..<0.85: return ClaudeCodeTheme.warning
+        default: return ClaudeCodeTheme.error
         }
     }
 

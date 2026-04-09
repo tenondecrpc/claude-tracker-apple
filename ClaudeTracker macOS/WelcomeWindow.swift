@@ -13,7 +13,7 @@ struct WelcomeWindowView: View {
 
     var body: some View {
         ZStack {
-            TempoTheme.background.ignoresSafeArea()
+            ClaudeCodeTheme.background.ignoresSafeArea()
 
             if coordinator.authState.isAwaitingCode {
                 codeEntryView
@@ -36,11 +36,11 @@ struct WelcomeWindowView: View {
             VStack(spacing: 10) {
                 Text("Welcome to Tempo for Claude")
                     .font(.largeTitle.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     .multilineTextAlignment(.center)
                 Text("Track your Claude usage right from your menu bar.")
                     .font(.body)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 8)
@@ -87,7 +87,7 @@ struct WelcomeWindowView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .background(TempoTheme.accent)
+                .background(ClaudeCodeTheme.accent)
                 .clipShape(.rect(cornerRadius: 10))
                 .disabled(isRestoringSession)
 
@@ -104,15 +104,15 @@ struct WelcomeWindowView: View {
 
             Image(systemName: "doc.on.clipboard")
                 .font(.system(size: 48))
-                .foregroundStyle(TempoTheme.accent)
+                .foregroundStyle(ClaudeCodeTheme.accent)
 
             VStack(spacing: 8) {
                 Text("Paste Authorization Code")
                     .font(.title2.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text("After authorizing in the browser, paste the code shown on screen.")
                     .font(.body)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -126,7 +126,7 @@ struct WelcomeWindowView: View {
                     }
                 } label: {
                     Image(systemName: "clipboard")
-                        .foregroundStyle(TempoTheme.accent)
+                        .foregroundStyle(ClaudeCodeTheme.accent)
                 }
                 .buttonStyle(.plain)
                 .help("Paste from clipboard")
@@ -136,7 +136,7 @@ struct WelcomeWindowView: View {
             if let error = signInError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.destructive)
+                    .foregroundStyle(ClaudeCodeTheme.destructive)
                     .multilineTextAlignment(.center)
             }
 
@@ -147,7 +147,7 @@ struct WelcomeWindowView: View {
                     coordinator.authState.isAwaitingCode = false
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
 
                 Button("Submit") {
                     Task { await submitCode() }
@@ -156,7 +156,7 @@ struct WelcomeWindowView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(pastedCode.isEmpty || isSubmitting ? TempoTheme.progressTrack : TempoTheme.accent)
+                .background(pastedCode.isEmpty || isSubmitting ? ClaudeCodeTheme.progressTrack : ClaudeCodeTheme.accent)
                 .clipShape(.rect(cornerRadius: 8))
                 .disabled(pastedCode.isEmpty || isSubmitting)
             }
@@ -173,20 +173,20 @@ struct WelcomeWindowView: View {
             HStack(spacing: 10) {
                 Text("Tempo")
                     .font(.subheadline.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Spacer()
                 Circle()
-                    .fill(TempoTheme.success)
+                    .fill(ClaudeCodeTheme.success)
                     .frame(width: 8, height: 8)
                     .opacity(0.4)
                 Image(systemName: "arrow.clockwise")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
-            Divider().overlay(TempoTheme.progressTrack)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
 
             VStack(alignment: .leading, spacing: 10) {
                 // Ring preview
@@ -200,17 +200,17 @@ struct WelcomeWindowView: View {
 
                 // Pill chips
                 HStack(spacing: 6) {
-                    SessionPillChip(value: "49%", label: "Resets in 13 min", accentColor: TempoTheme.accent)
-                    SessionPillChip(value: "4%", label: "Resets Sun", accentColor: TempoTheme.info)
+                    SessionPillChip(value: "49%", label: "Resets in 13 min", accentColor: ClaudeCodeTheme.accent)
+                    SessionPillChip(value: "4%", label: "Resets Sun", accentColor: ClaudeCodeTheme.info)
                 }
             }
             .padding(14)
         }
-        .background(TempoTheme.surface)
+        .background(ClaudeCodeTheme.surface)
         .clipShape(.rect(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(TempoTheme.progressTrack, lineWidth: 1)
+                .stroke(ClaudeCodeTheme.progressTrack, lineWidth: 1)
         )
     }
 

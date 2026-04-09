@@ -18,8 +18,7 @@ struct PreferencesWindowView: View {
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(TempoTheme.background)
-            .preferredColorScheme(.dark)
+            .background(ClaudeCodeTheme.background)
             .frame(minWidth: 420, idealWidth: 460, maxWidth: 520, minHeight: 800)
         } else {
             preferencesContent
@@ -33,6 +32,29 @@ struct PreferencesWindowView: View {
         @Bindable var settings = coordinator.settings
 
         VStack(alignment: .leading, spacing: 16) {
+            // Appearance card
+            preferencesCard(title: "Appearance") {
+                HStack {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(ClaudeCodeTheme.accent)
+                        .frame(width: 24, height: 24)
+                    Text("Color Scheme")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    Spacer(minLength: 12)
+                    Picker("", selection: $settings.appearanceMode) {
+                        ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+            }
+
             // General card
             preferencesCard(title: "General") {
                 settingsRow(
@@ -45,7 +67,7 @@ struct PreferencesWindowView: View {
                     ),
                     isDisabled: !coordinator.launchAtLoginManager.isSupportedInstallLocation
                 )
-                Divider().overlay(TempoTheme.progressTrack)
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
                 settingsRow(
                     icon: "clock.arrow.2.circlepath",
                     title: "24-Hour Time",
@@ -69,16 +91,16 @@ struct PreferencesWindowView: View {
                         toggle: $settings.autoCheckForUpdates
                     )
 
-                    Divider().overlay(TempoTheme.progressTrack)
+                    Divider().overlay(ClaudeCodeTheme.progressTrack)
 
                     HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Current Version")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(TempoTheme.textPrimary)
+                                .foregroundStyle(ClaudeCodeTheme.textPrimary)
                             Text(coordinator.appUpdater.currentVersionDisplay)
                                 .font(.caption)
-                                .foregroundStyle(TempoTheme.textSecondary)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
 
                         Spacer(minLength: 12)
@@ -86,14 +108,14 @@ struct PreferencesWindowView: View {
                         if coordinator.appUpdater.isChecking {
                             ProgressView()
                                 .controlSize(.small)
-                                .tint(TempoTheme.textSecondary)
+                                .tint(ClaudeCodeTheme.textSecondary)
                         } else if coordinator.appUpdater.availableVersion != nil {
                             Button("Download Update") {
                                 coordinator.appUpdater.openLatestRelease()
                             }
                             .buttonStyle(.plain)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(TempoTheme.accent)
+                            .foregroundStyle(ClaudeCodeTheme.accent)
                         } else {
                             Button("Check Now") {
                                 Task {
@@ -102,18 +124,18 @@ struct PreferencesWindowView: View {
                             }
                             .buttonStyle(.plain)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(TempoTheme.accent)
+                            .foregroundStyle(ClaudeCodeTheme.accent)
                         }
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal, 2)
 
                     if let statusMessage = coordinator.appUpdater.statusMessage {
-                        Divider().overlay(TempoTheme.progressTrack)
+                        Divider().overlay(ClaudeCodeTheme.progressTrack)
 
                         Text(statusMessage)
                             .font(.caption)
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                             .padding(.top, 10)
                             .padding(.horizontal, 2)
                     }
@@ -121,16 +143,16 @@ struct PreferencesWindowView: View {
                     HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "app.badge")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(TempoTheme.accent)
+                            .foregroundStyle(ClaudeCodeTheme.accent)
                             .frame(width: 24, height: 24)
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Updates are managed by the App Store")
                                 .font(.title3.weight(.semibold))
-                                .foregroundStyle(TempoTheme.textPrimary)
+                                .foregroundStyle(ClaudeCodeTheme.textPrimary)
                             Text("Current version: \(coordinator.appUpdater.currentVersionDisplay)")
                                 .font(.callout)
-                                .foregroundStyle(TempoTheme.textSecondary)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
 
                         Spacer(minLength: 12)
@@ -147,7 +169,7 @@ struct PreferencesWindowView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("5-Hour")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                             .padding(.bottom, 6)
                         menuBarCompactRow(
                             title: "Percentage",
@@ -163,14 +185,14 @@ struct PreferencesWindowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     Divider()
-                        .overlay(TempoTheme.progressTrack)
+                        .overlay(ClaudeCodeTheme.progressTrack)
                         .padding(.horizontal, 16)
 
                     // 7-Day column
                     VStack(alignment: .leading, spacing: 0) {
                         Text("7-Day")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                             .padding(.bottom, 6)
                         menuBarCompactRow(
                             title: "Percentage",
@@ -186,7 +208,7 @@ struct PreferencesWindowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                Divider().overlay(TempoTheme.progressTrack).padding(.vertical, 10)
+                Divider().overlay(ClaudeCodeTheme.progressTrack).padding(.vertical, 10)
 
                 // Extra usage — full-width compact row
                 menuBarCompactRow(
@@ -204,7 +226,7 @@ struct PreferencesWindowView: View {
                     subtitle: "Sync usage history across your Macs",
                     toggle: $settings.syncHistoryViaICloud
                 )
-                Divider().overlay(TempoTheme.progressTrack)
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
                 settingsRow(
                     icon: "dot.radiowaves.left.and.right",
                     title: "Service Status Monitoring",
@@ -218,14 +240,14 @@ struct PreferencesWindowView: View {
                 if let email = coordinator.authState.accountEmail {
                     Text(email)
                         .font(.callout)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         .padding(.vertical, 8)
                 }
                 Button("Sign Out") {
                     coordinator.client.signOut()
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(TempoTheme.critical)
+                .foregroundStyle(ClaudeCodeTheme.error)
                 .font(.subheadline.weight(.semibold))
             }
         }
@@ -238,14 +260,14 @@ struct PreferencesWindowView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 .padding(.bottom, 8)
 
             VStack(alignment: .leading, spacing: 0) {
                 content()
             }
             .padding(16)
-            .background(TempoTheme.card)
+            .background(ClaudeCodeTheme.card)
             .clipShape(.rect(cornerRadius: 12))
         }
     }
@@ -256,16 +278,16 @@ struct PreferencesWindowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(example)
                     .font(.caption2)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             Spacer(minLength: 8)
             Toggle("", isOn: toggle)
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .tint(TempoTheme.accent)
+                .tint(ClaudeCodeTheme.accent)
         }
         .padding(.vertical, 7)
     }
@@ -281,17 +303,17 @@ struct PreferencesWindowView: View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(TempoTheme.accent)
+                .foregroundStyle(ClaudeCodeTheme.accent)
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(isDisabled ? TempoTheme.textSecondary : TempoTheme.textPrimary)
+                    .foregroundStyle(isDisabled ? ClaudeCodeTheme.textSecondary : ClaudeCodeTheme.textPrimary)
                     .lineLimit(1)
                 Text(subtitle)
                     .font(.callout)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -300,7 +322,7 @@ struct PreferencesWindowView: View {
             Toggle("", isOn: toggle)
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .tint(TempoTheme.accent)
+                .tint(ClaudeCodeTheme.accent)
                 .disabled(isDisabled)
         }
         .padding(.vertical, 10)

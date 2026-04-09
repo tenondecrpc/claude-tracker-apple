@@ -1,36 +1,3 @@
-## ADDED Requirements
-
-### Requirement: Popover width is 320pt
-The `MenuBarExtra` window body SHALL have a fixed width of 320pt (previously 310pt).
-
-#### Scenario: Popover width
-- **WHEN** the menu bar icon is clicked
-- **THEN** the popover window measures 320pt wide
-
-### Requirement: Service status is a single dot in the popover header
-The service status indicator SHALL appear as a single 8pt circle in the popover header row, immediately left of the refresh button. Color SHALL map to `ServiceHealthState`:
-- `.operational`: `ClaudeCodeTheme.success`
-- `.degraded`: `ClaudeCodeTheme.warning`
-- `.majorOutage`: `ClaudeCodeTheme.error`
-- `.stale` / `.unavailable`: `ClaudeCodeTheme.textSecondary`
-
-The status SHALL NOT appear as a separate row in the popover body.
-
-#### Scenario: Service status dot visible in header
-- **WHEN** service monitoring is enabled and status is operational
-- **THEN** a green dot appears in the header next to the refresh icon
-
-#### Scenario: Service status not in body
-- **WHEN** the authenticated popover is displayed
-- **THEN** there is no "Claude Code: Operational" row in the popover body
-
-### Requirement: Popover header branding updated to "Tempo"
-The popover header title SHALL display "Tempo" (not "Usage for Claude"). Font remains the same `.headline` weight.
-
-#### Scenario: Header shows Tempo
-- **WHEN** the menu bar popover opens
-- **THEN** the header title reads "Tempo"
-
 ## MODIFIED Requirements
 
 ### Requirement: Popover uses concentric ring gauges as hero element
@@ -73,7 +40,3 @@ The burn rate status SHALL be displayed in a card component with `ClaudeCodeThem
 #### Scenario: On track burn rate
 - **WHEN** burn rate assessment is on track
 - **THEN** the card shows a green dot and "On track · X%/hr"
-
-#### Scenario: High burn rate
-- **WHEN** burn rate assessment is high burn
-- **THEN** the card shows an amber dot and "High burn · X%/hr"

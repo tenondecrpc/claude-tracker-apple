@@ -114,6 +114,7 @@ struct ClaudeTrackerMacApp: App {
         MenuBarExtra {
             MacMenuView(coordinator: coordinator)
                 .frame(width: 320)
+                .preferredColorScheme(coordinator.settings.preferredColorScheme)
                 .task {
                     await coordinator.onLaunch()
                 }
@@ -134,16 +135,19 @@ struct ClaudeTrackerMacApp: App {
         Window("Welcome", id: "welcome") {
             WelcomeWindowView(coordinator: coordinator)
                 .frame(minWidth: 580, minHeight: 480)
+                .preferredColorScheme(coordinator.settings.preferredColorScheme)
         }
         .windowResizability(.contentSize)
 
         Window("Tempo for Claude", id: "stats-detail") {
             DetailWindowView(coordinator: coordinator, history: coordinator.history, localDB: coordinator.localDB)
+                .preferredColorScheme(coordinator.settings.preferredColorScheme)
         }
         .windowResizability(.contentSize)
 
         Settings {
             PreferencesWindowView(coordinator: coordinator)
+                .preferredColorScheme(coordinator.settings.preferredColorScheme)
         }
         .windowResizability(.contentSize)
     }

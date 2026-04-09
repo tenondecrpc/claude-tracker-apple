@@ -5,13 +5,13 @@ import SwiftUI
 struct UsageProgressBar: View {
     let progress: Double  // 0.0 to 1.0
     var height: CGFloat = 6
-    var color: Color = TempoTheme.accent
+    var color: Color = ClaudeCodeTheme.accent
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: height / 2)
-                    .fill(TempoTheme.progressTrack)
+                    .fill(ClaudeCodeTheme.progressTrack)
                 RoundedRectangle(cornerRadius: height / 2)
                     .fill(color)
                     .frame(width: max(height, geo.size.width * min(max(progress, 0), 1)))
@@ -32,23 +32,23 @@ struct UsageRingView: View {
         ZStack {
             // Outer track (weekly)
             Circle()
-                .stroke(TempoTheme.progressTrack, lineWidth: 8)
+                .stroke(ClaudeCodeTheme.progressTrack, lineWidth: 8)
 
             // Outer fill (weekly)
             Circle()
                 .trim(from: 0, to: min(max(weeklyProgress, 0), 1))
-                .stroke(TempoTheme.info, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .stroke(ClaudeCodeTheme.info, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 .rotationEffect(.degrees(-90))
 
             // Inner track (session)
             Circle()
-                .stroke(TempoTheme.progressTrack, lineWidth: 10)
+                .stroke(ClaudeCodeTheme.progressTrack, lineWidth: 10)
                 .padding(18)
 
             // Inner fill (session)
             Circle()
                 .trim(from: 0, to: min(max(sessionProgress, 0), 1))
-                .stroke(TempoTheme.accent, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .stroke(ClaudeCodeTheme.accent, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .padding(18)
 
@@ -56,7 +56,7 @@ struct UsageRingView: View {
             if let label = centerLabel {
                 Text(label)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
             }
         }
     }
@@ -67,7 +67,7 @@ struct UsageRingView: View {
 struct SessionPillChip: View {
     let value: String
     let label: String
-    var accentColor: Color = TempoTheme.accent
+    var accentColor: Color = ClaudeCodeTheme.accent
 
     var body: some View {
         HStack(spacing: 0) {
@@ -80,15 +80,15 @@ struct SessionPillChip: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.callout.monospacedDigit())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(label)
                     .font(.footnote)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
         }
-        .background(TempoTheme.surface)
+        .background(ClaudeCodeTheme.surface)
         .clipShape(.rect(cornerRadius: 8))
     }
 }
@@ -101,7 +101,7 @@ struct BurnRateCard: View {
     let extraUsage: ExtraUsage?
 
     private var onTrack: Bool { rate < 20 }
-    private var statusColor: Color { onTrack ? TempoTheme.success : TempoTheme.warning }
+    private var statusColor: Color { onTrack ? ClaudeCodeTheme.success : ClaudeCodeTheme.warning }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -111,35 +111,35 @@ struct BurnRateCard: View {
                     .frame(width: 8, height: 8)
                 Text("\(onTrack ? "On track" : "High burn") · \(String(format: "%.1f", rate))%/hr")
                     .font(.callout)
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
             }
 
             Text(resetCountdown)
                 .font(.footnote)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
 
             if let extra = extraUsage, extra.isEnabled,
                let used = extra.usedCreditsAmount, let limit = extra.monthlyLimitAmount {
                 Divider()
-                    .overlay(TempoTheme.progressTrack)
+                    .overlay(ClaudeCodeTheme.progressTrack)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Extra Usage")
                         .font(.footnote)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     Text("\(ExtraUsage.formatUSD(used)) / \(ExtraUsage.formatUSD(limit))")
                         .font(.callout.monospacedDigit())
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     UsageProgressBar(
                         progress: (extra.utilization ?? 0) / 100.0,
                         height: 4,
-                        color: TempoTheme.info
+                        color: ClaudeCodeTheme.info
                     )
                 }
             }
         }
         .padding(12)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 }
@@ -156,7 +156,7 @@ struct MenuBarHeaderView: View {
             HStack(spacing: 10) {
                 Text("Tempo")
                     .font(.headline)
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Spacer()
                 // Service status dot
                 Circle()
@@ -171,11 +171,11 @@ struct MenuBarHeaderView: View {
                         if isPolling {
                             ProgressView()
                                 .controlSize(.small)
-                                .tint(TempoTheme.textSecondary)
+                                .tint(ClaudeCodeTheme.textSecondary)
                                 .frame(width: 16, height: 16)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .foregroundStyle(TempoTheme.textSecondary)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -184,7 +184,7 @@ struct MenuBarHeaderView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             Divider()
-                .overlay(TempoTheme.progressTrack)
+                .overlay(ClaudeCodeTheme.progressTrack)
             if serviceState != .operational {
                 ServiceStatusBannerView(state: serviceState)
             }
@@ -193,11 +193,11 @@ struct MenuBarHeaderView: View {
 
     private var dotColor: Color {
         switch serviceState {
-        case .operational: return TempoTheme.success
-        case .degraded:    return TempoTheme.warning
-        case .majorOutage: return TempoTheme.critical
-        case .stale:       return TempoTheme.warning
-        case .unavailable: return TempoTheme.textSecondary
+        case .operational: return ClaudeCodeTheme.success
+        case .degraded:    return ClaudeCodeTheme.warning
+        case .majorOutage: return ClaudeCodeTheme.error
+        case .stale:       return ClaudeCodeTheme.warning
+        case .unavailable: return ClaudeCodeTheme.textSecondary
         }
     }
 }
@@ -217,7 +217,7 @@ struct ServiceStatusBannerView: View {
                 .foregroundStyle(bannerColor)
             Text(bannerLabel)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(TempoTheme.textPrimary)
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -228,9 +228,9 @@ struct ServiceStatusBannerView: View {
 
     private var bannerColor: Color {
         switch state {
-        case .majorOutage: return TempoTheme.critical
-        case .degraded, .stale: return TempoTheme.warning
-        case .unavailable: return TempoTheme.textSecondary
+        case .majorOutage: return ClaudeCodeTheme.error
+        case .degraded, .stale: return ClaudeCodeTheme.warning
+        case .unavailable: return ClaudeCodeTheme.textSecondary
         case .operational: return .clear
         }
     }

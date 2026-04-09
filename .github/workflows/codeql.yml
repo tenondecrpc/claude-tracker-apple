@@ -1,13 +1,6 @@
 name: Security - CodeQL (Swift)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**/*.swift'
-      - '**/*.xcodeproj/**'
-      - '.github/workflows/*.yml'
   pull_request:
     branches:
       - main

@@ -56,9 +56,9 @@ struct DetailWindowView: View {
     var body: some View {
         VStack(spacing: 0) {
             windowHeader
-            Divider().overlay(TempoTheme.progressTrack)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
             tabBar
-            Divider().overlay(TempoTheme.progressTrack)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
 
             ScrollView {
                 tabContent
@@ -66,7 +66,7 @@ struct DetailWindowView: View {
                     .padding(.vertical, 24)
             }
         }
-        .background(TempoTheme.background)
+        .background(ClaudeCodeTheme.background)
         .preferredColorScheme(.dark)
         .frame(minWidth: 900, minHeight: 780)
         .alert("Unable to Share Chart", isPresented: $showShareError) {
@@ -82,12 +82,12 @@ struct DetailWindowView: View {
         HStack {
             Text("Tempo for Claude")
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(TempoTheme.textPrimary)
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
             Spacer()
             if let email = coordinator.authState.accountEmail {
                 Text(email)
                     .font(.callout)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
         }
         .padding(.horizontal, 24)
@@ -106,12 +106,12 @@ struct DetailWindowView: View {
                 } label: {
                     Text(tab.rawValue)
                         .font(selectedTab == tab ? .subheadline.weight(.semibold) : .subheadline)
-                        .foregroundStyle(selectedTab == tab ? TempoTheme.accent : TempoTheme.textSecondary)
+                        .foregroundStyle(selectedTab == tab ? ClaudeCodeTheme.accent : ClaudeCodeTheme.textSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(
                             selectedTab == tab
-                                ? TempoTheme.accentMuted
+                                ? ClaudeCodeTheme.accentMuted
                                 : Color.clear,
                             in: Capsule()
                         )
@@ -171,7 +171,7 @@ struct DetailWindowView: View {
             chartSection(use24HourTime: use24HourTime, usage: usage)
         }
         .padding(16)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -179,7 +179,7 @@ struct DetailWindowView: View {
     private func sessionCard(usage: UsageState, now: Date) -> some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(TempoTheme.accent)
+                .fill(ClaudeCodeTheme.accent)
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -192,23 +192,23 @@ struct DetailWindowView: View {
                 }
                 Text("\(Int(usage.utilization5h * 100))%")
                     .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(TimeFormatPolicy.sessionResetString(
                     resetAt: usage.resetAt5h,
                     now: now,
                     use24HourTime: chartUse24HourTime
                 ))
                 .font(.footnote)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 Text("Session")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(16)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -216,7 +216,7 @@ struct DetailWindowView: View {
     private func weeklyCard(usage: UsageState) -> some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(TempoTheme.info)
+                .fill(ClaudeCodeTheme.info)
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -229,22 +229,22 @@ struct DetailWindowView: View {
                 }
                 Text("\(Int(usage.utilization7d * 100))%")
                     .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(TimeFormatPolicy.weeklyResetString(
                     resetAt: usage.resetAt7d,
                     use24HourTime: chartUse24HourTime
                 ))
                 .font(.footnote)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 Text("Weekly")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(16)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -252,30 +252,30 @@ struct DetailWindowView: View {
     private func extraUsageCard(extra: ExtraUsage) -> some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(TempoTheme.info)
+                .fill(ClaudeCodeTheme.info)
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 if let used = extra.usedCreditsAmount, let limit = extra.monthlyLimitAmount {
                     Text("\(ExtraUsage.formatUSD(used)) / \(ExtraUsage.formatUSD(limit))")
                         .font(.title3.bold().monospacedDigit())
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     UsageProgressBar(
                         progress: (extra.utilization ?? 0) / 100.0,
-                        color: TempoTheme.info
+                        color: ClaudeCodeTheme.info
                     )
                 }
                 Text("Resets monthly")
                     .font(.footnote)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 Text("Extra Usage")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(16)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -283,7 +283,7 @@ struct DetailWindowView: View {
     private func burnStatusCard(usage: UsageState, now: Date) -> some View {
         let rate = burnRate(usage: usage, now: now)
         let onTrack = rate < 20
-        let stripeColor: Color = onTrack ? TempoTheme.success : TempoTheme.warning
+        let stripeColor: Color = onTrack ? ClaudeCodeTheme.success : ClaudeCodeTheme.warning
 
         return HStack(spacing: 0) {
             Rectangle()
@@ -296,20 +296,20 @@ struct DetailWindowView: View {
                         .frame(width: 8, height: 8)
                     Text(onTrack ? "On track" : "High burn")
                         .font(.subheadline.bold())
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 }
                 Text("\(String(format: "%.1f", rate))%/hr")
                     .font(.title3.bold().monospacedDigit())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(etaText(usage: usage, rate: rate, now: now))
                     .font(.footnote)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             .padding(16)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -327,17 +327,17 @@ struct DetailWindowView: View {
                     }
 
                     HStack(spacing: 16) {
-                        compactStatCard(icon: "info.circle", title: "Avg Session", value: avgSession, subtitle: "average usage", color: TempoTheme.textPrimary)
-                        compactStatCard(icon: "calendar", title: "Avg Weekly", value: avgWeekly, subtitle: "average usage", color: TempoTheme.textPrimary)
-                        compactStatCard(icon: "exclamationmark.triangle", title: "High Usage", value: "\(highUsageDays)", subtitle: "days at 90%+", color: highUsageDays > 3 ? TempoTheme.warning : TempoTheme.textPrimary)
-                        compactStatCard(icon: "arrow.up.right", title: "Peak", value: peakSession, subtitle: "highest session", color: TempoTheme.textPrimary)
+                        compactStatCard(icon: "info.circle", title: "Avg Session", value: avgSession, subtitle: "average usage", color: ClaudeCodeTheme.textPrimary)
+                        compactStatCard(icon: "calendar", title: "Avg Weekly", value: avgWeekly, subtitle: "average usage", color: ClaudeCodeTheme.textPrimary)
+                        compactStatCard(icon: "exclamationmark.triangle", title: "High Usage", value: "\(highUsageDays)", subtitle: "days at 90%+", color: highUsageDays > 3 ? ClaudeCodeTheme.warning : ClaudeCodeTheme.textPrimary)
+                        compactStatCard(icon: "arrow.up.right", title: "Peak", value: peakSession, subtitle: "highest session", color: ClaudeCodeTheme.textPrimary)
                     }
 
                     // Heatmap card
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Usage Activity")
                             .font(.headline)
-                            .foregroundStyle(TempoTheme.textPrimary)
+                            .foregroundStyle(ClaudeCodeTheme.textPrimary)
                         if !localDB.isAvailable {
                             unavailableView("Activity data unavailable")
                         } else {
@@ -346,7 +346,7 @@ struct DetailWindowView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(TempoTheme.card)
+                    .background(ClaudeCodeTheme.card)
                     .clipShape(.rect(cornerRadius: 12))
 
                     // Claude Code section card
@@ -367,36 +367,36 @@ struct DetailWindowView: View {
         return HStack(alignment: .top, spacing: 16) {
             Image(systemName: onTrack ? "checkmark.circle" : "clock.badge.exclamationmark")
                 .font(.system(size: 24))
-                .foregroundStyle(onTrack ? TempoTheme.success : TempoTheme.critical)
+                .foregroundStyle(onTrack ? ClaudeCodeTheme.success : ClaudeCodeTheme.error)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(onTrack ? "Session Usage Normal" : "Session Limit Warning")
                     .font(.subheadline.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
 
                 if let h = hoursToLimit {
                     Text("At current rate, you'll hit your session limit in less than \(etaString(hours: h))")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.critical)
+                        .foregroundStyle(ClaudeCodeTheme.error)
                 } else if onTrack {
                     Text("Your usage is well within normal limits.")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 } else {
                     Text("You've reached your session limit.")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.critical)
+                        .foregroundStyle(ClaudeCodeTheme.error)
                 }
 
                 Text("Current rate: \(String(format: "%.1f", rate))%/hr")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             Spacer()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -416,24 +416,24 @@ struct DetailWindowView: View {
         return HStack(alignment: .top, spacing: 16) {
             Image(systemName: "dollarsign.circle")
                 .font(.system(size: 24))
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Subscription Value")
                     .font(.subheadline.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 Text("Average weekly usage: \(avgWeekly)")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             Spacer()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -445,19 +445,19 @@ struct DetailWindowView: View {
                     .foregroundStyle(color)
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
             Text(value)
                 .font(.title2.bold().monospacedDigit())
                 .foregroundStyle(color)
             Text(subtitle)
                 .font(.caption2)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -473,26 +473,26 @@ struct DetailWindowView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 8) {
                 Image(systemName: "terminal")
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 Text("Claude Code")
                     .font(.headline)
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Spacer()
                 Text("7d")
                     .font(.caption2.bold())
-                    .foregroundStyle(TempoTheme.accent)
+                    .foregroundStyle(ClaudeCodeTheme.accent)
             }
 
             if !localDB.isAvailable {
                 unavailableView("Claude Code history unavailable — local DB not found")
             } else {
                 compactAggregateRow
-                Divider().overlay(TempoTheme.progressTrack)
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
                 projectTable
             }
         }
         .padding(16)
-        .background(TempoTheme.card)
+        .background(ClaudeCodeTheme.card)
         .clipShape(.rect(cornerRadius: 12))
     }
 
@@ -525,11 +525,11 @@ struct DetailWindowView: View {
 
             // Model token breakdown row
             if opus > 0 || sonnet > 0 || haiku > 0 {
-                Divider().overlay(TempoTheme.progressTrack)
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
                 HStack(spacing: 8) {
                     Text("Tokens")
                         .font(.caption2)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     if opus > 0 {
                         modelTokenPill(label: "Opus", value: formatTokens(opus), color: .purple)
                     }
@@ -549,14 +549,14 @@ struct DetailWindowView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 20))
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.subheadline.bold())
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Text(label)
                     .font(.caption2)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
         }
     }
@@ -568,7 +568,7 @@ struct DetailWindowView: View {
                 .foregroundStyle(color)
             Text(value)
                 .font(.caption2.monospacedDigit())
-                .foregroundStyle(TempoTheme.textPrimary)
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
@@ -580,7 +580,7 @@ struct DetailWindowView: View {
             HStack {
                 Text("Project")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Group {
@@ -591,21 +591,21 @@ struct DetailWindowView: View {
                     Text("Cost").frame(width: 80, alignment: .trailing)
                 }
                 .font(.caption)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
-            Divider().overlay(TempoTheme.progressTrack)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
 
             if localDB.projectStats.isEmpty {
                 Text("No project data available")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .padding(.top, 8)
             } else {
                 ForEach(localDB.projectStats.filter { $0.hasActivity7d }) { stat in
                     HStack {
                         Text(stat.displayName)
                             .font(.caption)
-                            .foregroundStyle(TempoTheme.textPrimary)
+                            .foregroundStyle(ClaudeCodeTheme.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         Group {
@@ -616,7 +616,7 @@ struct DetailWindowView: View {
                             Text(stat.costEquiv7d > 0 ? String(format: "$%.2f", stat.costEquiv7d) : "—").frame(width: 80, alignment: .trailing)
                         }
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     }
                     .padding(.vertical, 4)
                 }
@@ -649,7 +649,7 @@ struct DetailWindowView: View {
                 HStack(spacing: 10) {
                     Text("Usage Over Time")
                         .font(.headline)
-                        .foregroundStyle(TempoTheme.textPrimary)
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
 
                     if usage.isUsingExtraUsage {
                         extraUsageStatusChip(label: "Extra Usage Active")
@@ -670,7 +670,7 @@ struct DetailWindowView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .font(.caption)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 .frame(width: 80)
 
                 Button {
@@ -678,7 +678,7 @@ struct DetailWindowView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(canShareCurrentRange ? TempoTheme.textSecondary : TempoTheme.textSecondary.opacity(0.5))
+                        .foregroundStyle(canShareCurrentRange ? ClaudeCodeTheme.textSecondary : ClaudeCodeTheme.textSecondary.opacity(0.5))
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
@@ -694,7 +694,7 @@ struct DetailWindowView: View {
                         .labelsHidden()
                     Text("to")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     DatePicker("", selection: $customEnd, in: customStart..., displayedComponents: .date)
                         .datePickerStyle(.compact)
                         .labelsHidden()
@@ -703,7 +703,7 @@ struct DetailWindowView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.caption)
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -744,7 +744,7 @@ struct DetailWindowView: View {
             if hasVisibleExtraUsage || usage.isUsingExtraUsage {
                 Text("Dashed blue and orange marks billable Extra Usage after the included limit.")
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
 
             if visibleSnapshots.isEmpty {
@@ -752,7 +752,7 @@ struct DetailWindowView: View {
                     Spacer()
                     Text("No history yet — check back after the next poll")
                         .font(.caption)
-                        .foregroundStyle(TempoTheme.textSecondary)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     Spacer()
                 }
                 .padding(.vertical, 60)
@@ -766,7 +766,7 @@ struct DetailWindowView: View {
                                 yStart: .value("Extra Usage Min", 0),
                                 yEnd: .value("Extra Usage Max", 105)
                             )
-                            .foregroundStyle(TempoTheme.info.opacity(0.10))
+                            .foregroundStyle(ClaudeCodeTheme.info.opacity(0.10))
                         }
                     }
 
@@ -778,16 +778,16 @@ struct DetailWindowView: View {
                                 yStart: .value("Weekly Extra Usage Min", 0),
                                 yEnd: .value("Weekly Extra Usage Max", 105)
                             )
-                            .foregroundStyle(TempoTheme.critical.opacity(0.07))
+                            .foregroundStyle(ClaudeCodeTheme.error.opacity(0.07))
                         }
                     }
 
                     RuleMark(y: .value("Warning", 80))
-                        .foregroundStyle(TempoTheme.critical.opacity(0.5))
+                        .foregroundStyle(ClaudeCodeTheme.error.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
                     RuleMark(x: .value("Now", Date()))
-                        .foregroundStyle(TempoTheme.info.opacity(0.4))
+                        .foregroundStyle(ClaudeCodeTheme.info.opacity(0.4))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
                     if showWeekly {
@@ -801,8 +801,8 @@ struct DetailWindowView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        TempoTheme.critical.opacity(0.16),
-                                        TempoTheme.critical.opacity(0.02)
+                                        ClaudeCodeTheme.error.opacity(0.16),
+                                        ClaudeCodeTheme.error.opacity(0.02)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -825,8 +825,8 @@ struct DetailWindowView: View {
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [
-                                            TempoTheme.info.opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
-                                            TempoTheme.info.opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
+                                            ClaudeCodeTheme.info.opacity(segment.isUsingExtraUsage ? 0.22 : 0.34),
+                                            ClaudeCodeTheme.info.opacity(segment.isUsingExtraUsage ? 0.04 : 0.08)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -838,7 +838,7 @@ struct DetailWindowView: View {
                                     y: .value("Session", snap.utilization5h * 100),
                                     series: .value("Series", sessionSeriesKey)
                                 )
-                                .foregroundStyle(TempoTheme.info)
+                                .foregroundStyle(ClaudeCodeTheme.info)
                                 .lineStyle(
                                     StrokeStyle(
                                         lineWidth: segment.isUsingExtraUsage ? 3 : 2.5,
@@ -855,7 +855,7 @@ struct DetailWindowView: View {
                                 x: .value("Time", snap.date),
                                 y: .value("Weekly", snap.utilization7d * 100)
                             )
-                            .foregroundStyle(TempoTheme.critical)
+                            .foregroundStyle(ClaudeCodeTheme.error)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
                             .interpolationMethod(.catmullRom)
                         }
@@ -869,7 +869,7 @@ struct DetailWindowView: View {
                                         y: .value("Weekly Extra Usage", snap.utilization7d * 100),
                                         series: .value("Series", weeklySeriesKey)
                                     )
-                                    .foregroundStyle(TempoTheme.critical)
+                                    .foregroundStyle(ClaudeCodeTheme.error)
                                     .lineStyle(StrokeStyle(lineWidth: 3, dash: [7, 5]))
                                     .interpolationMethod(.catmullRom)
                                 }
@@ -880,12 +880,12 @@ struct DetailWindowView: View {
                 .chartLegend(.hidden)
                 .chartYAxis {
                     AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                        AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                        AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
                                 Text("\(Int(v))%")
                                     .font(.caption)
-                                    .foregroundStyle(TempoTheme.textSecondary)
+                                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                             }
                         }
                     }
@@ -894,45 +894,45 @@ struct DetailWindowView: View {
                     let customSpan = customEnd.timeIntervalSince(customStart)
                     if timeRange == .hours24 {
                         AxisMarks(values: .stride(by: .hour, count: 3)) { value in
-                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     } else if timeRange == .hours5 {
                         AxisMarks(values: .stride(by: .hour)) { value in
-                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     } else if timeRange == .custom && customSpan <= 24 * 3600 {
                         AxisMarks(values: .stride(by: .hour, count: 3)) { value in
-                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(chartHourAxisLabel(for: date, use24HourTime: use24HourTime))
                                 }
                             }
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     } else if timeRange == .custom && customSpan <= 7 * 24 * 3600 {
                         AxisMarks(values: .stride(by: .day)) { _ in
-                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                             AxisValueLabel(format: .dateTime.month().day())
-                                .foregroundStyle(TempoTheme.textSecondary)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     } else {
                         AxisMarks(preset: .aligned, values: .automatic) { value in
-                            AxisGridLine().foregroundStyle(TempoTheme.progressTrack)
+                            AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
                             AxisValueLabel()
-                                .foregroundStyle(TempoTheme.textSecondary)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                         }
                     }
                 }
@@ -945,8 +945,8 @@ struct DetailWindowView: View {
             // Legend
             HStack(spacing: 24) {
                 Spacer()
-                legendToggle(label: "Session", color: TempoTheme.info, isOn: $showSession)
-                legendToggle(label: "Weekly", color: TempoTheme.critical, isOn: $showWeekly)
+                legendToggle(label: "Session", color: ClaudeCodeTheme.info, isOn: $showSession)
+                legendToggle(label: "Weekly", color: ClaudeCodeTheme.error, isOn: $showWeekly)
                 if hasVisibleExtraUsage || usage.isUsingExtraUsage {
                     extraUsageLegendKey
                 }
@@ -957,17 +957,17 @@ struct DetailWindowView: View {
                         Text("Export CSV")
                     }
                     .font(.caption)
-                    .foregroundStyle(TempoTheme.textSecondary)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 6).stroke(TempoTheme.progressTrack))
+                    .background(RoundedRectangle(cornerRadius: 6).stroke(ClaudeCodeTheme.progressTrack))
                 }
                 .buttonStyle(.plain)
             }
 
             Text("Scroll to view earlier data")
                 .font(.caption2)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 .opacity(history.snapshots.count > 10 ? 1 : 0)
         }
     }
@@ -1189,11 +1189,11 @@ struct DetailWindowView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: isOn.wrappedValue ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(isOn.wrappedValue ? color : TempoTheme.textSecondary)
+                    .foregroundStyle(isOn.wrappedValue ? color : ClaudeCodeTheme.textSecondary)
                     .font(.system(size: 14))
                 Text(label)
                     .font(.subheadline)
-                    .foregroundStyle(TempoTheme.textPrimary)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
             }
         }
         .buttonStyle(.plain)
@@ -1203,30 +1203,30 @@ struct DetailWindowView: View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(
-                    TempoTheme.info,
+                    ClaudeCodeTheme.info,
                     style: StrokeStyle(lineWidth: 2, dash: [6, 4])
                 )
                 .frame(width: 20, height: 8)
             Text("Extra Usage")
                 .font(.subheadline)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }
     }
 
     private func extraUsageStatusChip(label: String) -> some View {
         Text(label)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(TempoTheme.accentLight)
+            .foregroundStyle(ClaudeCodeTheme.accentLight)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(
                 Capsule(style: .continuous)
-                    .fill(TempoTheme.accent.opacity(0.18))
+                    .fill(ClaudeCodeTheme.accent.opacity(0.18))
             )
             .overlay(
                 Capsule(style: .continuous)
                     .stroke(
-                        TempoTheme.accent.opacity(0.55),
+                        ClaudeCodeTheme.accent.opacity(0.55),
                         style: StrokeStyle(lineWidth: 1, dash: [5, 3])
                     )
             )
@@ -1246,10 +1246,10 @@ struct DetailWindowView: View {
         VStack(spacing: 10) {
             ProgressView()
                 .controlSize(.regular)
-                .tint(TempoTheme.textSecondary)
+                .tint(ClaudeCodeTheme.textSecondary)
             Text("Fetching usage…")
                 .font(.caption)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(40)
@@ -1259,10 +1259,10 @@ struct DetailWindowView: View {
     private func unavailableView(_ reason: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
             Text(reason)
                 .font(.caption)
-                .foregroundStyle(TempoTheme.textSecondary)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
             Spacer()
         }
         .padding(.vertical, 8)
@@ -1478,9 +1478,9 @@ struct ActivityHeatmapView: View {
         HStack(alignment: .top, spacing: 8) {
             VStack(spacing: gap) {
                 Text(" ").frame(height: cellSize)
-                Text("Mon").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
-                Text("Wed").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
-                Text("Fri").font(.system(size: 9)).foregroundStyle(TempoTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text("Mon").font(.system(size: 9)).foregroundStyle(ClaudeCodeTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text("Wed").font(.system(size: 9)).foregroundStyle(ClaudeCodeTheme.textSecondary).frame(height: cellSize * 2 + gap)
+                Text("Fri").font(.system(size: 9)).foregroundStyle(ClaudeCodeTheme.textSecondary).frame(height: cellSize * 2 + gap)
             }
             .padding(.top, 14)
 
@@ -1489,7 +1489,7 @@ struct ActivityHeatmapView: View {
                     ForEach(monthLabels) { label in
                         Text(label.text)
                             .font(.system(size: 10))
-                            .foregroundStyle(TempoTheme.textSecondary)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                             .frame(width: CGFloat(label.weeksSpan) * (cellSize + gap), alignment: .leading)
                     }
                 }
@@ -1503,7 +1503,7 @@ struct ActivityHeatmapView: View {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(count == 0
                                         ? Color.white.opacity(0.05)
-                                        : TempoTheme.accent.opacity(0.3 + intensity * 0.7))
+                                        : ClaudeCodeTheme.accent.opacity(0.3 + intensity * 0.7))
                                     .frame(width: cellSize, height: cellSize)
                             }
                         }

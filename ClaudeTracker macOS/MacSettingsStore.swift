@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 @Observable
 @MainActor
@@ -14,6 +15,7 @@ final class MacSettingsStore {
         static let serviceStatusMonitoring = "mac.settings.serviceStatusMonitoring"
         static let syncHistoryViaICloud = "mac.settings.syncHistoryViaICloud"
         static let autoCheckForUpdates = "mac.settings.autoCheckForUpdates"
+        static let appearanceMode = "mac.settings.appearanceMode"
     }
 
     var onServiceStatusMonitoringChanged: ((Bool) -> Void)?
@@ -85,6 +87,12 @@ final class MacSettingsStore {
         }
     }
 
+    var appearanceMode: AppearanceMode {
+        didSet {
+            defaults.set(appearanceMode.rawValue, forKey: Key.appearanceMode)
+        }
+    }
+
     private let defaults: UserDefaults
     private var isHydrating = false
 
@@ -132,6 +140,13 @@ final class MacSettingsStore {
             ? defaults.bool(forKey: Key.autoCheckForUpdates)
             : true
 
+        if let raw = defaults.string(forKey: Key.appearanceMode),
+           let mode = AppearanceMode(rawValue: raw) {
+            appearanceMode = mode
+        } else {
+            appearanceMode = .dark
+        }
+
         isHydrating = false
     }
 
@@ -145,4 +160,6 @@ final class MacSettingsStore {
     private func persist(_ value: Bool, forKey key: String) {
         defaults.set(value, forKey: key)
     }
+
+    var preferredColorScheme: ColorScheme? { appearanceMode.colorScheme }
 }
