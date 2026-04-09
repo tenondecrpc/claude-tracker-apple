@@ -1,6 +1,16 @@
 import SwiftUI
 import Cocoa
 
+// MARK: - Utilization Color Helper
+
+private func utilizationNSColor(for value: Double) -> NSColor {
+    if value >= 0.80 { return .systemRed }
+    if value >= 0.60 { return .systemYellow }
+    return .black
+}
+
+// MARK: - Pulse Dot
+
 extension NSImage {
     static func pulseDot(percentage: Double) -> NSImage {
         let size = NSSize(width: 18, height: 18)
@@ -17,9 +27,10 @@ extension NSImage {
         let radius: CGFloat = 6
         let lineWidth: CGFloat = 1.5
         let clampedPercentage = max(0, min(1, percentage))
+        let arcColor = utilizationNSColor(for: clampedPercentage)
 
-        // Track circle (30% opacity)
-        context.setStrokeColor(NSColor.black.withAlphaComponent(0.3).cgColor)
+        // Track circle (30% opacity of arc color)
+        context.setStrokeColor(arcColor.withAlphaComponent(0.3).cgColor)
         context.setLineWidth(lineWidth)
         context.addArc(
             center: center,
@@ -32,10 +43,10 @@ extension NSImage {
 
         // Arc fill (from -90° clockwise by utilization × 360°)
         if clampedPercentage > 0 {
-            context.setStrokeColor(NSColor.black.cgColor)
+            context.setStrokeColor(arcColor.cgColor)
             context.setLineWidth(lineWidth)
             context.setLineCap(.round)
-            let startAngle = CGFloat.pi / 2   // -90° in standard coords = π/2 in CoreGraphics (y-flipped)
+            let startAngle = CGFloat.pi / 2
             let endAngle = startAngle - (CGFloat(clampedPercentage) * .pi * 2)
             context.addArc(
                 center: center,
@@ -47,16 +58,20 @@ extension NSImage {
             context.strokePath()
         }
 
-        // Center filled ellipse (5×5pt at 6.5,6.5)
-        context.setFillColor(NSColor.black.cgColor)
+        // Center filled ellipse
+        context.setFillColor(arcColor.cgColor)
         context.fillEllipse(in: CGRect(x: 6.5, y: 6.5, width: 5, height: 5))
 
         image.unlockFocus()
-        image.isTemplate = true
+
+        // Only use template (monochrome) when utilization is low — colors need isTemplate = false
+        image.isTemplate = clampedPercentage < 0.60
 
         return image
     }
 }
+
+// MARK: - Menu Bar Icon View
 
 struct MenuBarIconView: View {
     let usage: UsageState?
@@ -95,15 +110,9 @@ struct MenuBarIconView: View {
     var body: some View {
         HStack(spacing: 4) {
             currentImage
-                .onAppear {
-                    updateImage()
-                }
-                .onChange(of: usage?.utilization5h) { _, _ in
-                    updateImage()
-                }
-                .onChange(of: isAuthenticated) { _, _ in
-                    updateImage()
-                }
+                .onAppear { updateImage() }
+                .onChange(of: usage?.utilization5h) { _, _ in updateImage() }
+                .onChange(of: isAuthenticated) { _, _ in updateImage() }
 
             if let label = labelText {
                 Text(label)
@@ -119,7 +128,6 @@ struct MenuBarIconView: View {
 
         var groups: [String] = []
 
-        // 5h group: "5h 19% 01:00" — prefix makes the window clear at a glance
         var fiveHourParts: [String] = []
         if show5hPercentage {
             fiveHourParts.append("\(Int(usage.utilization5h * 100))%")
@@ -131,7 +139,6 @@ struct MenuBarIconView: View {
             groups.append("5h " + fiveHourParts.joined(separator: " "))
         }
 
-        // 7d group: "7d 14% 12:00"
         var sevenDayParts: [String] = []
         if show7dPercentage {
             sevenDayParts.append("\(Int(usage.utilization7d * 100))%")
@@ -143,8 +150,6 @@ struct MenuBarIconView: View {
             groups.append("7d " + sevenDayParts.joined(separator: " "))
         }
 
-        // Extra usage credits — show whenever extra usage is enabled by the API,
-        // not just when at 100% utilization
         if showExtraUsageCredits,
            let extra = usage.extraUsage,
            extra.isEnabled,
