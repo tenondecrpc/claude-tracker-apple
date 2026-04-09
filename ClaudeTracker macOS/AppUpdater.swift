@@ -16,6 +16,7 @@ final class AppUpdater {
     var availableVersion: String?
     var downloadURL: URL?
     var lastCheckedAt: Date?
+    let updatesEnabled: Bool
 
     var currentVersionDisplay: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -27,7 +28,13 @@ final class AppUpdater {
     private let defaults: UserDefaults
     private let session: URLSession
 
-    init(autoCheckEnabled: @escaping () -> Bool, defaults: UserDefaults = .standard, session: URLSession = .shared) {
+    init(
+        updatesEnabled: Bool,
+        autoCheckEnabled: @escaping () -> Bool,
+        defaults: UserDefaults = .standard,
+        session: URLSession = .shared
+    ) {
+        self.updatesEnabled = updatesEnabled
         self.autoCheckEnabled = autoCheckEnabled
         self.defaults = defaults
         self.session = session
@@ -35,12 +42,19 @@ final class AppUpdater {
     }
 
     func checkOnLaunchIfNeeded() async {
+        guard updatesEnabled else { return }
         guard autoCheckEnabled() else { return }
         guard shouldRunAutomaticCheck else { return }
         await checkForUpdates(userInitiated: false)
     }
 
     func checkForUpdates(userInitiated: Bool) async {
+        guard updatesEnabled else {
+            if userInitiated {
+                statusMessage = "Updates are managed by the App Store."
+            }
+            return
+        }
         guard !isChecking else { return }
 
         isChecking = true
@@ -77,6 +91,7 @@ final class AppUpdater {
     }
 
     func openLatestRelease() {
+        guard updatesEnabled else { return }
         let fallbackURL = URL(string: "https://github.com/\(Constants.owner)/\(Constants.repository)/releases")
         let targetURL = downloadURL ?? fallbackURL
 

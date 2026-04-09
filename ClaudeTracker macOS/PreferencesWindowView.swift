@@ -61,60 +61,82 @@ struct PreferencesWindowView: View {
             }
 
             preferencesCard(title: "Updates") {
-                settingsRow(
-                    icon: "arrow.trianglehead.2.clockwise.rotate.90",
-                    title: "Automatic Update Checks",
-                    subtitle: "Check GitHub releases on launch (max every 12 hours)",
-                    toggle: $settings.autoCheckForUpdates
-                )
+                if coordinator.supportsInAppUpdates {
+                    settingsRow(
+                        icon: "arrow.trianglehead.2.clockwise.rotate.90",
+                        title: "Automatic Update Checks",
+                        subtitle: "Check GitHub releases on launch (max every 12 hours)",
+                        toggle: $settings.autoCheckForUpdates
+                    )
 
-                Divider().overlay(TempoTheme.progressTrack)
-
-                HStack(alignment: .center, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Current Version")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(TempoTheme.textPrimary)
-                        Text(coordinator.appUpdater.currentVersionDisplay)
-                            .font(.caption)
-                            .foregroundStyle(TempoTheme.textSecondary)
-                    }
-
-                    Spacer(minLength: 12)
-
-                    if coordinator.appUpdater.isChecking {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(TempoTheme.textSecondary)
-                    } else if coordinator.appUpdater.availableVersion != nil {
-                        Button("Download Update") {
-                            coordinator.appUpdater.openLatestRelease()
-                        }
-                        .buttonStyle(.plain)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(TempoTheme.accent)
-                    } else {
-                        Button("Check Now") {
-                            Task {
-                                await coordinator.appUpdater.checkForUpdates(userInitiated: true)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(TempoTheme.accent)
-                    }
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 2)
-
-                if let statusMessage = coordinator.appUpdater.statusMessage {
                     Divider().overlay(TempoTheme.progressTrack)
 
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(TempoTheme.textSecondary)
-                        .padding(.top, 10)
-                        .padding(.horizontal, 2)
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Current Version")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(TempoTheme.textPrimary)
+                            Text(coordinator.appUpdater.currentVersionDisplay)
+                                .font(.caption)
+                                .foregroundStyle(TempoTheme.textSecondary)
+                        }
+
+                        Spacer(minLength: 12)
+
+                        if coordinator.appUpdater.isChecking {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(TempoTheme.textSecondary)
+                        } else if coordinator.appUpdater.availableVersion != nil {
+                            Button("Download Update") {
+                                coordinator.appUpdater.openLatestRelease()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(TempoTheme.accent)
+                        } else {
+                            Button("Check Now") {
+                                Task {
+                                    await coordinator.appUpdater.checkForUpdates(userInitiated: true)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(TempoTheme.accent)
+                        }
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 2)
+
+                    if let statusMessage = coordinator.appUpdater.statusMessage {
+                        Divider().overlay(TempoTheme.progressTrack)
+
+                        Text(statusMessage)
+                            .font(.caption)
+                            .foregroundStyle(TempoTheme.textSecondary)
+                            .padding(.top, 10)
+                            .padding(.horizontal, 2)
+                    }
+                } else {
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "app.badge")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(TempoTheme.accent)
+                            .frame(width: 24, height: 24)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Updates are managed by the App Store")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(TempoTheme.textPrimary)
+                            Text("Current version: \(coordinator.appUpdater.currentVersionDisplay)")
+                                .font(.callout)
+                                .foregroundStyle(TempoTheme.textSecondary)
+                        }
+
+                        Spacer(minLength: 12)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 2)
                 }
             }
 

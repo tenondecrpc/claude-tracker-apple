@@ -153,49 +153,37 @@ struct DashboardPopoverView: View {
 
             Divider().overlay(TempoTheme.progressTrack)
 
-            // Updates
-            Button {
-                if displayedUpdateVersion != nil {
-                    coordinator.appUpdater.openLatestRelease()
-                } else {
-                    Task {
-                        await runManualUpdateCheck()
-                    }
-                }
-            } label: {
-                HStack {
-                    Image(systemName: updateLeadingIconName)
-                        .foregroundStyle(updateLeadingIconColor)
-                    if let version = displayedUpdateVersion {
-                        Text("Download Update \(version)")
+            if coordinator.supportsInAppUpdates {
+                // Updates
+                Button {
+                    if displayedUpdateVersion != nil {
+                        coordinator.appUpdater.openLatestRelease()
                     } else {
-                        Text("Check for Updates")
+                        Task {
+                            await runManualUpdateCheck()
+                        }
                     }
-                    Spacer()
-                    if isCheckingUpdates {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(TempoTheme.textSecondary)
-                    } else if displayedUpdateVersion != nil {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(.green)
-                    } else if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(TempoTheme.warning)
-                    } else if updateStatusMessage != nil {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                } label: {
+                    HStack {
+                        Image(systemName: updateLeadingIconName)
+                            .foregroundStyle(updateLeadingIconColor)
+                        if let version = displayedUpdateVersion {
+                            Text("Download Update \(version)")
+                        } else {
+                            Text("Check for Updates")
+                        }
+                        Spacer()
                     }
+                    .foregroundStyle(displayedUpdateVersion != nil ? Color.green : TempoTheme.textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(displayedUpdateVersion != nil ? Color.green : TempoTheme.textPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(isCheckingUpdates)
+                .buttonStyle(.plain)
+                .disabled(isCheckingUpdates)
 
-            Divider().overlay(TempoTheme.progressTrack)
+                Divider().overlay(TempoTheme.progressTrack)
+            }
 
             // Preferences
             Button {

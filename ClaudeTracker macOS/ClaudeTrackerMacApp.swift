@@ -14,7 +14,12 @@ final class MacAppCoordinator {
     let history: UsageHistory
     let localDB: ClaudeLocalDBReader
     let appUpdater: AppUpdater
+    let distribution: AppDistribution
     private var hasLaunched = false
+
+    var supportsInAppUpdates: Bool {
+        distribution.supportsInAppUpdates
+    }
 
     init() {
         let authState = MacAuthState()
@@ -25,7 +30,11 @@ final class MacAppCoordinator {
         let serviceStatusMonitor = ServiceStatusMonitor()
         let history = UsageHistory(syncHistoryViaICloud: settings.syncHistoryViaICloud)
         let localDB = ClaudeLocalDBReader()
-        let appUpdater = AppUpdater(autoCheckEnabled: { settings.autoCheckForUpdates })
+        let distribution = AppDistribution.current
+        let appUpdater = AppUpdater(
+            updatesEnabled: distribution.supportsInAppUpdates,
+            autoCheckEnabled: { settings.autoCheckForUpdates && distribution.supportsInAppUpdates }
+        )
 
         self.authState = authState
         self.client = client
@@ -36,6 +45,7 @@ final class MacAppCoordinator {
         self.history = history
         self.localDB = localDB
         self.appUpdater = appUpdater
+        self.distribution = distribution
 
         client.onSignOut = { [weak self] in
             self?.poller.stop()
