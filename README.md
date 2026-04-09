@@ -30,6 +30,12 @@ Two independent data pipelines run in parallel:
 
 The OAuth API is the authoritative source for utilization — the plan limit is account-specific and never exposed locally. The Stop hook is the only way to deliver an instant haptic the moment a session closes.
 
+## Privacy and data handling
+
+- Tempo does **not** run any custom backend and does **not** store your usage data on third-party servers.
+- Data is synchronized only between your Apple devices through your iCloud container.
+- iCloud sync and transport rely on Apple's security model and encryption standards.
+
 ## Targets
 
 | Folder | Target | Role |
