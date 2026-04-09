@@ -6,6 +6,9 @@ struct DashboardPopoverView: View {
     let coordinator: MacAppCoordinator
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
+    @State private var isCheckingUpdates = false
+    @State private var updateStatusMessage: String?
+    @State private var updateVersion: String?
 
     var body: some View {
         let use24HourTime = coordinator.settings.use24HourTime
@@ -38,6 +41,10 @@ struct DashboardPopoverView: View {
         }
         .background(TempoTheme.background)
         .preferredColorScheme(.dark)
+        .onAppear {
+            updateVersion = coordinator.appUpdater.availableVersion
+            updateStatusMessage = coordinator.appUpdater.statusMessage
+        }
     }
 
     // MARK: - Usage Content
@@ -146,6 +153,50 @@ struct DashboardPopoverView: View {
 
             Divider().overlay(TempoTheme.progressTrack)
 
+            // Updates
+            Button {
+                if displayedUpdateVersion != nil {
+                    coordinator.appUpdater.openLatestRelease()
+                } else {
+                    Task {
+                        await runManualUpdateCheck()
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: updateLeadingIconName)
+                        .foregroundStyle(updateLeadingIconColor)
+                    if let version = displayedUpdateVersion {
+                        Text("Download Update \(version)")
+                    } else {
+                        Text("Check for Updates")
+                    }
+                    Spacer()
+                    if isCheckingUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(TempoTheme.textSecondary)
+                    } else if displayedUpdateVersion != nil {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.green)
+                    } else if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(TempoTheme.warning)
+                    } else if updateStatusMessage != nil {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
+                .foregroundStyle(displayedUpdateVersion != nil ? Color.green : TempoTheme.textPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isCheckingUpdates)
+
+            Divider().overlay(TempoTheme.progressTrack)
+
             // Preferences
             Button {
                 let menuWindow = NSApp.keyWindow
@@ -248,5 +299,38 @@ struct DashboardPopoverView: View {
         let hoursUntilReset = max(0, usage.resetAt5h.timeIntervalSince(now) / 3600)
         let hoursElapsed = max(0.1, 5.0 - hoursUntilReset)
         return usage.utilization5h * 100.0 / hoursElapsed
+    }
+
+    private var displayedUpdateVersion: String? {
+        updateVersion ?? coordinator.appUpdater.availableVersion
+    }
+
+    private var updateLeadingIconName: String {
+        if displayedUpdateVersion != nil {
+            return "arrow.down.circle.fill"
+        }
+        if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
+            return "exclamationmark.circle.fill"
+        }
+        return "arrow.down.circle"
+    }
+
+    private var updateLeadingIconColor: Color {
+        if displayedUpdateVersion != nil {
+            return .green
+        }
+        if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
+            return TempoTheme.warning
+        }
+        return TempoTheme.textPrimary
+    }
+
+    private func runManualUpdateCheck() async {
+        isCheckingUpdates = true
+        updateStatusMessage = "Checking for updates..."
+        await coordinator.appUpdater.checkForUpdates(userInitiated: true)
+        updateVersion = coordinator.appUpdater.availableVersion
+        updateStatusMessage = coordinator.appUpdater.statusMessage
+        isCheckingUpdates = false
     }
 }

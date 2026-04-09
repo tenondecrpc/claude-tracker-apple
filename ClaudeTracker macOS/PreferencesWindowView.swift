@@ -60,6 +60,64 @@ struct PreferencesWindowView: View {
                 )
             }
 
+            preferencesCard(title: "Updates") {
+                settingsRow(
+                    icon: "arrow.trianglehead.2.clockwise.rotate.90",
+                    title: "Automatic Update Checks",
+                    subtitle: "Check GitHub releases on launch (max every 12 hours)",
+                    toggle: $settings.autoCheckForUpdates
+                )
+
+                Divider().overlay(TempoTheme.progressTrack)
+
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Current Version")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(TempoTheme.textPrimary)
+                        Text(coordinator.appUpdater.currentVersionDisplay)
+                            .font(.caption)
+                            .foregroundStyle(TempoTheme.textSecondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    if coordinator.appUpdater.isChecking {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(TempoTheme.textSecondary)
+                    } else if coordinator.appUpdater.availableVersion != nil {
+                        Button("Download Update") {
+                            coordinator.appUpdater.openLatestRelease()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(TempoTheme.accent)
+                    } else {
+                        Button("Check Now") {
+                            Task {
+                                await coordinator.appUpdater.checkForUpdates(userInitiated: true)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(TempoTheme.accent)
+                    }
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+
+                if let statusMessage = coordinator.appUpdater.statusMessage {
+                    Divider().overlay(TempoTheme.progressTrack)
+
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(TempoTheme.textSecondary)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 2)
+                }
+            }
+
             // Menu Bar Display card — compact 2-column grid
             preferencesCard(title: "Menu Bar Display") {
                 HStack(alignment: .top, spacing: 0) {

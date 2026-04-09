@@ -13,6 +13,7 @@ final class MacSettingsStore {
         static let use24HourTime = "mac.settings.use24HourTime"
         static let serviceStatusMonitoring = "mac.settings.serviceStatusMonitoring"
         static let syncHistoryViaICloud = "mac.settings.syncHistoryViaICloud"
+        static let autoCheckForUpdates = "mac.settings.autoCheckForUpdates"
     }
 
     var onServiceStatusMonitoringChanged: ((Bool) -> Void)?
@@ -78,6 +79,12 @@ final class MacSettingsStore {
         }
     }
 
+    var autoCheckForUpdates: Bool {
+        didSet {
+            persist(autoCheckForUpdates, forKey: Key.autoCheckForUpdates)
+        }
+    }
+
     private let defaults: UserDefaults
     private var isHydrating = false
 
@@ -119,6 +126,10 @@ final class MacSettingsStore {
 
         syncHistoryViaICloud = defaults.object(forKey: Key.syncHistoryViaICloud) != nil
             ? defaults.bool(forKey: Key.syncHistoryViaICloud)
+            : true
+
+        autoCheckForUpdates = defaults.object(forKey: Key.autoCheckForUpdates) != nil
+            ? defaults.bool(forKey: Key.autoCheckForUpdates)
             : true
 
         isHydrating = false

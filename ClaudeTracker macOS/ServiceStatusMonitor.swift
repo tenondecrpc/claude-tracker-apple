@@ -11,7 +11,7 @@ enum ServiceHealthState: String {
 @Observable
 @MainActor
 final class ServiceStatusMonitor {
-    var state: ServiceHealthState = .unavailable
+    var state: ServiceHealthState = .operational
     var lastUpdatedAt: Date?
     var lastAttemptAt: Date?
     var isRunning = false
@@ -68,7 +68,7 @@ final class ServiceStatusMonitor {
         } catch {
             if let lastUpdatedAt, Date().timeIntervalSince(lastUpdatedAt) > staleAfter {
                 state = .stale
-            } else {
+            } else if lastUpdatedAt != nil {
                 state = .unavailable
             }
         }

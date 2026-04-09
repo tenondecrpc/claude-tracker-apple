@@ -1,17 +1,25 @@
-name: Build and Release DMG
+name: Release - Build and Publish DMG
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     tags:
       - 'v*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-dmg:
+  build-dmg-validate:
     name: Build macOS DMG
-    runs-on: macos-15
+    if: github.event_name == 'pull_request'
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -20,7 +28,36 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: latest
+
+      - name: Validate DMG archive build
+        run: |
+          xcodebuild archive \
+            -project ClaudeTracker.xcodeproj \
+            -scheme "ClaudeTracker macOS" \
+            -archivePath ${{ runner.temp }}/Tempo.xcarchive \
+            -configuration Release \
+            ENABLE_PREVIEWS=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | xcpretty && exit ${PIPESTATUS[0]}
+
+  release-dmg:
+    name: Release and Publish DMG
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
 
       - name: Build archive
         run: |
@@ -29,6 +66,7 @@ jobs:
             -scheme "ClaudeTracker macOS" \
             -archivePath ${{ runner.temp }}/Tempo.xcarchive \
             -configuration Release \
+            ENABLE_PREVIEWS=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \

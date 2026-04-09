@@ -37,19 +37,19 @@ struct LocalProjectStat: Identifiable {
 
 // MARK: - JSONL decode structs (lenient)
 
-private struct JNLRecord: Decodable {
+nonisolated private struct JNLRecord: Decodable {
     let type: String
     let timestamp: String?
     let message: JNLMessage?
 }
 
-private struct JNLMessage: Decodable {
+nonisolated private struct JNLMessage: Decodable {
     let content: [JNLContentBlock]?
     let usage: JNLUsage?
     let model: String?
 }
 
-private struct JNLUsage: Decodable {
+nonisolated private struct JNLUsage: Decodable {
     let inputTokens: Int
     let outputTokens: Int
 
@@ -59,7 +59,7 @@ private struct JNLUsage: Decodable {
     }
 }
 
-private struct JNLContentBlock: Decodable {
+nonisolated private struct JNLContentBlock: Decodable {
     let type: String
 }
 
@@ -289,7 +289,7 @@ final class ClaudeLocalDBReader {
 
 // MARK: - Private decode model
 
-private struct StatsCache: Decodable {
+nonisolated private struct StatsCache: Decodable {
     let dailyActivity: [LocalDailyActivity]
     let dailyModelTokens: [LocalDailyModelTokens]
     let modelUsage: [String: LocalModelUsageItem]

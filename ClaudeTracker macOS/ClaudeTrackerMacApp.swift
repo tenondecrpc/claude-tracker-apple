@@ -13,6 +13,7 @@ final class MacAppCoordinator {
     let serviceStatusMonitor: ServiceStatusMonitor
     let history: UsageHistory
     let localDB: ClaudeLocalDBReader
+    let appUpdater: AppUpdater
     private var hasLaunched = false
 
     init() {
@@ -24,6 +25,7 @@ final class MacAppCoordinator {
         let serviceStatusMonitor = ServiceStatusMonitor()
         let history = UsageHistory(syncHistoryViaICloud: settings.syncHistoryViaICloud)
         let localDB = ClaudeLocalDBReader()
+        let appUpdater = AppUpdater(autoCheckEnabled: { settings.autoCheckForUpdates })
 
         self.authState = authState
         self.client = client
@@ -33,6 +35,7 @@ final class MacAppCoordinator {
         self.serviceStatusMonitor = serviceStatusMonitor
         self.history = history
         self.localDB = localDB
+        self.appUpdater = appUpdater
 
         client.onSignOut = { [weak self] in
             self?.poller.stop()
@@ -60,6 +63,9 @@ final class MacAppCoordinator {
     func onLaunch() async {
         guard !hasLaunched else { return }
         hasLaunched = true
+
+        await appUpdater.checkOnLaunchIfNeeded()
+
         guard !authState.requiresExplicitSignIn else { return }
         let restored = await client.tryRestoreSession()
         if restored {
