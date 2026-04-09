@@ -2,6 +2,8 @@
 
 A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends.
 
+[![Security - CodeQL (Swift)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml)
+
 ![Tempo menu bar popover](docs/screenshot.png)
 
 ## What it does
