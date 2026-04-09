@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-dmg:
     name: Build macOS DMG
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: latest
 
       - name: Build archive
         run: |
