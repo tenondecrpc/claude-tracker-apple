@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - MacMenuView (top-level switcher)
 
@@ -6,11 +7,48 @@ struct MacMenuView: View {
     let coordinator: MacAppCoordinator
 
     var body: some View {
-        if coordinator.authState.isAuthenticated {
-            DashboardPopoverView(coordinator: coordinator)
-        } else {
-            NotSignedInMenuView(coordinator: coordinator)
+        Group {
+            if coordinator.authState.isAuthenticated {
+                DashboardPopoverView(coordinator: coordinator)
+            } else {
+                NotSignedInMenuView(coordinator: coordinator)
+            }
         }
+        .onAppear {
+            scheduleMenuWindowRecenter()
+        }
+        .onChange(of: coordinator.authState.isAuthenticated) { _, _ in
+            scheduleMenuWindowRecenter()
+        }
+        .onChange(of: coordinator.poller.latestUsage != nil) { _, _ in
+            scheduleMenuWindowRecenter()
+        }
+    }
+
+    private func scheduleMenuWindowRecenter() {
+        DispatchQueue.main.async {
+            centerMenuWindowUnderMenuBarClick()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            centerMenuWindowUnderMenuBarClick()
+        }
+    }
+
+    private func centerMenuWindowUnderMenuBarClick() {
+        guard let menuWindow = NSApp.keyWindow else { return }
+
+        let clickLocation = NSEvent.mouseLocation
+        var frame = menuWindow.frame
+        let visibleFrame = menuWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        guard !visibleFrame.isEmpty else { return }
+
+        let desiredX = clickLocation.x - (frame.width / 2)
+        let horizontalInset: CGFloat = 8
+        let minX = visibleFrame.minX + horizontalInset
+        let maxX = visibleFrame.maxX - frame.width - horizontalInset
+
+        frame.origin.x = min(max(desiredX, minX), maxX)
+        menuWindow.setFrameOrigin(frame.origin)
     }
 }
 

@@ -4,7 +4,29 @@ A macOS menu bar app that tracks your Claude Code token and credit usage in real
 
 [![Security - CodeQL (Swift)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml)
 
-![Tempo menu bar popover](docs/screenshot.png)
+## Screenshots
+
+### Compact popover (portrait)
+
+<p align="center">
+  <a href="screenshots/screenshot-01.png">
+    <img src="screenshots/screenshot-01.png" alt="Tempo menu bar popover" width="280" />
+  </a>
+</p>
+
+### Desktop windows (landscape)
+
+<p align="center">
+  <a href="screenshots/screenshot-02.png">
+    <img src="screenshots/screenshot-02.png" alt="Tempo overview window" width="31%" />
+  </a>
+  <a href="screenshots/screenshot-03.png">
+    <img src="screenshots/screenshot-03.png" alt="Tempo activity window" width="31%" />
+  </a>
+  <a href="screenshots/screenshot-04.png">
+    <img src="screenshots/screenshot-04.png" alt="Tempo preferences window" width="31%" />
+  </a>
+</p>
 
 ## What it does
 
