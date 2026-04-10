@@ -18,7 +18,15 @@ final class AppCoordinator {
         self.store = store
         self.relay = relay
 
-        iCloudReader.onUsageState = { [weak relay] state in relay?.send(state) }
+        iCloudReader.onUsageState = { [weak relay, weak iCloudReader] (state: UsageState) in
+            relay?.send(state, history: iCloudReader?.historySnapshots ?? [])
+        }
+        relay.onWatchStateChange = { [weak store] isPaired, isInstalled in
+            Task { @MainActor in
+                store?.updateWatchState(isPaired: isPaired, isInstalled: isInstalled)
+            }
+        }
+        relay.activate()
         iCloudReader.start()
     }
 

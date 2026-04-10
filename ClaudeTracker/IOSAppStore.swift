@@ -50,6 +50,14 @@ final class IOSAppStore {
     var usageReadError: String? { iCloudReader.usageReadError }
     var historyReadError: String? { iCloudReader.historyReadError }
 
+    private(set) var isWatchPaired = false
+    private(set) var isWatchAppInstalled = false
+
+    func updateWatchState(isPaired: Bool, isInstalled: Bool) {
+        isWatchPaired = isPaired
+        isWatchAppInstalled = isInstalled
+    }
+
     var isHistoryStaleWhileUsageFresh: Bool {
         if case .syncing = usageSyncStatus, case .stale = historySyncStatus {
             return true

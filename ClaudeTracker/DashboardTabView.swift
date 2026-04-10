@@ -8,6 +8,10 @@ struct DashboardTabView: View {
             VStack(alignment: .leading, spacing: 16) {
                 titleSection
 
+                if store.isWatchPaired && !store.isWatchAppInstalled {
+                    watchInstallBanner
+                }
+
                 if let usage = store.usage {
                     TimelineView(.periodic(from: .now, by: 30)) { context in
                         dashboardContent(usage: usage, now: context.date)
@@ -145,6 +149,23 @@ struct DashboardTabView: View {
                     status: store.historySyncStatus,
                     date: store.lastHistoryUpdate
                 )
+            }
+        }
+    }
+
+    private var watchInstallBanner: some View {
+        card {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "applewatch.and.arrow.forward")
+                    .foregroundStyle(ClaudeCodeTheme.info)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Watch App Available")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    Text("Open the Watch app on your iPhone and install ClaudeTracker, or enable Automatic App Install in Watch → General.")
+                        .font(.caption)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                }
             }
         }
     }
