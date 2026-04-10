@@ -19,11 +19,13 @@ final class iCloudUsageReader: NSObject {
     var lastReceivedAt: Date?
     var lastHistoryReceivedAt: Date?
     var latestUsage: UsageState?
+    var latestSession: SessionInfo?
     var historySnapshots: [UsageHistorySnapshot] = []
     var usageReadError: String?
     var historyReadError: String?
 
     var onUsageState: ((UsageState) -> Void)?
+    var onSessionInfo: ((SessionInfo) -> Void)?
 
     private var query: NSMetadataQuery?
 
@@ -36,6 +38,7 @@ final class iCloudUsageReader: NSObject {
         // Simulator cannot reliably access ubiquity containers; avoid metadata query setup
         // because it triggers CoreServices CRIT container URL logs.
         latestUsage = nil
+        latestSession = nil
         historySnapshots = []
         lastReceivedAt = nil
         lastHistoryReceivedAt = nil
@@ -49,7 +52,7 @@ final class iCloudUsageReader: NSObject {
 
         let q = NSMetadataQuery()
         q.predicate = NSPredicate(
-            format: "%K IN %@", NSMetadataItemFSNameKey, ["usage.json", "usage-history.json"]
+            format: "%K IN %@", NSMetadataItemFSNameKey, ["usage.json", "usage-history.json", "latest.json"]
         )
         let documentsScope = Self.iCloudDocumentsScope()
         if let documentsScope {
@@ -131,6 +134,11 @@ final class iCloudUsageReader: NSObject {
         if FileManager.default.fileExists(atPath: historyURL.path) {
             readHistoryFile(at: historyURL)
         }
+
+        let sessionURL = trackerDirectory.appendingPathComponent("latest.json")
+        if FileManager.default.fileExists(atPath: sessionURL.path) {
+            readSessionFile(at: sessionURL)
+        }
     }
 
     // MARK: - Query Callbacks
@@ -155,13 +163,15 @@ final class iCloudUsageReader: NSObject {
                   let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { continue }
 
             let fileName = (item.value(forAttribute: NSMetadataItemFSNameKey) as? String) ?? url.lastPathComponent
-            guard fileName == "usage.json" || fileName == "usage-history.json" else { continue }
+            guard fileName == "usage.json" || fileName == "usage-history.json" || fileName == "latest.json" else { continue }
             guard ensureDownloaded(item: item, url: url) else { continue }
 
             if fileName == "usage.json" {
                 readUsageFile(at: url)
-            } else {
+            } else if fileName == "usage-history.json" {
                 readHistoryFile(at: url)
+            } else {
+                readSessionFile(at: url)
             }
         }
 
@@ -215,6 +225,24 @@ final class iCloudUsageReader: NSObject {
             case .failure(let error):
                 self.historyReadError = error.localizedDescription
                 self.refreshStaleness()
+            }
+        }
+    }
+
+    private func readSessionFile(at url: URL) {
+        Task { [weak self] in
+            let result: Result<SessionInfo, Error> = Self.decodeFile(at: url, as: SessionInfo.self)
+
+            guard let self else { return }
+            switch result {
+            case .success(let session):
+                if self.latestSession?.sessionId == session.sessionId {
+                    return
+                }
+                self.latestSession = session
+                self.onSessionInfo?(session)
+            case .failure:
+                break
             }
         }
     }

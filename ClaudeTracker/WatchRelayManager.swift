@@ -4,10 +4,16 @@ import WatchConnectivity
 // MARK: - WatchRelayManager (Tasks 5.1–5.4)
 
 final class WatchRelayManager: NSObject {
+    private enum DefaultsKey {
+        static let lastRelayedSessionID = "watchrelay.lastRelayedSessionID"
+    }
+
     private let session = WCSession.default
+    private let defaults = UserDefaults.standard
     private var didAssignDelegate = false
     private var pendingState: UsageState?
     private var pendingHistory: [UsageHistorySnapshot] = []
+    private var pendingSessions: [SessionInfo] = []
     private var hasRequestedActivation = false
     private var hasLoggedMissingWatchApp = false
 
@@ -93,6 +99,53 @@ final class WatchRelayManager: NSObject {
         pendingHistory = []
         send(state, history: history)
     }
+
+    // MARK: - Send SessionInfo
+
+    func sendSession(_ sessionInfo: SessionInfo) {
+        if lastRelayedSessionID == sessionInfo.sessionId {
+            return
+        }
+        ensureDelegate()
+        guard session.activationState == .activated else {
+            enqueuePendingSessionIfNeeded(sessionInfo)
+            activate()
+            return
+        }
+
+        guard session.isPaired, session.isWatchAppInstalled else {
+            enqueuePendingSessionIfNeeded(sessionInfo)
+            return
+        }
+
+        session.transferUserInfo(sessionInfo.toUserInfo())
+        lastRelayedSessionID = sessionInfo.sessionId
+        print("[WatchRelay] queued transferUserInfo for SessionInfo id=\(sessionInfo.sessionId)")
+    }
+
+    private func flushPendingSessionsIfPossible() {
+        guard !pendingSessions.isEmpty else { return }
+        guard session.activationState == .activated else { return }
+        guard session.isPaired, session.isWatchAppInstalled else { return }
+
+        let queued = pendingSessions
+        pendingSessions.removeAll(keepingCapacity: true)
+        queued.forEach {
+            session.transferUserInfo($0.toUserInfo())
+            lastRelayedSessionID = $0.sessionId
+        }
+        print("[WatchRelay] flushed \(queued.count) queued SessionInfo payload(s)")
+    }
+
+    private func enqueuePendingSessionIfNeeded(_ sessionInfo: SessionInfo) {
+        guard pendingSessions.contains(where: { $0.sessionId == sessionInfo.sessionId }) == false else { return }
+        pendingSessions.append(sessionInfo)
+    }
+
+    private var lastRelayedSessionID: String? {
+        get { defaults.string(forKey: DefaultsKey.lastRelayedSessionID) }
+        set { defaults.setValue(newValue, forKey: DefaultsKey.lastRelayedSessionID) }
+    }
 }
 
 // MARK: - WCSessionDelegate (Task 5.3)
@@ -110,6 +163,7 @@ extension WatchRelayManager: WCSessionDelegate {
         onWatchStateChange?(session.isPaired, session.isWatchAppInstalled)
         // Activation complete; send latest pending state if we have one.
         flushPendingStateIfPossible()
+        flushPendingSessionsIfPossible()
     }
 
     func sessionDidBecomeInactive(_ session: WCSession) {
@@ -129,6 +183,7 @@ extension WatchRelayManager: WCSessionDelegate {
         }
         onWatchStateChange?(session.isPaired, session.isWatchAppInstalled)
         flushPendingStateIfPossible()
+        flushPendingSessionsIfPossible()
     }
 }
 
@@ -150,5 +205,19 @@ extension UsageState {
             info["usageHistory"] = data
         }
         return info
+    }
+}
+
+extension SessionInfo {
+    func toUserInfo() -> [String: Any] {
+        [
+            "type": "SessionInfo",
+            "sessionId": sessionId,
+            "inputTokens": inputTokens,
+            "outputTokens": outputTokens,
+            "costUSD": costUSD,
+            "durationSeconds": durationSeconds,
+            "timestamp": timestamp.timeIntervalSince1970,
+        ]
     }
 }

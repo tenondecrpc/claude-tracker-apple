@@ -13,6 +13,7 @@ final class MacAppCoordinator {
     let serviceStatusMonitor: ServiceStatusMonitor
     let history: UsageHistory
     let localDB: ClaudeLocalDBReader
+    let sessionEventWriter: SessionEventWriter
     let appUpdater: AppUpdater
     let distribution: AppDistribution
     private var hasLaunched = false
@@ -30,6 +31,7 @@ final class MacAppCoordinator {
         let serviceStatusMonitor = ServiceStatusMonitor()
         let history = UsageHistory(syncHistoryViaICloud: settings.syncHistoryViaICloud)
         let localDB = ClaudeLocalDBReader()
+        let sessionEventWriter = SessionEventWriter()
         let distribution = AppDistribution.current
         let appUpdater = AppUpdater(
             updatesEnabled: distribution.supportsInAppUpdates,
@@ -44,6 +46,7 @@ final class MacAppCoordinator {
         self.serviceStatusMonitor = serviceStatusMonitor
         self.history = history
         self.localDB = localDB
+        self.sessionEventWriter = sessionEventWriter
         self.appUpdater = appUpdater
         self.distribution = distribution
 
@@ -74,6 +77,7 @@ final class MacAppCoordinator {
         guard !hasLaunched else { return }
         hasLaunched = true
 
+        sessionEventWriter.start()
         await appUpdater.checkOnLaunchIfNeeded()
 
         guard !authState.requiresExplicitSignIn else { return }

@@ -187,6 +187,8 @@ struct MenuBarHeaderView: View {
                 .overlay(ClaudeCodeTheme.progressTrack)
             if serviceState != .operational {
                 ServiceStatusBannerView(state: serviceState)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
             }
         }
     }
@@ -208,22 +210,32 @@ struct ServiceStatusBannerView: View {
     let state: ServiceHealthState
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 10) {
             Rectangle()
                 .fill(bannerColor)
                 .frame(width: 3)
+                .clipShape(.rect(cornerRadius: 1.5))
+
             Image(systemName: bannerIcon)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(bannerColor)
+
             Text(bannerLabel)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
-            Spacer()
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
-        .padding(.trailing, 16)
-        .background(bannerColor.opacity(0.08))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(ClaudeCodeTheme.card)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(bannerColor.opacity(0.35), lineWidth: 1)
+        }
+        .clipShape(.rect(cornerRadius: 10))
     }
 
     private var bannerColor: Color {

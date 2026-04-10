@@ -1,6 +1,7 @@
 import Foundation
 import WatchConnectivity
 import WidgetKit
+import WatchKit
 
 final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
@@ -49,7 +50,18 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
     }
 
     private func applyUserInfo(_ userInfo: [String: Any]) {
-        guard (userInfo["type"] as? String) == "UsageState" else { return }
+        guard let payloadType = userInfo["type"] as? String else { return }
+        switch payloadType {
+        case "UsageState":
+            applyUsageState(userInfo)
+        case "SessionInfo":
+            applySessionInfo(userInfo)
+        default:
+            return
+        }
+    }
+
+    private func applyUsageState(_ userInfo: [String: Any]) {
         guard
             let utilization5h = userInfo["utilization5h"] as? Double,
             let utilization7d = userInfo["utilization7d"] as? Double,
@@ -82,6 +94,31 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             if let snapshots {
                 self.store.applyHistory(snapshots)
             }
+        }
+    }
+
+    private func applySessionInfo(_ userInfo: [String: Any]) {
+        guard
+            let sessionId = userInfo["sessionId"] as? String,
+            let inputTokens = userInfo["inputTokens"] as? Int,
+            let outputTokens = userInfo["outputTokens"] as? Int,
+            let costUSD = userInfo["costUSD"] as? Double,
+            let durationSeconds = userInfo["durationSeconds"] as? Int,
+            let timestampInterval = userInfo["timestamp"] as? TimeInterval
+        else { return }
+
+        let sessionInfo = SessionInfo(
+            sessionId: sessionId,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            costUSD: costUSD,
+            durationSeconds: durationSeconds,
+            timestamp: Date(timeIntervalSince1970: timestampInterval)
+        )
+
+        Task { @MainActor in
+            self.store.applySession(sessionInfo)
+            WKInterfaceDevice.current().play(.notification)
         }
     }
 }
