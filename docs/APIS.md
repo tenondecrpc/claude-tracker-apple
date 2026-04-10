@@ -34,7 +34,7 @@ state=<random>
 
 **Callback note**: Uses a "paste code" flow — the redirect lands in the browser and the user pastes a `<code>#<state>` string. Code = part before `#`, state = part after.
 
-**Claude Code credential reuse**: Claude Code does NOT expose reusable OAuth tokens. `~/.claude/.claude.json` contains account metadata (`oauthAccount.emailAddress`, `displayName`, `accountUuid`) but no `access_token` or `refresh_token`. `~/.claude/credentials.json` exists but is empty (3 bytes). Each app (ClaudeTracker, claude-usage-bar, etc.) MUST manage its own OAuth tokens via its own token exchange. The email from `.claude.json` can be read for display purposes only.
+**Claude Code credential reuse**: Claude Code does NOT expose reusable OAuth tokens. `~/.claude/.claude.json` contains account metadata (`oauthAccount.emailAddress`, `displayName`, `accountUuid`) but no `access_token` or `refresh_token`. `~/.claude/credentials.json` exists but is empty (3 bytes). Each app (Tempo, claude-usage-bar, etc.) MUST manage its own OAuth tokens via its own token exchange. The email from `.claude.json` can be read for display purposes only.
 
 **Token exchange — POST body (JSON):**
 ```json
@@ -301,7 +301,7 @@ cat > /tmp/hook-debug.json
 {
   "pid": 27369,
   "sessionId": "c5f3a65f-ac07-48e6-8329-cdc5b755c983",
-  "cwd": "/Users/tenonde/Projects/personal/claude-tracker",
+  "cwd": "/Users/tenonde/Projects/personal/tempo-for-claude",
   "startedAt": 1774655137618,
   "kind": "interactive",
   "entrypoint": "cli"
@@ -497,7 +497,7 @@ func handleQueryResults(_ query: NSMetadataQuery) {
 WKInterfaceDevice.current().play(.notification)
 ```
 
-**Recommended cases for ClaudeTracker:**
+**Recommended cases for Tempo:**
 
 | Event | Type | Pattern |
 |---|---|---|

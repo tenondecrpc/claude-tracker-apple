@@ -9,7 +9,7 @@
 - [x] 2.2 Add reset countdown segment using `TimelineView(.periodic(from:, by: 60))` displaying `H:MM` from `resetAt5h`
 - [x] 2.3 Add 7-day utilization segment displaying `7d XX%` from `utilization7d`
 - [x] 2.4 Add extra usage credits segment that replaces the 5h% with `$X.XX/$Y` when `isUsingExtraUsage5h` is true
-- [x] 2.5 Wire new settings from `MacSettingsStore` through `ClaudeTrackerMacApp` into `MenuBarIconView`
+- [x] 2.5 Wire new settings from `MacSettingsStore` through `TempoMacApp` into `MenuBarIconView`
 
 ## 3. Verification
 

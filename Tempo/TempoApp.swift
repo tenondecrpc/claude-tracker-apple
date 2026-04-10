@@ -41,10 +41,10 @@ final class AppCoordinator {
     }
 }
 
-// MARK: - ClaudeTrackerApp
+// MARK: - TempoApp
 
 @main
-struct ClaudeTrackerApp: App {
+struct TempoApp: App {
     @State private var coordinator = AppCoordinator()
     @Environment(\.scenePhase) private var scenePhase
 

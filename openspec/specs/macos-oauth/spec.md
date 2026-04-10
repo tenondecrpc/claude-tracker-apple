@@ -13,13 +13,13 @@ The macOS app SHALL authenticate users via OAuth PKCE by opening the authorizati
 
 #### Scenario: Token exchange succeeds
 - **WHEN** the token exchange returns `access_token`, `refresh_token`, and `expires_in`
-- **THEN** all credentials are written to `~/.config/claude-tracker/credentials.json` with file permissions `0600` and the app transitions to authenticated state
+- **THEN** all credentials are written to `~/.config/tempo-for-claude/credentials.json` with file permissions `0600` and the app transitions to authenticated state
 
 ### Requirement: Credentials stored in file with restricted permissions
-Access token, refresh token, expiration date, and scopes SHALL be stored as JSON at `~/.config/claude-tracker/credentials.json`. The file SHALL have permissions `0600`. The directory SHALL have permissions `0700`. Credentials SHALL never be stored in `UserDefaults`, iCloud, or any shared location.
+Access token, refresh token, expiration date, and scopes SHALL be stored as JSON at `~/.config/tempo-for-claude/credentials.json`. The file SHALL have permissions `0600`. The directory SHALL have permissions `0700`. Credentials SHALL never be stored in `UserDefaults`, iCloud, or any shared location.
 
 #### Scenario: Credentials file created on first sign-in
-- **WHEN** OAuth token exchange succeeds and `~/.config/claude-tracker/` does not exist
+- **WHEN** OAuth token exchange succeeds and `~/.config/tempo-for-claude/` does not exist
 - **THEN** the directory is created with permissions `0700` and `credentials.json` is written with permissions `0600`
 
 #### Scenario: Credentials survive app restart
@@ -27,7 +27,7 @@ Access token, refresh token, expiration date, and scopes SHALL be stored as JSON
 - **THEN** credentials are read from `credentials.json` and the user remains authenticated without re-signing-in
 
 ### Requirement: Auto-restore session on launch
-On launch, the macOS app SHALL check if `~/.config/claude-tracker/credentials.json` exists with a valid (non-expired) access token. If valid credentials are found, the app SHALL skip the sign-in UI and begin polling immediately.
+On launch, the macOS app SHALL check if `~/.config/tempo-for-claude/credentials.json` exists with a valid (non-expired) access token. If valid credentials are found, the app SHALL skip the sign-in UI and begin polling immediately.
 
 #### Scenario: Valid credentials found on launch
 - **WHEN** the app launches and `credentials.json` contains a non-expired `access_token`

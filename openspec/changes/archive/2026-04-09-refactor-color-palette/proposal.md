@@ -7,7 +7,7 @@ The app currently has two disconnected color systems: `Theme.swift` (Shared/, us
 - **BREAKING**: Replace `TempoTheme.*` enum (21 tokens) with `ClaudeCodeTheme.*` — all 26 macOS files must update references
 - **BREAKING**: Replace `Color.claude*` extensions (15 tokens) with `ClaudeCodeTheme.*` — watchOS ContentView must update references
 - Create unified `Shared/ClaudeCodeTheme.swift` with full dark + light mode palettes from the official Claude Code theme
-- Delete `Shared/Theme.swift` and `ClaudeTracker macOS/TempoTheme.swift`
+- Delete `Shared/Theme.swift` and `Tempo macOS/TempoTheme.swift`
 - Add appearance mode preference (`dark`/`light`/`system`, default `dark`) with toggle in Preferences UI
 - Wire `preferredColorScheme` override through app entry points
 - Populate empty `AccentColor.colorset` files across all 4 targets with terracotta `#C96442`

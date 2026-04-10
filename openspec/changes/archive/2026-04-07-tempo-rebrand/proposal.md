@@ -4,7 +4,7 @@ The macOS app "Usage for Claude" shares a near-identical UI pattern with two com
 
 ## What Changes
 
-- **New display name**: "Tempo for Claude" (windows) / "Tempo" (popover header); project stays `claude-tracker` internally
+- **New display name**: "Tempo for Claude" (windows) / "Tempo" (popover header); project stays `tempo-for-claude` internally
 - **New color system**: Graphite + Electric Violet palette (`TempoTheme`) replacing the current Navy + Terracotta (`ClaudeTheme`)
 - **Popover redesigned**: Concentric ring gauges replace flat linear progress bars; Extra Usage moves into a collapsed disclosure inside the burn rate card
 - **Stats detail window restructured**: Single scrolling column replaced by a horizontal tab bar (Overview / Activity / Insights / Preferences) with a card grid layout on Overview
@@ -33,7 +33,7 @@ The macOS app "Usage for Claude" shares a near-identical UI pattern with two com
 
 ## Impact
 
-- **Modified files (macOS target)**: `ClaudeTheme.swift` → `TempoTheme.swift`, `AuthenticatedView.swift` → `DashboardPopoverView.swift`, `MenuBarComponents.swift` → `PopoverComponents.swift`, `StatsDetailView.swift` → `DetailWindowView.swift`, `DynamicMenuBarIconView.swift` → `MenuBarIconView.swift`, `WelcomeWindow.swift`, `SignInView.swift`, `ClaudeTrackerMacApp.swift`
+- **Modified files (macOS target)**: `ClaudeTheme.swift` → `TempoTheme.swift`, `AuthenticatedView.swift` → `DashboardPopoverView.swift`, `MenuBarComponents.swift` → `PopoverComponents.swift`, `StatsDetailView.swift` → `DetailWindowView.swift`, `DynamicMenuBarIconView.swift` → `MenuBarIconView.swift`, `WelcomeWindow.swift`, `SignInView.swift`, `TempoMacApp.swift`
 - **New file**: `docs/DESIRABLE_FEATURES.md`
 - **No API changes**: All data sources, polling logic, OAuth, iCloud sync, and calculations are preserved
 - **No model changes**: `UsageState`, `ExtraUsage`, `UsageHistory`, `SessionInfo` remain unchanged

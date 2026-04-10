@@ -4,11 +4,11 @@ The current OAuth sign-in lives on the iOS app, but the Mac is where Claude Code
 
 ## What Changes
 
-- **New macOS target** in `ClaudeTracker.xcodeproj` — a menu bar app (or window) that handles OAuth sign-in and usage polling
+- **New macOS target** in `Tempo.xcodeproj` — a menu bar app (or window) that handles OAuth sign-in and usage polling
 - **Two sign-in methods on macOS**:
   1. "Sign in with Claude Code" — detects existing Claude Code OAuth credentials on disk and reuses them (zero-friction for CLI users)
   2. "Sign in with Email" — browser-based OAuth PKCE flow with paste-code (same as current iOS implementation but using `NSWorkspace.shared.open`)
-- **macOS polls the Anthropic usage API** and writes `UsageState` as JSON to iCloud Drive (`~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/usage.json`)
+- **macOS polls the Anthropic usage API** and writes `UsageState` as JSON to iCloud Drive (`~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage.json`)
 - **iOS app reads `usage.json` from iCloud** via `NSMetadataQuery` instead of polling the API directly — no OAuth login needed on iOS
 - **iOS relays `UsageState` to watchOS** via `WatchConnectivity` (unchanged)
 - **BREAKING**: iOS OAuth sign-in flow becomes unused (kept in code for now but not the primary path)
@@ -25,7 +25,7 @@ The current OAuth sign-in lives on the iOS app, but the Mac is where Claude Code
 
 ## Impact
 
-- **New Xcode target**: macOS app target added to `ClaudeTracker.xcodeproj`
+- **New Xcode target**: macOS app target added to `Tempo.xcodeproj`
 - **Shared code**: `UsageState` model (in `Shared/`) used by macOS writer and iOS reader
 - **iCloud entitlement**: Required on both macOS (write) and iOS (read) targets
 - **iOS `AnthropicAPIClient.swift`**: Retained but demoted — macOS is now the primary auth path

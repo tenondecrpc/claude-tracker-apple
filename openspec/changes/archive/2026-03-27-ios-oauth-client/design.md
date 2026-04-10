@@ -1,6 +1,6 @@
 ## Context
 
-The iOS app target (`ClaudeTracker/`) is currently empty — no views, no logic. This change builds the three-component iOS backend that powers the usage ring on the watch:
+The iOS app target (`Tempo/`) is currently empty — no views, no logic. This change builds the three-component iOS backend that powers the usage ring on the watch:
 
 1. `AnthropicAPIClient` — OAuth identity and token lifecycle
 2. `UsageStatePoller` — periodic API polling and response mapping

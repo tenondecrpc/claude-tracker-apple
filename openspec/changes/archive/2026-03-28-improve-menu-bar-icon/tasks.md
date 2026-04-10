@@ -5,7 +5,7 @@
 
 ## 2. Menu Bar Controller Update
 
-- [x] 2.1 Update the menu bar controller (`ClaudeTracker macOS` target) to observe the shared usage data state (e.g., `TokenStore` or equivalent).
+- [x] 2.1 Update the menu bar controller (`Tempo macOS` target) to observe the shared usage data state (e.g., `TokenStore` or equivalent).
 - [x] 2.2 Add logic to update the `NSStatusItem.button.image` with the generated dynamic image when usage data is available and the user is authenticated.
 - [x] 2.3 Add logic to display the static default app icon when the user is not authenticated or usage data is nil.
 - [x] 2.4 Add a threshold check or update mechanism so that the icon updates only when the usage percentage changes, to avoid unnecessary CPU usage.

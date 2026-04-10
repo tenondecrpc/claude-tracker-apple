@@ -19,7 +19,7 @@
 - `TempoTheme.info` → `ClaudeCodeTheme.info`
 - `TempoTheme.destructive` → `ClaudeCodeTheme.destructive`
 
-Delete `ClaudeTracker macOS/TempoTheme.swift` after all references are migrated.
+Delete `Tempo macOS/TempoTheme.swift` after all references are migrated.
 
 ### Requirement: TempoTheme is scoped to macOS target
 **Reason**: Superseded by `ClaudeCodeTheme` which lives in `Shared/` and is available to all platforms.

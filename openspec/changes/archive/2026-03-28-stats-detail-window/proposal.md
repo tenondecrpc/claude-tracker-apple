@@ -19,7 +19,7 @@ The menu bar popup (310pt wide) is too narrow to display detailed usage statisti
 
 ## Impact
 
-- **New file**: `ClaudeTracker macOS/StatsDetailView.swift` — window content view and circular gauge component.
-- **Modified**: `ClaudeTracker macOS/ClaudeTrackerMacApp.swift` — register new `Window` scene.
-- **Modified**: `ClaudeTracker macOS/AuthenticatedView.swift` — wire "Usage History" button to `openWindow`.
+- **New file**: `Tempo macOS/StatsDetailView.swift` — window content view and circular gauge component.
+- **Modified**: `Tempo macOS/TempoMacApp.swift` — register new `Window` scene.
+- **Modified**: `Tempo macOS/AuthenticatedView.swift` — wire "Usage History" button to `openWindow`.
 - No dependency or API changes. Uses existing `MacAppCoordinator`, `UsageState`, and `ClaudeTheme`.

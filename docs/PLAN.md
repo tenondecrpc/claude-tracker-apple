@@ -34,7 +34,7 @@ The local DB (`~/.claude/`) already contains the full session history (209 sessi
 El relay macOS → iOS usa iCloud Drive como canal. El entitlement "iCloud Documents" **requiere una cuenta Apple Developer de pago ($99/año)**. Con Personal Team gratuita, la escritura desde macOS funciona (path directo), pero la lectura desde iOS vía `NSMetadataQuery` queda bloqueada.
 
 ### Estado actual (2026-03-28)
-- ✅ macOS escribe `usage.json` a `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/` sin entitlement
+- ✅ macOS escribe `usage.json` a `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/` sin entitlement
 - ⚠️ iOS no puede leer vía `NSMetadataQuery` sin iCloud entitlement — pantalla "Connect via Mac app" estática
 - ✅ Todo el código está implementado y listo — solo falta activar el entitlement
 
@@ -109,9 +109,9 @@ THEN:  6 (reset alarm) → 7 (QA) → 8 (stats) → 9 (context window)
 ```
 macOS menu bar app
   └─ MacOSAPIClient (OAuth PKCE, browser + paste-code)
-  └─ CredentialStore (~/.config/claude-tracker/credentials.json, 0600 perms)
+  └─ CredentialStore (~/.config/tempo-for-claude/credentials.json, 0600 perms)
   └─ UsagePoller (15-min poll → UsageState → iCloud Drive)
-      └─ ~/Library/Mobile Documents/.../ClaudeTracker/usage.json
+      └─ ~/Library/Mobile Documents/.../Tempo/usage.json
 
 iOS companion (no sign-in required)
   └─ iCloudUsageReader (NSMetadataQuery → decode UsageState)
@@ -122,11 +122,11 @@ watchOS → TokenStore → usage ring
 
 **What to implement:** ✅ Complete (`macos-oauth-desktop` change implemented)
 
-1. **`ClaudeTracker macOS/`** — new macOS target (SwiftUI MenuBarExtra, `LSUIElement = YES`)
+1. **`Tempo macOS/`** — new macOS target (SwiftUI MenuBarExtra, `LSUIElement = YES`)
    - ✅ `CredentialStore.swift` — file-based token storage (`0600`/`0700` perms)
    - ✅ `MacOSAPIClient.swift` — OAuth PKCE, `NSWorkspace.shared.open()`, auto-restore, token refresh, sign-out
    - ✅ `UsagePoller.swift` — 15-min poll, exponential backoff on 429, iCloud write
-   - ✅ `ClaudeTrackerMacApp.swift` — `@main` App with `MenuBarExtra`
+   - ✅ `TempoMacApp.swift` — `@main` App with `MenuBarExtra`
    - ✅ `SignInView.swift` / `AuthenticatedView.swift` — minimal menu bar UI
 
 2. **iOS changes**:
@@ -134,7 +134,7 @@ watchOS → TokenStore → usage ring
    - ✅ `ContentView.swift` — "Connect via Mac app" / "Syncing from Mac" / staleness indicator
 
 **Remaining manual setup (Xcode):**
-- Add macOS app target "ClaudeTracker macOS" to `ClaudeTracker.xcodeproj` (`LSUIElement = YES`)
+- Add macOS app target "Tempo macOS" to `Tempo.xcodeproj` (`LSUIElement = YES`)
 - Link `Shared/` folder to macOS target via `PBXFileSystemSynchronizedRootGroup`
 - Enable iCloud capability with "iCloud Documents" on both macOS and iOS targets (same container ID)
 
@@ -180,7 +180,7 @@ watchOS → TokenStore → usage ring
 
 2. **Stop hook shell script** at `~/.claude/hooks/stop-tracker.sh`:
    - Reads env vars from Claude Code (exact names from Phase 0)
-   - Writes JSON to `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/latest.json`
+   - Writes JSON to `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/latest.json`
    - Creates directory if missing
    - `chmod +x` required
 
@@ -204,7 +204,7 @@ watchOS → TokenStore → usage ring
 **What to implement:**
 
 1. **`iCloudMonitor.swift`** (iOS target):
-   - `NSMetadataQuery` watching `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/latest.json`
+   - `NSMetadataQuery` watching `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/latest.json`
    - On change → decode `SessionInfo` → call `WatchRelayManager.sendSession(_:)`
 
 2. **`WatchRelayManager` update** — add `sendSession(_ session: SessionInfo)`:
@@ -215,7 +215,7 @@ watchOS → TokenStore → usage ring
 
 **Files:**
 ```
-ClaudeTracker/
+Tempo/
 ├── iCloudMonitor.swift
 └── WatchRelayManager.swift   ← extended from Phase 1
 ```
@@ -406,7 +406,7 @@ macOS menu bar + iOS companion app. Requires sign-in to Claude account via OAuth
 5. **7-day window + extra usage** — track both free and paid credits
 6. **Per-model breakdown** — Opus vs Sonnet utilization (future)
 
-### Implication for ClaudeTracker
+### Implication for Tempo
 
 - **OAuth API** (Phases 1–2) → authoritative utilization % and reset timestamps for the usage ring
 - **Stop hook** (Phases 3–5) → unique value: real-time haptic on session completion + per-session token/cost breakdown that no polling-based app can match

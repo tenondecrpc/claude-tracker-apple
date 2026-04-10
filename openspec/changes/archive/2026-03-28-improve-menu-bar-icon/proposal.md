@@ -20,5 +20,5 @@ The current menu bar icon is static and doesn't provide at-a-glance information 
 
 ## Impact
 
-- macOS menu bar app (`ClaudeTracker macOS/`)
+- macOS menu bar app (`Tempo macOS/`)
 - Specifically, the `NSStatusItem` handling, drawing code for the menu bar icon, and the observation of usage data to trigger icon updates.

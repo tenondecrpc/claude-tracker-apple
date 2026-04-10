@@ -1,6 +1,6 @@
 ## Context
 
-The macOS app already renders usage in a menu bar popover, supports a stats/history window, persists local snapshots to `~/.config/claude-tracker/usage-history.json`, and writes current `UsageState` to iCloud for iOS/watch relay. However, it does not yet expose the full set of user-configurable controls shown in the requested settings UI:
+The macOS app already renders usage in a menu bar popover, supports a stats/history window, persists local snapshots to `~/.config/tempo-for-claude/usage-history.json`, and writes current `UsageState` to iCloud for iOS/watch relay. However, it does not yet expose the full set of user-configurable controls shown in the requested settings UI:
 - Launch at Login
 - Show Percentage in Menu Bar
 - 24-Hour Time
@@ -55,7 +55,7 @@ Alternative considered:
 - Fold status checks into `UsagePoller`. Rejected because failures/noise from status polling would couple with core usage retrieval and complicate retry behavior.
 
 ### 5. Sync history via iCloud using mirrored JSON with deterministic merge
-Extend `UsageHistory` with an optional iCloud mirror file (`Documents/ClaudeTracker/usage-history.json`) when sync is enabled. On launch and write events, merge local + cloud snapshots by deterministic identity (`date + utilization5h + utilization7d` normalization), dedupe, sort by date, prune to retention window, then write back.
+Extend `UsageHistory` with an optional iCloud mirror file (`Documents/Tempo/usage-history.json`) when sync is enabled. On launch and write events, merge local + cloud snapshots by deterministic identity (`date + utilization5h + utilization7d` normalization), dedupe, sort by date, prune to retention window, then write back.
 
 Alternative considered:
 - Last-writer-wins whole-file replacement. Rejected because concurrent multi-Mac updates can lose snapshots.

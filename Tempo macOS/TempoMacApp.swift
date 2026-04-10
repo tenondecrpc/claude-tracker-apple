@@ -108,10 +108,10 @@ final class MacAppCoordinator {
     }
 }
 
-// MARK: - ClaudeTrackerMacApp
+// MARK: - TempoMacApp
 
 @main
-struct ClaudeTrackerMacApp: App {
+struct TempoMacApp: App {
     @State private var coordinator = MacAppCoordinator()
 
     var body: some Scene {

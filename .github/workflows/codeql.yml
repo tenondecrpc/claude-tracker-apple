@@ -44,8 +44,8 @@ jobs:
       - name: Build for CodeQL
         run: |
           xcodebuild build \
-            -project "ClaudeTracker.xcodeproj" \
-            -scheme "ClaudeTracker macOS" \
+            -project "Tempo.xcodeproj" \
+            -scheme "Tempo macOS" \
             -configuration Debug \
             -destination 'platform=macOS' \
             ENABLE_PREVIEWS=NO \

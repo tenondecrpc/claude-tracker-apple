@@ -1,6 +1,6 @@
 ## 1. Design Tokens
 
-- [x] 1.1 Create `ClaudeTracker macOS/ClaudeTheme.swift` with static Color properties (background, surface, accent, textPrimary, textSecondary, progressTrack, destructive, lockIcon)
+- [x] 1.1 Create `Tempo macOS/ClaudeTheme.swift` with static Color properties (background, surface, accent, textPrimary, textSecondary, progressTrack, destructive, lockIcon)
 
 ## 2. Shared Components
 
@@ -15,7 +15,7 @@
 
 ## 4. Welcome Window
 
-- [x] 4.1 Add a SwiftUI `Window("Welcome", id: "welcome")` scene to `ClaudeTrackerMacApp`
+- [x] 4.1 Add a SwiftUI `Window("Welcome", id: "welcome")` scene to `TempoMacApp`
 - [x] 4.2 Create `WelcomeWindowView` with title, subtitle, preview mockup area, and two sign-in buttons
 - [x] 4.3 Wire "Sign in with Claude Code" button to existing OAuth PKCE flow
 - [x] 4.4 Style "Sign in with Email" as disabled placeholder with "Coming Soon" indicator

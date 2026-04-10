@@ -24,7 +24,7 @@ The watchOS usage ring currently shows mocked data (`isMocked: true`, hardcoded 
 
 ## Impact
 
-- **New files**: `ClaudeTracker/AnthropicAPIClient.swift`, `ClaudeTracker/UsageStatePoller.swift`, `ClaudeTracker/WatchRelayManager.swift`, `ClaudeTracker/ContentView.swift`
+- **New files**: `Tempo/AnthropicAPIClient.swift`, `Tempo/UsageStatePoller.swift`, `Tempo/WatchRelayManager.swift`, `Tempo/ContentView.swift`
 - **iOS target** only — no changes to Watch Extension or Shared targets in this phase
 - **New capability**: `ASWebAuthenticationSession` (no entitlement needed, built into UIKit)
 - **New capability**: Keychain access — requires `Keychain Sharing` or standard `SecItem` calls (no entitlement needed for app's own keychain)

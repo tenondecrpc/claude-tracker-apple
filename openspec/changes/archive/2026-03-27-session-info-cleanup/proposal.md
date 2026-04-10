@@ -22,5 +22,5 @@ _(none — this is a model cleanup, not a new capability)_
 ## Impact
 
 - `Shared/Models.swift` — `SessionInfo` struct loses two fields
-- `ClaudeTracker Watch Extension/MockData.swift` — session fixtures updated
+- `Tempo Watch Extension/MockData.swift` — session fixtures updated
 - Any future Phase 3 shell script or Phase 5 watch receiver that references `limitResetAt` or `isDoubleLimitActive` must not include those fields

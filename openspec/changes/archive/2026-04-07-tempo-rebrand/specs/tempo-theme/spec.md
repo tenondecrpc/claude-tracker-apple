@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: TempoTheme provides design token colors
-A `TempoTheme` enum (no cases, pure namespace) SHALL be defined in `ClaudeTracker macOS/TempoTheme.swift` and SHALL expose static `Color` properties for each design token:
+A `TempoTheme` enum (no cases, pure namespace) SHALL be defined in `Tempo macOS/TempoTheme.swift` and SHALL expose static `Color` properties for each design token:
 - `background`: #19191C (warm charcoal, RGB 0.098/0.098/0.110)
 - `surface`: #222226 (elevated surface, RGB 0.133/0.133/0.149)
 - `card`: #26262B (card background, RGB 0.149/0.149/0.169)
@@ -27,7 +27,7 @@ A `TempoTheme` enum (no cases, pure namespace) SHALL be defined in `ClaudeTracke
 - **THEN** compilation fails (no cases, no init)
 
 ### Requirement: TempoTheme is scoped to macOS target
-The `TempoTheme.swift` file SHALL live in `ClaudeTracker macOS/` and SHALL NOT be placed in `Shared/`, since it is specific to the macOS visual design.
+The `TempoTheme.swift` file SHALL live in `Tempo macOS/` and SHALL NOT be placed in `Shared/`, since it is specific to the macOS visual design.
 
 #### Scenario: Theme not available in iOS or watchOS
 - **WHEN** the iOS or watchOS target is compiled

@@ -54,7 +54,7 @@ Below the usage data, after a divider, the popover SHALL show:
 
 ### Requirement: Logout clears credentials and stops polling
 When the user clicks "Logout", the app SHALL:
-1. Delete stored credentials from `~/.config/claude-tracker/credentials.json`
+1. Delete stored credentials from `~/.config/tempo-for-claude/credentials.json`
 2. Stop the usage poller
 3. Reset `authState.isAuthenticated` and `authState.isAwaitingCode` to `false`
 4. Transition the popover immediately to the not-signed-in state
@@ -63,7 +63,7 @@ No confirmation dialog is required. The operation SHALL be synchronous and non-r
 
 #### Scenario: Credentials file deleted on logout
 - **WHEN** the user clicks "Logout"
-- **THEN** `~/.config/claude-tracker/credentials.json` no longer exists on disk
+- **THEN** `~/.config/tempo-for-claude/credentials.json` no longer exists on disk
 
 #### Scenario: Poller stops on logout
 - **WHEN** the user clicks "Logout"

@@ -20,7 +20,7 @@ A `ClaudeTheme` enum (no cases, pure namespace) SHALL expose static `Color` prop
 - **THEN** compilation fails (no cases, no init)
 
 ### Requirement: ClaudeTheme is scoped to macOS target
-The `ClaudeTheme` file SHALL live in the `ClaudeTracker macOS/` directory, not in `Shared/`, since it is specific to the macOS visual design.
+The `ClaudeTheme` file SHALL live in the `Tempo macOS/` directory, not in `Shared/`, since it is specific to the macOS visual design.
 
 #### Scenario: Theme not available in iOS or watchOS
 - **WHEN** the iOS or watchOS target is compiled

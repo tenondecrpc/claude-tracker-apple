@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - App Group ID
 
-private let appGroupID = "group.com.tenondecrpc.claudetracker.watch"
+private let appGroupID = "group.com.tenondecrpc.tempo.watch"
 private let utilizationKey = "complication_utilization5h"
 
 // MARK: - Timeline Entry

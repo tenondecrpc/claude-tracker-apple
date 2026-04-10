@@ -106,7 +106,7 @@ final class iCloudUsageReader: NSObject {
         #if targetEnvironment(simulator)
         "iCloud container is unavailable in iOS Simulator. Use a physical device for live iCloud sync."
         #else
-        "iCloud container unavailable (\(ClaudeTrackerICloud.containerIdentifier)). Check iCloud Drive + app container entitlement."
+        "iCloud container unavailable (\(TempoICloud.containerIdentifier)). Check iCloud Drive + app container entitlement."
         #endif
     }
 
@@ -116,14 +116,14 @@ final class iCloudUsageReader: NSObject {
         return nil
         #else
         FileManager.default
-            .url(forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier)?
+            .url(forUbiquityContainerIdentifier: TempoICloud.containerIdentifier)?
             .appendingPathComponent("Documents", isDirectory: true)
         #endif
     }
 
     private func bootstrapReadFromKnownPaths(documentsScope: URL?) {
         guard let documentsScope else { return }
-        let trackerDirectory = documentsScope.appendingPathComponent("ClaudeTracker", isDirectory: true)
+        let trackerDirectory = documentsScope.appendingPathComponent("Tempo", isDirectory: true)
 
         let usageURL = trackerDirectory.appendingPathComponent("usage.json")
         if FileManager.default.fileExists(atPath: usageURL.path) {

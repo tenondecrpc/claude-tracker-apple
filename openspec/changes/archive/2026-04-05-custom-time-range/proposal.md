@@ -21,5 +21,5 @@ The usage chart offers fixed time windows (5h, 24h, 7d, 30d, 90d) but users some
 
 ## Impact
 
-- `ClaudeTracker macOS/StatsDetailView.swift` — all changes contained here
+- `Tempo macOS/StatsDetailView.swift` — all changes contained here
 - No new files, no model changes, no iCloud or API impact

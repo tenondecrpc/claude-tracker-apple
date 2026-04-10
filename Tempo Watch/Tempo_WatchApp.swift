@@ -1,6 +1,6 @@
 //
-//  Claude_Tracker_WatchApp.swift
-//  Claude Tracker Watch Watch App
+//  Tempo_WatchApp.swift
+//  Tempo Watch App
 //
 //  Created by Cristian Paniagua on 27/03/2026.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct Claude_Tracker_Watch_Watch_AppApp: App {
+struct Tempo_WatchApp: App {
     @State private var store = TokenStore()
     @State private var receiver: WatchSessionReceiver?
 

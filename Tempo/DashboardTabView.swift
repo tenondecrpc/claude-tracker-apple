@@ -162,7 +162,7 @@ struct DashboardTabView: View {
                     Text("Watch App Available")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                    Text("Open the Watch app on your iPhone and install ClaudeTracker, or enable Automatic App Install in Watch → General.")
+                    Text("Open the Watch app on your iPhone and install Tempo, or enable Automatic App Install in Watch → General.")
                         .font(.caption)
                         .foregroundStyle(ClaudeCodeTheme.textSecondary)
                 }
@@ -179,7 +179,7 @@ struct DashboardTabView: View {
                 Text("Connect via Mac App")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                Text("Open ClaudeTracker on your Mac and sign in. This iPhone view updates from iCloud automatically.")
+                Text("Open Tempo on your Mac and sign in. This iPhone view updates from iCloud automatically.")
                     .font(.subheadline)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .multilineTextAlignment(.center)

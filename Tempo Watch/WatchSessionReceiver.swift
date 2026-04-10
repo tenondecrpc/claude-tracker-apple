@@ -85,7 +85,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             snapshots = try? JSONDecoder().decode([UsageHistorySnapshot].self, from: historyData)
         }
 
-        let appGroupID = "group.com.tenondecrpc.claudetracker.watch"
+        let appGroupID = "group.com.tenondecrpc.tempo.watch"
         UserDefaults(suiteName: appGroupID)?.set(utilization5h, forKey: "complication_utilization5h")
         WidgetCenter.shared.reloadAllTimelines()
 

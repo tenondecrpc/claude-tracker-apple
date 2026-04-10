@@ -1,6 +1,6 @@
 ## Context
 
-The app has two color systems that evolved independently: `Theme.swift` in `Shared/` (Claude terracotta palette, consumed only by watchOS) and `TempoTheme.swift` in `ClaudeTracker macOS/` (purple/cool-gray palette, consumed by 26 macOS files). Neither matches the official Claude Code branding from Anthropic's `palette.ts`. The `AccentColor.colorset` files across all 4 targets are empty placeholders.
+The app has two color systems that evolved independently: `Theme.swift` in `Shared/` (Claude terracotta palette, consumed only by watchOS) and `TempoTheme.swift` in `Tempo macOS/` (purple/cool-gray palette, consumed by 26 macOS files). Neither matches the official Claude Code branding from Anthropic's `palette.ts`. The `AccentColor.colorset` files across all 4 targets are empty placeholders.
 
 The official Claude Code theme provides complete dark and light palettes with warm terracotta accents, warm-neutral backgrounds, and muted status colors — a cohesive system ready to adopt.
 

@@ -190,16 +190,16 @@ final class UsagePoller {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    /// Returns the ClaudeTracker directory in the shared iCloud ubiquity container.
+    /// Returns the Tempo directory in the shared iCloud ubiquity container.
     /// Falls back to the generic iCloud Drive path when the container URL is unavailable.
     private func iCloudTrackerDirectory() -> URL {
         if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier
+            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
         ) {
-            return containerURL.appendingPathComponent("Documents/ClaudeTracker")
+            return containerURL.appendingPathComponent("Documents/Tempo")
         }
         // Fallback: generic iCloud Drive path (macOS only, requires iCloud Drive to be enabled)
         return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker")
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo")
     }
 }

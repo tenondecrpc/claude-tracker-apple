@@ -1,7 +1,7 @@
 ## Requirements
 
 ### Requirement: iOS reads UsageState from iCloud Drive
-The iOS app SHALL watch `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/usage.json` using `NSMetadataQuery` with `NSMetadataQueryUbiquitousDocumentsScope`. When the file changes, the app SHALL decode the JSON into a `UsageState` and relay it to the watch via `WatchConnectivity`.
+The iOS app SHALL watch `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage.json` using `NSMetadataQuery` with `NSMetadataQueryUbiquitousDocumentsScope`. When the file changes, the app SHALL decode the JSON into a `UsageState` and relay it to the watch via `WatchConnectivity`.
 
 #### Scenario: Usage file detected on iCloud
 - **WHEN** `NSMetadataQuery` detects a new or updated `usage.json` in iCloud Drive

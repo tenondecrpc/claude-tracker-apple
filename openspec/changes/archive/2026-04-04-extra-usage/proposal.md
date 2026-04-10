@@ -1,6 +1,6 @@
 ## Why
 
-The Anthropic usage API already returns an `extra_usage` object with billing data (enabled status, used credits, monthly limit), but ClaudeTracker ignores it entirely. Users who have extra usage enabled need to see their spend ($X.XX / $Y.YY) alongside the existing session and weekly utilization gauges — just like the reference app `claude-usage-bar` already does.
+The Anthropic usage API already returns an `extra_usage` object with billing data (enabled status, used credits, monthly limit), but Tempo ignores it entirely. Users who have extra usage enabled need to see their spend ($X.XX / $Y.YY) alongside the existing session and weekly utilization gauges — just like the reference app `claude-usage-bar` already does.
 
 ## What Changes
 
@@ -21,7 +21,7 @@ The Anthropic usage API already returns an `extra_usage` object with billing dat
 ## Impact
 
 - **Models**: `Shared/Models.swift` — new `ExtraUsage` struct, `UsageState` gains optional `extraUsage` property
-- **API parsing**: `ClaudeTracker macOS/UsagePoller.swift` — extend `Response` Decodable struct
-- **UI**: `ClaudeTracker macOS/AuthenticatedView.swift` — new "Extra Usage" section with dollar formatting and progress bar
+- **API parsing**: `Tempo macOS/UsagePoller.swift` — extend `Response` Decodable struct
+- **UI**: `Tempo macOS/AuthenticatedView.swift` — new "Extra Usage" section with dollar formatting and progress bar
 - **iCloud**: The iCloud JSON payload grows to include extra usage; iOS reader must handle the optional field gracefully
 - **No breaking changes** — `extraUsage` is optional throughout

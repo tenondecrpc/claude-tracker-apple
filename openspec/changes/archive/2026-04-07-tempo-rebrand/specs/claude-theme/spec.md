@@ -12,8 +12,8 @@
 - `ClaudeTheme.destructive` → `TempoTheme.destructive`
 - `ClaudeTheme.lockIcon` → `TempoTheme.info`
 
-Delete `ClaudeTracker macOS/ClaudeTheme.swift` after all references are migrated.
+Delete `Tempo macOS/ClaudeTheme.swift` after all references are migrated.
 
 ### Requirement: ClaudeTheme is scoped to macOS target
 **Reason**: Superseded by `TempoTheme` which inherits the same scoping constraint.
-**Migration**: `TempoTheme.swift` SHALL live in `ClaudeTracker macOS/` and is not included in iOS or watchOS builds. No action required beyond deleting `ClaudeTheme.swift`.
+**Migration**: `TempoTheme.swift` SHALL live in `Tempo macOS/` and is not included in iOS or watchOS builds. No action required beyond deleting `ClaudeTheme.swift`.

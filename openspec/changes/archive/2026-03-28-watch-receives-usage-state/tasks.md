@@ -4,7 +4,7 @@
 
 ## 2. WatchSessionReceiver — new file
 
-- [x] 2.1 Create `ClaudeTracker Watch Extension/WatchSessionReceiver.swift` with `final class WatchSessionReceiver: NSObject, WCSessionDelegate`
+- [x] 2.1 Create `Tempo Watch Extension/WatchSessionReceiver.swift` with `final class WatchSessionReceiver: NSObject, WCSessionDelegate`
 - [x] 2.2 Implement `init(store: TokenStore)` — guard `WCSession.isSupported()`, set delegate, call `activate()`
 - [x] 2.3 Implement `session(_:didReceiveUserInfo:)` — check `"type" == "UsageState"`, decode, dispatch `Task { @MainActor in store.apply(state) }`
 - [x] 2.4 Add required stub methods for `WCSessionDelegate` (`sessionReachabilityDidChange`, `sessionDidBecomeInactive`, `sessionDidDeactivate` — no-ops)

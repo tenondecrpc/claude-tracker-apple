@@ -22,7 +22,7 @@ The current macOS menu bar app has a minimal, default-styled SwiftUI UI — a ba
 
 ## Impact
 
-- **Files modified**: `SignInView.swift`, `AuthenticatedView.swift`, `ClaudeTrackerMacApp.swift` (macOS target)
+- **Files modified**: `SignInView.swift`, `AuthenticatedView.swift`, `TempoMacApp.swift` (macOS target)
 - **New files**: `ClaudeTheme.swift`, `WelcomeWindow.swift`, `MenuBarHeaderView.swift`, `UsageDashboardView.swift`, progress bar components
 - **No changes to**: OAuth flow, CredentialStore, UsagePoller logic, Shared/ models, iOS target, watchOS target
 - **Dependencies**: None new — pure SwiftUI, macOS 14+

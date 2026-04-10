@@ -26,7 +26,7 @@ The watch app is a blank template — there is no UI for the user to glance at. 
 
 ## Impact
 
-- `ClaudeTracker Watch Extension/ContentView.swift` — replaced entirely
-- `ClaudeTracker Watch Extension/` — two new Swift files added (`TokenStore.swift`, `CompletionView.swift`)
+- `Tempo Watch Extension/ContentView.swift` — replaced entirely
+- `Tempo Watch Extension/` — two new Swift files added (`TokenStore.swift`, `CompletionView.swift`)
 - No iOS target changes; no backend/hook changes
 - No external dependencies added

@@ -2,7 +2,7 @@
 
 Two palettes exist in the codebase:
 
-- **TempoTheme** (`ClaudeTracker macOS/TempoTheme.swift`) — active design system for the macOS menu bar app (graphite dark + electric violet)
+- **TempoTheme** (`Tempo macOS/TempoTheme.swift`) — active design system for the macOS menu bar app (graphite dark + electric violet)
 - **Shared/Theme** (`Shared/Theme.swift`) — legacy Claude terracotta palette, kept for shared targets
 
 ---

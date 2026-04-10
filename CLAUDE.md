@@ -14,7 +14,7 @@ See `docs/FUTURE_PLAN.md` for the full roadmap.
 
 ## Build
 
-Open `ClaudeTracker.xcodeproj` in Xcode. No CLI build system.
+Open `Tempo.xcodeproj` in Xcode. No CLI build system.
 
 > **macOS target**: requires "Outgoing Connections (Client)" enabled in App Sandbox (Signing & Capabilities) so HTTP calls to `platform.claude.com` work.
 
@@ -22,10 +22,10 @@ Open `ClaudeTracker.xcodeproj` in Xcode. No CLI build system.
 
 | Folder | Target | Role |
 |---|---|---|
-| `ClaudeTracker macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
-| `ClaudeTracker/` | iOS app | iCloud reader (`NSMetadataQuery`), WatchConnectivity sender |
-| `ClaudeTracker Watch/` | watchOS app shell | Entry point only |
-| `ClaudeTracker Watch Extension/` | watchOS extension | All watch UI and logic |
+| `Tempo macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
+| `Tempo/` | iOS app | iCloud reader (`NSMetadataQuery`), WatchConnectivity sender |
+| `Tempo Watch/` | watchOS app shell | Entry point only |
+| `Tempo Watch Extension/` | watchOS extension | All watch UI and logic |
 
 ## Shared Logic
 

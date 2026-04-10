@@ -72,7 +72,7 @@ final class UsageHistory {
 
     private static let storageURL: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/claude-tracker")
+            .appendingPathComponent(".config/tempo-for-claude")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("usage-history.json")
     }()
@@ -146,12 +146,12 @@ final class UsageHistory {
 
     private static func iCloudMirrorURL() -> URL {
         if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier
+            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
         ) {
-            return containerURL.appendingPathComponent("Documents/ClaudeTracker/usage-history.json")
+            return containerURL.appendingPathComponent("Documents/Tempo/usage-history.json")
         }
         return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/usage-history.json")
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage-history.json")
     }
 
     private static func readSnapshots(at url: URL) -> [UsageSnapshot]? {

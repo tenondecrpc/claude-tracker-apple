@@ -1,6 +1,6 @@
 ## Context
 
-ClaudeTracker's macOS menu bar app polls `GET /api/oauth/usage` and displays two utilization gauges (5-hour session and 7-day weekly). The API response already includes an `extra_usage` object with billing data, but the app currently ignores it. The reference app `claude-usage-bar` already implements this feature — we follow its proven pattern (cents-to-dollars conversion, conditional display when enabled, `ExtraUsage` Codable struct).
+Tempo's macOS menu bar app polls `GET /api/oauth/usage` and displays two utilization gauges (5-hour session and 7-day weekly). The API response already includes an `extra_usage` object with billing data, but the app currently ignores it. The reference app `claude-usage-bar` already implements this feature — we follow its proven pattern (cents-to-dollars conversion, conditional display when enabled, `ExtraUsage` Codable struct).
 
 Current data flow: `UsagePoller.fetchUsage()` → `UsageState` → UI + iCloud write.
 

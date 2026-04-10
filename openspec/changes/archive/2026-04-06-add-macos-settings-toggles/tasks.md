@@ -28,7 +28,7 @@
 
 ## 5. iCloud History Sync
 
-- [x] 5.1 Extend `UsageHistory` with optional iCloud mirror path (`Documents/ClaudeTracker/usage-history.json`) controlled by sync toggle.
+- [x] 5.1 Extend `UsageHistory` with optional iCloud mirror path (`Documents/Tempo/usage-history.json`) controlled by sync toggle.
 - [x] 5.2 Implement merge-and-dedupe between local and iCloud histories (union, sort, prune by retention).
 - [x] 5.3 Trigger sync on launch and after local append/save, with graceful retry behavior on iCloud failures.
 - [x] 5.4 Ensure disabling sync stops mirror writes without deleting local history.

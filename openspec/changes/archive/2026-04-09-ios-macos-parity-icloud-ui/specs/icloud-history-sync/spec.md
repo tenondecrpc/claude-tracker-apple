@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Usage history is mirrored to iCloud when sync is enabled
-When Sync History via iCloud is enabled, the macOS app SHALL mirror usage-history snapshots to `Documents/ClaudeTracker/usage-history.json` in the ClaudeTracker iCloud container for cross-device consumption, including iOS readers.
+When Sync History via iCloud is enabled, the macOS app SHALL mirror usage-history snapshots to `Documents/Tempo/usage-history.json` in the Tempo iCloud container for cross-device consumption, including iOS readers.
 
 #### Scenario: Local append writes to iCloud mirror
 - **WHEN** a new `UsageSnapshot` is appended while iCloud sync is enabled

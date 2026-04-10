@@ -169,7 +169,7 @@ struct ActivityTabView: View {
                 Label("No activity history yet", systemImage: "tray")
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     .font(.headline)
-                Text("Keep ClaudeTracker running on Mac. History will appear after iCloud sync writes usage snapshots.")
+                Text("Keep Tempo running on Mac. History will appear after iCloud sync writes usage snapshots.")
                     .font(.subheadline)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }

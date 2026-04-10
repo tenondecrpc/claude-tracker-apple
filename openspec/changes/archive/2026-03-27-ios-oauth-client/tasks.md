@@ -1,6 +1,6 @@
 ## 1. AnthropicAPIClient — Keychain Helpers
 
-- [x] 1.1 Create `ClaudeTracker/AnthropicAPIClient.swift` with a `KeychainStore` helper: `save(token:forKey:)`, `load(key:) -> String?`, `delete(key:)` using `SecItemAdd` / `SecItemCopyMatching` / `SecItemUpdate` / `SecItemDelete` with `kSecAttrAccessibleAfterFirstUnlock`
+- [x] 1.1 Create `Tempo/AnthropicAPIClient.swift` with a `KeychainStore` helper: `save(token:forKey:)`, `load(key:) -> String?`, `delete(key:)` using `SecItemAdd` / `SecItemCopyMatching` / `SecItemUpdate` / `SecItemDelete` with `kSecAttrAccessibleAfterFirstUnlock`
 - [x] 1.2 Define Keychain key constants: `"anthropic.access_token"`, `"anthropic.refresh_token"`
 
 ## 2. AnthropicAPIClient — PKCE & Token Exchange
@@ -19,7 +19,7 @@
 
 ## 4. UsageStatePoller
 
-- [x] 4.1 Create `ClaudeTracker/UsageStatePoller.swift` as `@Observable @MainActor final class`
+- [x] 4.1 Create `Tempo/UsageStatePoller.swift` as `@Observable @MainActor final class`
 - [x] 4.2 Implement `fetchUsage() async throws -> UsageState` — calls `AnthropicAPIClient.authenticatedRequest` for `https://api.anthropic.com/api/oauth/usage`, decodes JSON, maps `five_hour.utilization / 100` → `utilization5h`, `seven_day.utilization / 100` → `utilization7d`, parses ISO 8601 `resets_at` with fractional seconds support
 - [x] 4.3 Implement reset-timestamp reconciliation: if `resets_at` is null, retain previous `resetAt5h`; if `utilization5h` drops from >0 to ~0, discard previous timestamp
 - [x] 4.4 Implement `start()` — fires a poll immediately, then schedules a `Timer` every 900 seconds (15 min); `stop()` invalidates the timer
@@ -27,7 +27,7 @@
 
 ## 5. WatchRelayManager
 
-- [x] 5.1 Create `ClaudeTracker/WatchRelayManager.swift` as `NSObject` + `WCSessionDelegate`
+- [x] 5.1 Create `Tempo/WatchRelayManager.swift` as `NSObject` + `WCSessionDelegate`
 - [x] 5.2 Implement `activate()` — sets `WCSession.default.delegate = self`, calls `WCSession.default.activate()`; guard with `WCSession.isSupported()`
 - [x] 5.3 Implement required iOS delegate methods: `activationDidCompleteWith`, `sessionDidBecomeInactive`, `sessionDidDeactivate` (re-activates)
 - [x] 5.4 Implement `send(_ state: UsageState)` — cancel outstanding `"UsageState"` transfers, encode state as `[String: Any]` with `"type": "UsageState"` discriminator, call `transferUserInfo`
@@ -35,7 +35,7 @@
 
 ## 6. iOS ContentView & App Wiring
 
-- [x] 6.1 Create `ClaudeTracker/ContentView.swift` — show "Sign in with Claude" button when `!authState.isAuthenticated`; show "Connected ✓" + sign-out button when authenticated
+- [x] 6.1 Create `Tempo/ContentView.swift` — show "Sign in with Claude" button when `!authState.isAuthenticated`; show "Connected ✓" + sign-out button when authenticated
 - [x] 6.2 Wire `applicationDidBecomeActive` (or `ScenePhase.active`) to call `poller.start()` if authenticated; call `relay.activate()` unconditionally at launch
 - [x] 6.3 On successful sign-in completion, call `poller.start()` immediately; on sign-out, call `poller.stop()`
 - [x] 6.4 Connect poller's `onUsageState` callback to `relay.send(_:)`

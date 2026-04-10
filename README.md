@@ -65,15 +65,15 @@ The OAuth API is the authoritative source for utilization — the plan limit is 
 
 | Folder | Target | Role |
 |---|---|---|
-| `ClaudeTracker macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
-| `ClaudeTracker/` | iOS app | iCloud reader, WatchConnectivity sender |
-| `ClaudeTracker Watch/` | watchOS app shell | Entry point |
-| `ClaudeTracker Watch Extension/` | watchOS extension | All watch UI and haptic logic |
+| `Tempo macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
+| `Tempo/` | iOS app | iCloud reader, WatchConnectivity sender |
+| `Tempo Watch/` | watchOS app shell | Entry point |
+| `Tempo Watch Extension/` | watchOS extension | All watch UI and haptic logic |
 | `Shared/` | Shared code | Data models, business logic (no UI frameworks) |
 
 ## Getting started
 
-1. Open `ClaudeTracker.xcodeproj` in Xcode
+1. Open `Tempo.xcodeproj` in Xcode
 2. Enable **Outgoing Connections (Client)** in App Sandbox for the macOS target (required for calls to `platform.claude.com`)
 3. Enable **iCloud Documents** on both the macOS and iOS targets using the same container ID (requires an Apple Developer account)
 4. Build and run the macOS target

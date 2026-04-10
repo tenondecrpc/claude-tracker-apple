@@ -48,4 +48,4 @@ The badge is an explicit contract: the watch face must never look "real" while s
 
 ## Open Questions
 
-- Which watch target is the "real" one? There appear to be two: `ClaudeTracker Watch/` and `ClaudeTracker Watch Extension/`. The roadmap references `claude-tracker-applewatch Watch App/` — needs confirmation at implementation time. Both currently contain identical blank templates; implement in the one that builds successfully.
+- Which watch target is the "real" one? There appear to be two: `Tempo Watch/` and `Tempo Watch Extension/`. The roadmap references `tempo-for-claude-applewatch Watch App/` — needs confirmation at implementation time. Both currently contain identical blank templates; implement in the one that builds successfully.

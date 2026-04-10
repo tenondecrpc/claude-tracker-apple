@@ -39,7 +39,7 @@ Upgrade from fixed 600×450 to resizable with `minWidth: 700, minHeight: 550`. T
 
 Use `import Charts` with `LineMark` for the Session series and `AreaMark` with opacity for the Weekly series. X axis: `Date` values. Y axis: 0–100 percentage.
 
-**Data layer**: New `UsageHistory` class (Observable, macOS target only) backed by `~/.config/claude-tracker/usage-history.json`. `UsagePoller.onUsageState` callback appends a `UsageSnapshot` on every successful poll. Prune snapshots older than 30 days on each write.
+**Data layer**: New `UsageHistory` class (Observable, macOS target only) backed by `~/.config/tempo-for-claude/usage-history.json`. `UsagePoller.onUsageState` callback appends a `UsageSnapshot` on every successful poll. Prune snapshots older than 30 days on each write.
 
 ```swift
 struct UsageSnapshot: Codable {

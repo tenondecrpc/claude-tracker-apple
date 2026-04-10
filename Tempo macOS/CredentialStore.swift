@@ -15,7 +15,7 @@ enum CredentialStore {
 
     private static var credentialsURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/claude-tracker/credentials.json")
+            .appendingPathComponent(".config/tempo-for-claude/credentials.json")
     }
 
     static func load() -> StoredCredentials? {

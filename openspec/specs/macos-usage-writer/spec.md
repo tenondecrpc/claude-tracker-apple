@@ -20,14 +20,14 @@ The poller SHALL expose the latest `UsageState` as an observable property (`late
 - **THEN** the `latestUsage: UsageState?` property is updated and any observing SwiftUI views re-render
 
 ### Requirement: Usage response mapped to UsageState and written to iCloud
-The poller SHALL map the API response to `UsageState` (same mapping as `usage-polling` spec: divide utilization by 100, parse ISO 8601 dates). The resulting `UsageState` SHALL be encoded as JSON and written to `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/usage.json`.
+The poller SHALL map the API response to `UsageState` (same mapping as `usage-polling` spec: divide utilization by 100, parse ISO 8601 dates). The resulting `UsageState` SHALL be encoded as JSON and written to `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage.json`.
 
 #### Scenario: UsageState written to iCloud
 - **WHEN** a poll returns HTTP 200 with valid usage data
-- **THEN** the mapped `UsageState` is encoded as JSON and written to `ClaudeTracker/usage.json` in iCloud Drive
+- **THEN** the mapped `UsageState` is encoded as JSON and written to `Tempo/usage.json` in iCloud Drive
 
 #### Scenario: iCloud directory created if missing
-- **WHEN** the `ClaudeTracker/` directory does not exist in iCloud Drive
+- **WHEN** the `Tempo/` directory does not exist in iCloud Drive
 - **THEN** the directory is created before writing `usage.json`
 
 #### Scenario: Utilization normalized
@@ -53,7 +53,7 @@ On HTTP 429, the poller SHALL back off exponentially. If a `Retry-After` header 
 - **THEN** the polling interval resets to 15 minutes
 
 ### Requirement: Credentials file updated after token refresh
-When the poller triggers a token refresh (due to 401 or expiry), the new credentials SHALL be written back to `~/.config/claude-tracker/credentials.json` before retrying the API call.
+When the poller triggers a token refresh (due to 401 or expiry), the new credentials SHALL be written back to `~/.config/tempo-for-claude/credentials.json` before retrying the API call.
 
 #### Scenario: Credentials file updated after refresh
 - **WHEN** a token refresh succeeds during polling

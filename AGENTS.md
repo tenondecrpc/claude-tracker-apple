@@ -14,16 +14,16 @@ Apple Watch app that tracks Claude Code token/credit usage and delivers haptic a
 
 ## Build
 
-Open `ClaudeTracker.xcodeproj` in Xcode. No CLI build system. No formal test suite.
+Open `Tempo.xcodeproj` in Xcode. No CLI build system. No formal test suite.
 
 ## Targets
 
 | Folder | Target | Role |
 |---|---|---|
-| `ClaudeTracker macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
-| `ClaudeTracker/` | iOS app | iCloud reader, WatchConnectivity sender |
-| `ClaudeTracker Watch/` | watchOS app shell | Entry point only |
-| `ClaudeTracker Watch Extension/` | watchOS extension | All watch UI and logic |
+| `Tempo macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
+| `Tempo/` | iOS app | iCloud reader, WatchConnectivity sender |
+| `Tempo Watch/` | watchOS app shell | Entry point only |
+| `Tempo Watch Extension/` | watchOS extension | All watch UI and logic |
 
 ## Shared Logic
 

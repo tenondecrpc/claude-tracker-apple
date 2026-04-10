@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: iOS reads UsageState from iCloud Drive
-The iOS app SHALL watch the ClaudeTracker iCloud directory using `NSMetadataQuery` with `NSMetadataQueryUbiquitousDocumentsScope` (or resolved container Documents scope) and SHALL ingest both `usage.json` and `usage-history.json`. When `usage.json` changes, the app SHALL decode the JSON into a `UsageState` and relay it to the watch via `WatchConnectivity`. When `usage-history.json` changes, the app SHALL decode the history payload for iOS history/activity rendering.
+The iOS app SHALL watch the Tempo iCloud directory using `NSMetadataQuery` with `NSMetadataQueryUbiquitousDocumentsScope` (or resolved container Documents scope) and SHALL ingest both `usage.json` and `usage-history.json`. When `usage.json` changes, the app SHALL decode the JSON into a `UsageState` and relay it to the watch via `WatchConnectivity`. When `usage-history.json` changes, the app SHALL decode the history payload for iOS history/activity rendering.
 
 #### Scenario: Usage file detected on iCloud
 - **WHEN** `NSMetadataQuery` detects a new or updated `usage.json` in iCloud Drive

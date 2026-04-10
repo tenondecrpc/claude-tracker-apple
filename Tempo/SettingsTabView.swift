@@ -84,7 +84,7 @@ struct SettingsTabView: View {
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
             Divider().overlay(ClaudeCodeTheme.progressTrack)
-            Text("Keep ClaudeTracker open on Mac to receive frequent updates on iPhone and Apple Watch.")
+            Text("Keep Tempo open on Mac to receive frequent updates on iPhone and Apple Watch.")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }

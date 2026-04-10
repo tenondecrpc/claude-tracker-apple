@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "7731EED92F76AD1800C84A59"
-               BuildableName = "ClaudeTracker.app"
-               BlueprintName = "ClaudeTracker"
-               ReferencedContainer = "container:ClaudeTracker.xcodeproj">
+               BuildableName = "Tempo.app"
+               BlueprintName = "Tempo"
+               ReferencedContainer = "container:Tempo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -29,9 +29,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "7731EEEB2F76AD3700C84A59"
-               BuildableName = "ClaudeTracker Watch.app"
-               BlueprintName = "ClaudeTracker Watch"
-               ReferencedContainer = "container:ClaudeTracker.xcodeproj">
+               BuildableName = "Tempo Watch.app"
+               BlueprintName = "Tempo Watch"
+               ReferencedContainer = "container:Tempo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -59,9 +59,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "7731EED92F76AD1800C84A59"
-            BuildableName = "ClaudeTracker.app"
-            BlueprintName = "ClaudeTracker"
-            ReferencedContainer = "container:ClaudeTracker.xcodeproj">
+            BuildableName = "Tempo.app"
+            BlueprintName = "Tempo"
+            ReferencedContainer = "container:Tempo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -76,9 +76,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "7731EED92F76AD1800C84A59"
-            BuildableName = "ClaudeTracker.app"
-            BlueprintName = "ClaudeTracker"
-            ReferencedContainer = "container:ClaudeTracker.xcodeproj">
+            BuildableName = "Tempo.app"
+            BlueprintName = "Tempo"
+            ReferencedContainer = "container:Tempo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -30,15 +30,15 @@
 
 ## 5. Populate AccentColor Asset Catalogs
 
-- [x] 5.1 Update `ClaudeTracker/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
-- [x] 5.2 Update `ClaudeTracker Watch/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
-- [x] 5.3 Update `ClaudeTracker Watch Extension/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
-- [x] 5.4 Update `ClaudeTracker macOS/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
+- [x] 5.1 Update `Tempo/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
+- [x] 5.2 Update `Tempo Watch/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
+- [x] 5.3 Update `Tempo Watch Extension/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
+- [x] 5.4 Update `Tempo macOS/Assets.xcassets/AccentColor.colorset/Contents.json` with #C96442
 
 ## 6. Cleanup
 
 - [x] 6.1 Delete `Shared/Theme.swift`
-- [x] 6.2 Delete `ClaudeTracker macOS/TempoTheme.swift`
+- [x] 6.2 Delete `Tempo macOS/TempoTheme.swift`
 - [x] 6.3 Verify no remaining references to `TempoTheme`, `Color.claude`, or `Theme.swift` compile
 
 ## 7. Verification

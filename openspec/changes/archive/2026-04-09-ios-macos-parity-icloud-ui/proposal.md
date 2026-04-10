@@ -22,7 +22,7 @@ The iOS app currently acts as a sync-status bridge and does not expose the same 
 
 ## Impact
 
-- Affected targets: `ClaudeTracker/` (iOS), `Shared/` (shared read models and presentation-safe DTOs).
+- Affected targets: `Tempo/` (iOS), `Shared/` (shared read models and presentation-safe DTOs).
 - Likely touched components: `iCloudUsageReader`, `ContentView`, app navigation structure, history/data stores, and iOS settings UI.
 - Dependencies/systems: iCloud Drive document coordination, `NSMetadataQuery`, local decode/transform logic, WatchConnectivity relay contracts.
 - Risk areas: stale/missing iCloud files, large history payload rendering on iPhone, and maintaining consistent parity as macOS evolves.

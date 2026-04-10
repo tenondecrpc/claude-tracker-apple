@@ -21,7 +21,7 @@ Phase 1 built the iOS side of the data pipeline — OAuth sign-in, polling, and 
 
 ## Impact
 
-- **New file**: `ClaudeTracker Watch Extension/WatchSessionReceiver.swift`
-- **Modified**: `ClaudeTracker Watch Extension/TokenStore.swift` (+1 method)
-- **Modified**: `ClaudeTracker Watch/Claude_Tracker_WatchApp.swift` (wiring)
+- **New file**: `Tempo Watch Extension/WatchSessionReceiver.swift`
+- **Modified**: `Tempo Watch Extension/TokenStore.swift` (+1 method)
+- **Modified**: `Tempo Watch/Claude_Tracker_WatchApp.swift` (wiring)
 - Watch Extension target only — no changes to iOS target or Shared

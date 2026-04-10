@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F816E524A5914A4096954F82 /* ClaudeTracker Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F816E524A5914A4096954F82 /* Tempo Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -16,7 +16,7 @@
 			containerPortal = 7731EED22F76AD1800C84A59 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 7731EEEB2F76AD3700C84A59;
-			remoteInfo = "ClaudeTracker Watch";
+			remoteInfo = "Tempo Watch";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -27,7 +27,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				F816E524A5914A4096954F82 /* ClaudeTracker Watch.app in Embed Watch Content */,
+				F816E524A5914A4096954F82 /* Tempo Watch.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -35,8 +35,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeTracker Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7731EEDA2F76AD1800C84A59 /* Tempo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tempo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Tempo Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7765DF702F78226F00A8EEB8 /* TempoForClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TempoForClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -102,8 +102,8 @@
 		7731EEDB2F76AD1800C84A59 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */,
-				7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */,
+				7731EEDA2F76AD1800C84A59 /* Tempo.app */,
+				7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */,
 				7765DF702F78226F00A8EEB8 /* TempoForClaude.app */,
 			);
 			name = Products;
@@ -112,9 +112,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		7731EED92F76AD1800C84A59 /* ClaudeTracker */ = {
+		7731EED92F76AD1800C84A59 /* Tempo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7731EEE52F76AD1900C84A59 /* Build configuration list for PBXNativeTarget "ClaudeTracker" */;
+			buildConfigurationList = 7731EEE52F76AD1900C84A59 /* Build configuration list for PBXNativeTarget "Tempo" */;
 			buildPhases = (
 				7731EED62F76AD1800C84A59 /* Sources */,
 				7731EED72F76AD1800C84A59 /* Frameworks */,
@@ -130,16 +130,16 @@
 				7731EEAA2F76AD0000C84A59 /* Shared */,
 				7731EEDC2F76AD1800C84A59 /* Tempo */,
 			);
-			name = ClaudeTracker;
+			name = Tempo;
 			packageProductDependencies = (
 			);
-			productName = ClaudeTracker;
-			productReference = 7731EEDA2F76AD1800C84A59 /* ClaudeTracker.app */;
+			productName = Tempo;
+			productReference = 7731EEDA2F76AD1800C84A59 /* Tempo.app */;
 			productType = "com.apple.product-type.application";
 		};
-		7731EEEB2F76AD3700C84A59 /* ClaudeTracker Watch */ = {
+		7731EEEB2F76AD3700C84A59 /* Tempo Watch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7731EF072F76AD3A00C84A59 /* Build configuration list for PBXNativeTarget "ClaudeTracker Watch" */;
+			buildConfigurationList = 7731EF072F76AD3A00C84A59 /* Build configuration list for PBXNativeTarget "Tempo Watch" */;
 			buildPhases = (
 				7731EEE82F76AD3700C84A59 /* Sources */,
 				7731EEE92F76AD3700C84A59 /* Frameworks */,
@@ -153,16 +153,16 @@
 				7731EEAA2F76AD0000C84A59 /* Shared */,
 				7731EEED2F76AD3700C84A59 /* Tempo Watch */,
 			);
-			name = "ClaudeTracker Watch";
+			name = "Tempo Watch";
 			packageProductDependencies = (
 			);
-			productName = "Claude Tracker Watch";
-			productReference = 7731EEEC2F76AD3700C84A59 /* ClaudeTracker Watch.app */;
+			productName = "Tempo Watch";
+			productReference = 7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
-		7765DF6F2F78226F00A8EEB8 /* ClaudeTracker macOS */ = {
+		7765DF6F2F78226F00A8EEB8 /* Tempo macOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "ClaudeTracker macOS" */;
+			buildConfigurationList = 7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "Tempo macOS" */;
 			buildPhases = (
 				7765DF6C2F78226F00A8EEB8 /* Sources */,
 				7765DF6D2F78226F00A8EEB8 /* Frameworks */,
@@ -176,10 +176,10 @@
 				7731EEAA2F76AD0000C84A59 /* Shared */,
 				7765DF712F78226F00A8EEB8 /* Tempo macOS */,
 			);
-			name = "ClaudeTracker macOS";
+			name = "Tempo macOS";
 			packageProductDependencies = (
 			);
-			productName = "ClaudeTracker macOS";
+			productName = "Tempo macOS";
 			productReference = 7765DF702F78226F00A8EEB8 /* TempoForClaude.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -204,7 +204,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 7731EED52F76AD1800C84A59 /* Build configuration list for PBXProject "ClaudeTracker" */;
+			buildConfigurationList = 7731EED52F76AD1800C84A59 /* Build configuration list for PBXProject "Tempo" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -218,9 +218,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				7731EED92F76AD1800C84A59 /* ClaudeTracker */,
-				7731EEEB2F76AD3700C84A59 /* ClaudeTracker Watch */,
-				7765DF6F2F78226F00A8EEB8 /* ClaudeTracker macOS */,
+				7731EED92F76AD1800C84A59 /* Tempo */,
+				7731EEEB2F76AD3700C84A59 /* Tempo Watch */,
+				7765DF6F2F78226F00A8EEB8 /* Tempo macOS */,
 			);
 		};
 /* End PBXProject section */
@@ -276,7 +276,7 @@
 /* Begin PBXTargetDependency section */
 		6FB72FB6003B465189F65665 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 7731EEEB2F76AD3700C84A59 /* ClaudeTracker Watch */;
+			target = 7731EEEB2F76AD3700C84A59 /* Tempo Watch */;
 			targetProxy = 4B2D0CD5DB1D4486B2CEE556 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -401,8 +401,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ClaudeTracker/ClaudeTracker.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "ClaudeTracker/ClaudeTracker-sim.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Tempo/Tempo.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Tempo/Tempo-sim.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -426,7 +426,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -434,14 +433,13 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -450,8 +448,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ClaudeTracker/ClaudeTracker.entitlements;
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "ClaudeTracker/ClaudeTracker-sim.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Tempo/Tempo.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Tempo/Tempo-sim.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -475,7 +473,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -483,14 +480,13 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -499,14 +495,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "ClaudeTracker Watch/ClaudeTracker Watch.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Tempo Watch/Tempo Watch.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Config/ClaudeTrackerWatch-Info.plist";
+				INFOPLIST_FILE = "Config/TempoWatch-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = TempoForClaude;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -536,14 +532,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "ClaudeTracker Watch/ClaudeTracker Watch.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Tempo Watch/Tempo Watch.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Config/ClaudeTrackerWatch-Info.plist";
+				INFOPLIST_FILE = "Config/TempoWatch-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = TempoForClaude;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -574,7 +570,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "ClaudeTracker macOS/ClaudeTracker macOS.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Tempo macOS/Tempo macOS.entitlements";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -622,7 +618,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "ClaudeTracker macOS/ClaudeTracker macOS.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "Tempo macOS/Tempo macOS.entitlements";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -668,7 +664,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		7731EED52F76AD1800C84A59 /* Build configuration list for PBXProject "ClaudeTracker" */ = {
+		7731EED52F76AD1800C84A59 /* Build configuration list for PBXProject "Tempo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7731EEE32F76AD1900C84A59 /* Debug */,
@@ -677,7 +673,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		7731EEE52F76AD1900C84A59 /* Build configuration list for PBXNativeTarget "ClaudeTracker" */ = {
+		7731EEE52F76AD1900C84A59 /* Build configuration list for PBXNativeTarget "Tempo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7731EEE62F76AD1900C84A59 /* Debug */,
@@ -686,7 +682,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		7731EF072F76AD3A00C84A59 /* Build configuration list for PBXNativeTarget "ClaudeTracker Watch" */ = {
+		7731EF072F76AD3A00C84A59 /* Build configuration list for PBXNativeTarget "Tempo Watch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7731EF082F76AD3A00C84A59 /* Debug */,
@@ -695,7 +691,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "ClaudeTracker macOS" */ = {
+		7765DF782F78227100A8EEB8 /* Build configuration list for PBXNativeTarget "Tempo macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7765DF792F78227100A8EEB8 /* Debug */,

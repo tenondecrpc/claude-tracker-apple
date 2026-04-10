@@ -75,12 +75,12 @@ final class SessionEventWriter {
 
     private func iCloudTrackerDirectory() -> URL {
         if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: ClaudeTrackerICloud.containerIdentifier
+            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
         ) {
-            return containerURL.appendingPathComponent("Documents/ClaudeTracker")
+            return containerURL.appendingPathComponent("Documents/Tempo")
         }
         return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker")
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo")
     }
 
     private var lastWrittenSessionID: String? {

@@ -23,6 +23,6 @@
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.tenondevcloud.claudetracker</string>
+	<string>com.tenondev.tempo.claude</string>
 </dict>
 </plist>

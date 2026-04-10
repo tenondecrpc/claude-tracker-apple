@@ -1,8 +1,8 @@
 ## 1. Foundation: TempoTheme + Desirable Features Doc
 
-- [x] 1.1 Create `ClaudeTracker macOS/TempoTheme.swift` with all design tokens: background, surface, card, accent, accentLight, accentMuted, textPrimary, textSecondary, textTertiary, progressTrack, success, warning, critical, info, destructive
+- [x] 1.1 Create `Tempo macOS/TempoTheme.swift` with all design tokens: background, surface, card, accent, accentLight, accentMuted, textPrimary, textSecondary, textTertiary, progressTrack, success, warning, critical, info, destructive
 - [x] 1.2 Create `docs/DESIRABLE_FEATURES.md` documenting 10 CUStats features out of scope for this rebranding (multi-account, light mode, pace prediction, live session chart, day/week breakdowns, bar charts, consumption rate histogram, scheduled triggers, Codex support, All Accounts dashboard)
-- [x] 1.3 Delete `ClaudeTracker macOS/ClaudeTheme.swift` after TempoTheme is in place
+- [x] 1.3 Delete `Tempo macOS/ClaudeTheme.swift` after TempoTheme is in place
 
 ## 2. Popover Components (PopoverComponents.swift)
 
@@ -15,7 +15,7 @@
 ## 3. Popover Dashboard (DashboardPopoverView.swift)
 
 - [x] 3.1 Rename `AuthenticatedView.swift` to `DashboardPopoverView.swift`; update `MacMenuView` reference in `SignInView.swift`
-- [x] 3.2 Set popover width to 320pt in `ClaudeTrackerMacApp.swift` (update `.frame(width:)` on `MenuBarExtra` body)
+- [x] 3.2 Set popover width to 320pt in `TempoMacApp.swift` (update `.frame(width:)` on `MenuBarExtra` body)
 - [x] 3.3 Replace the flat VStack usage content with the ring dashboard layout: `UsageRingView` (150×150pt, centered), pill chips HStack, `BurnRateCard`, promo indicator (above ring, right-aligned, `TempoTheme.warning`, when `isDoubleLimitPromoActive`)
 - [x] 3.4 Move service status row out of the body — it is now only the dot in the header; remove the service status body row from `usageContent`
 - [x] 3.5 Update not-signed-in state: replace `ClaudeTheme.lockIcon` with `TempoTheme.info`, replace coral button with `TempoTheme.accent` violet, update subtitle text to "Sign in to view your usage", update quit button to `TempoTheme.critical`
@@ -29,7 +29,7 @@
 
 ## 5. Stats Detail Window (DetailWindowView.swift)
 
-- [x] 5.1 Rename `StatsDetailView.swift` to `DetailWindowView.swift`; update the `Window("Stats", id: "stats-detail")` scene in `ClaudeTrackerMacApp.swift` to reference `DetailWindowView`
+- [x] 5.1 Rename `StatsDetailView.swift` to `DetailWindowView.swift`; update the `Window("Stats", id: "stats-detail")` scene in `TempoMacApp.swift` to reference `DetailWindowView`
 - [x] 5.2 Add `DetailTab` enum with cases `overview`, `activity`, `insights`, `preferences` and `@State private var selectedTab: DetailTab = .overview`
 - [x] 5.3 Build custom horizontal tab bar: `HStack` of `Button` views, active tab has `TempoTheme.accentMuted` background pill + `TempoTheme.accent` text + `.semibold` weight, inactive tabs in `TempoTheme.textSecondary` + regular weight, `withAnimation(.easeInOut(duration: 0.2))` on tap
 - [x] 5.4 Update window header: title to "Tempo for Claude" in `.title3.weight(.semibold)`, email on the right in `.callout` `TempoTheme.textSecondary`; remove gear icon button entirely (this removes the inline settings popover)
@@ -75,7 +75,7 @@
 
 ## 11. App Entry Point + Polish
 
-- [x] 11.1 In `ClaudeTrackerMacApp.swift`: update `Window("Stats", id: "stats-detail")` title/scene reference; update any "Usage for Claude" strings to "Tempo for Claude"; update `MenuBarExtra` label if it contains branding text
+- [x] 11.1 In `TempoMacApp.swift`: update `Window("Stats", id: "stats-detail")` title/scene reference; update any "Usage for Claude" strings to "Tempo for Claude"; update `MenuBarExtra` label if it contains branding text
 - [x] 11.2 Grep entire macOS target for `ClaudeTheme` — fix any remaining references
 - [x] 11.3 Grep entire macOS target for "Usage for Claude" — update remaining occurrences to "Tempo for Claude" or "Tempo" as appropriate
 - [x] 11.4 Build the macOS target in Xcode and fix any compile errors

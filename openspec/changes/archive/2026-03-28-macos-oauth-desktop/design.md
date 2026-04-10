@@ -1,6 +1,6 @@
 ## Context
 
-ClaudeTracker currently has OAuth sign-in on iOS, but the UX is poor: the browser doesn't redirect back to the app, requiring manual code paste on iPhone. The reference app "Usage for Claude" (macOS) proves the better pattern — auth happens on the Mac where Claude Code runs, and mobile devices just consume data via iCloud.
+Tempo currently has OAuth sign-in on iOS, but the UX is poor: the browser doesn't redirect back to the app, requiring manual code paste on iPhone. The reference app "Usage for Claude" (macOS) proves the better pattern — auth happens on the Mac where Claude Code runs, and mobile devices just consume data via iCloud.
 
 The existing iOS `AnthropicAPIClient.swift` implements the full OAuth PKCE flow with paste-code. The macOS version will use the same OAuth endpoints and client ID but adapted for AppKit (`NSWorkspace.shared.open` instead of `UIApplication.shared.open`).
 
@@ -27,13 +27,13 @@ Claude Code stores account info in `~/.claude/.claude.json` (email, display name
 
 **Choice**: SwiftUI `MenuBarExtra` (iOS 16+ / macOS 13+) with a small status window.
 
-**Why**: Lightweight, always-running, no Dock icon. Shows auth status and sign-in/sign-out in the menu. Uses `MenuBarExtra("ClaudeTracker", systemImage:)` with SwiftUI views.
+**Why**: Lightweight, always-running, no Dock icon. Shows auth status and sign-in/sign-out in the menu. Uses `MenuBarExtra("Tempo", systemImage:)` with SwiftUI views.
 
 **Alternative considered**: Regular windowed app — too heavy for a background polling service. The menu bar pattern matches claude-usage-bar and "Usage for Claude".
 
-### 2. Credential storage: File-based at `~/.config/claude-tracker/credentials.json`
+### 2. Credential storage: File-based at `~/.config/tempo-for-claude/credentials.json`
 
-**Choice**: Store `access_token`, `refresh_token`, `expiresAt`, and `scopes` in a JSON file with `0600` permissions, in `~/.config/claude-tracker/`.
+**Choice**: Store `access_token`, `refresh_token`, `expiresAt`, and `scopes` in a JSON file with `0600` permissions, in `~/.config/tempo-for-claude/`.
 
 **Why**: Matches the claude-usage-bar pattern. Simpler than Keychain for a macOS-only credential that doesn't need iCloud sync. File permissions provide adequate security for a single-user desktop app.
 
@@ -41,7 +41,7 @@ Claude Code stores account info in `~/.claude/.claude.json` (email, display name
 
 ### 3. iCloud transport: JSON file at known path
 
-**Choice**: macOS writes `usage.json` to `~/Library/Mobile Documents/com~apple~CloudDocs/ClaudeTracker/usage.json`. iOS reads it via `NSMetadataQuery`.
+**Choice**: macOS writes `usage.json` to `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage.json`. iOS reads it via `NSMetadataQuery`.
 
 **Why**: Same transport mechanism planned for the stop-hook pipeline (`latest.json`). Keeps all cross-device data in one iCloud folder. `NSMetadataQuery` on iOS already handles download status and file coordination.
 
@@ -49,7 +49,7 @@ Claude Code stores account info in `~/.claude/.claude.json` (email, display name
 
 ### 4. "Sign in with Claude Code" behavior
 
-**Choice**: On launch, check if `~/.config/claude-tracker/credentials.json` exists with valid (non-expired) tokens. If yes, skip OAuth flow and go straight to polling. The button label "Sign in with Claude Code" signals to users that this uses their Claude account (the same one Claude Code uses), not that it literally reads Claude Code's tokens.
+**Choice**: On launch, check if `~/.config/tempo-for-claude/credentials.json` exists with valid (non-expired) tokens. If yes, skip OAuth flow and go straight to polling. The button label "Sign in with Claude Code" signals to users that this uses their Claude account (the same one Claude Code uses), not that it literally reads Claude Code's tokens.
 
 **Why**: Claude Code does NOT expose reusable OAuth tokens. `~/.claude/.claude.json` has account metadata (email, name) but no access/refresh tokens. Each app must manage its own OAuth tokens. However, we CAN read the email from `.claude.json` to pre-fill or display the account name.
 
@@ -82,7 +82,7 @@ watchOS (TokenStore → dashboard ring)
 → Mitigation: File permissions `0600` prevent other users from reading. This is a personal project on a single-user Mac. Same approach used by claude-usage-bar without issues.
 
 **[Risk] Two polling apps could conflict**
-→ Mitigation: ClaudeTracker uses a 15-minute interval (claude-usage-bar uses 60s). Combined, this is well within API rate limits. No coordination needed.
+→ Mitigation: Tempo uses a 15-minute interval (claude-usage-bar uses 60s). Combined, this is well within API rate limits. No coordination needed.
 
 ## Open Questions
 
