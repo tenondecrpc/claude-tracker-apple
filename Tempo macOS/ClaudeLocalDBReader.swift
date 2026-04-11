@@ -36,27 +36,60 @@ struct LocalProjectStat: Identifiable {
     var hasActivity7d: Bool { messages7d > 0 || toolCalls7d > 0 || totalTokens7d > 0 }
 }
 
+private struct LoadedClaudeStats {
+    let activity: [LocalDailyActivity]
+    let modelTokens: [LocalDailyModelTokens]
+    let modelUsage: [String: LocalModelUsageItem]
+    let totalSessions: Int
+    let totalMessages: Int
+    let totalSubagents: Int
+    let projects: [LocalProjectStat]
+}
+
 // MARK: - JSONL decode structs (lenient)
 
 nonisolated private struct JNLRecord: Decodable {
     let type: String
     let timestamp: String?
+    let isMeta: Bool?
     let message: JNLMessage?
 }
 
 nonisolated private struct JNLMessage: Decodable {
+    let role: String?
     let content: [JNLContentBlock]?
+    let contentText: String?
     let usage: JNLUsage?
     let model: String?
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case content
+        case usage
+        case model
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        role = try container.decodeIfPresent(String.self, forKey: .role)
+        usage = try container.decodeIfPresent(JNLUsage.self, forKey: .usage)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        content = try? container.decode([JNLContentBlock].self, forKey: .content)
+        contentText = try? container.decode(String.self, forKey: .content)
+    }
 }
 
 nonisolated private struct JNLUsage: Decodable {
     let inputTokens: Int
     let outputTokens: Int
+    let cacheReadInputTokens: Int?
+    let cacheCreationInputTokens: Int?
 
     enum CodingKeys: String, CodingKey {
         case inputTokens = "input_tokens"
         case outputTokens = "output_tokens"
+        case cacheReadInputTokens = "cache_read_input_tokens"
+        case cacheCreationInputTokens = "cache_creation_input_tokens"
     }
 }
 
@@ -80,7 +113,11 @@ final class ClaudeLocalDBReader {
     private(set) var totalMessages: Int = 0
     private(set) var totalSubagents: Int = 0
 
-    private static let bookmarkKey = "claudeFolderBookmark"
+    nonisolated static let bookmarkKey = "claudeFolderBookmark"
+
+    enum AccessError: Error {
+        case accessRequired
+    }
 
     init() {
         Task { await load() }
@@ -120,7 +157,7 @@ final class ClaudeLocalDBReader {
 
     // MARK: - Bookmark Resolution
 
-    private static func resolveBookmarkedClaudeURL() -> URL? {
+    nonisolated static func resolveBookmarkedClaudeURL() -> URL? {
         guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
         var isStale = false
         guard let url = try? URL(
@@ -137,6 +174,24 @@ final class ClaudeLocalDBReader {
             UserDefaults.standard.set(fresh, forKey: bookmarkKey)
         }
         return url
+    }
+
+    nonisolated static func withClaudeFolderAccess<T>(_ body: (URL) throws -> T) throws -> T {
+        let scopedURL = resolveBookmarkedClaudeURL()
+        let accessing = scopedURL?.startAccessingSecurityScopedResource() ?? false
+        defer {
+            if accessing {
+                scopedURL?.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        if isSandboxed && scopedURL == nil {
+            throw AccessError.accessRequired
+        }
+
+        let claudeURL = scopedURL ?? FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude")
+        return try body(claudeURL)
     }
 
     // MARK: - Computed: 7-day window
@@ -164,42 +219,30 @@ final class ClaudeLocalDBReader {
     // MARK: - Private
 
     private func load() async {
-        let scopedURL = Self.resolveBookmarkedClaudeURL()
-        let accessing = scopedURL?.startAccessingSecurityScopedResource() ?? false
-
-        let claudeURL = scopedURL ?? FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude")
-        let statsCacheURL = claudeURL.appendingPathComponent("stats-cache.json")
-        let projectsURL = claudeURL.appendingPathComponent("projects")
-
-        struct Loaded {
-            let activity: [LocalDailyActivity]
-            let modelTokens: [LocalDailyModelTokens]
-            let modelUsage: [String: LocalModelUsageItem]
-            let totalSessions: Int
-            let totalMessages: Int
-            let totalSubagents: Int
-            let projects: [LocalProjectStat]
-        }
-
         do {
-            let loaded: Loaded = try await Task.detached(priority: .userInitiated) {
-                let data = try Data(contentsOf: statsCacheURL)
-                let cache = try JSONDecoder().decode(StatsCache.self, from: data)
-                let projects = Self.readProjectStats(from: projectsURL)
-                let subagents = Self.countSubagents(at: projectsURL)
-                return Loaded(
-                    activity: cache.dailyActivity,
-                    modelTokens: cache.dailyModelTokens,
-                    modelUsage: cache.modelUsage,
-                    totalSessions: cache.totalSessions,
-                    totalMessages: cache.totalMessages,
-                    totalSubagents: subagents,
-                    projects: projects
-                )
-            }.value
+            let loaded: LoadedClaudeStats = try await Task.detached(priority: .userInitiated) {
+                try Self.withClaudeFolderAccess { claudeURL in
+                    let statsCacheURL = claudeURL.appendingPathComponent("stats-cache.json")
+                    let projectsURL = claudeURL.appendingPathComponent("projects")
+                    let subagents = Self.countSubagents(at: projectsURL)
 
-            if accessing { scopedURL?.stopAccessingSecurityScopedResource() }
+                    if let data = try? Data(contentsOf: statsCacheURL),
+                       let cache = try? JSONDecoder().decode(StatsCache.self, from: data) {
+                        let projects = Self.readProjectStats(from: projectsURL)
+                        return LoadedClaudeStats(
+                            activity: cache.dailyActivity,
+                            modelTokens: cache.dailyModelTokens,
+                            modelUsage: cache.modelUsage,
+                            totalSessions: cache.totalSessions,
+                            totalMessages: cache.totalMessages,
+                            totalSubagents: subagents,
+                            projects: projects
+                        )
+                    }
+
+                    return try Self.buildFallbackStats(from: projectsURL, totalSubagents: subagents)
+                }
+            }.value
 
             dailyActivity = loaded.activity
             dailyModelTokens = loaded.modelTokens
@@ -210,14 +253,126 @@ final class ClaudeLocalDBReader {
             projectStats = loaded.projects
             isAvailable = true
             needsAccessGrant = false
-        } catch {
-            if accessing { scopedURL?.stopAccessingSecurityScopedResource() }
+        } catch let error as AccessError {
+            clearLoadedStats()
             isAvailable = false
-            let nsError = error as NSError
-            if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoPermissionError {
+            needsAccessGrant = true
+            DevLog.trace("AlertTrace", "ClaudeLocalDBReader needs .claude folder access grant")
+        } catch {
+            clearLoadedStats()
+            isAvailable = false
+            if Self.isPermissionError(error) {
                 needsAccessGrant = true
+            } else {
+                needsAccessGrant = false
             }
         }
+    }
+
+    private func clearLoadedStats() {
+        dailyActivity = []
+        dailyModelTokens = []
+        modelUsage = [:]
+        projectStats = []
+        totalSessions = 0
+        totalMessages = 0
+        totalSubagents = 0
+    }
+
+    private nonisolated static func buildFallbackStats(
+        from projectsURL: URL,
+        totalSubagents: Int
+    ) throws -> LoadedClaudeStats {
+        let fm = FileManager.default
+        let projectEntries = try fm.contentsOfDirectory(atPath: projectsURL.path)
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+
+        var dailyActivityByDate: [String: LocalDailyActivityAccumulator] = [:]
+        var dailyTokensByDate: [String: [String: Int]] = [:]
+        var modelUsage: [String: LocalModelUsageAccumulator] = [:]
+        var projectStats: [LocalProjectStat] = []
+        var totalSessions = 0
+        var totalMessages = 0
+
+        for dirName in projectEntries {
+            let dirURL = projectsURL.appendingPathComponent(dirName)
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: dirURL.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            let jsonlFiles = (try? fm.contentsOfDirectory(atPath: dirURL.path))?
+                .filter { $0.hasSuffix(".jsonl") } ?? []
+            guard !jsonlFiles.isEmpty else { continue }
+
+            totalSessions += jsonlFiles.count
+
+            let aggregate = aggregateProjectData(
+                dirURL: dirURL,
+                jsonlFiles: jsonlFiles,
+                cutoffDate: cutoffDate,
+                dailyActivityByDate: &dailyActivityByDate,
+                dailyTokensByDate: &dailyTokensByDate,
+                modelUsage: &modelUsage
+            )
+            totalMessages += aggregate.totalMessages
+
+            if aggregate.hasActivity {
+                projectStats.append(
+                    LocalProjectStat(
+                        dirName: dirName,
+                        displayName: displayName(for: dirName),
+                        sessionCount: jsonlFiles.count,
+                        sessions7d: aggregate.sessions7d,
+                        messages7d: aggregate.messages7d,
+                        toolCalls7d: aggregate.toolCalls7d,
+                        totalTokens7d: aggregate.totalTokens7d,
+                        costEquiv7d: aggregate.costEquiv7d
+                    )
+                )
+            }
+        }
+
+        let dailyActivity = dailyActivityByDate
+            .map { date, activity in
+                LocalDailyActivity(
+                    date: date,
+                    messageCount: activity.messageCount,
+                    sessionCount: activity.sessionCount,
+                    toolCallCount: activity.toolCallCount
+                )
+            }
+            .sorted { $0.date < $1.date }
+
+        let dailyModelTokens = dailyTokensByDate
+            .map { date, tokensByModel in
+                LocalDailyModelTokens(
+                    date: date,
+                    tokensByModel: tokensByModel
+                )
+            }
+            .sorted { $0.date < $1.date }
+
+        let finalModelUsage = modelUsage.mapValues { usage in
+            LocalModelUsageItem(
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens,
+                cacheReadInputTokens: usage.cacheReadInputTokens,
+                cacheCreationInputTokens: usage.cacheCreationInputTokens
+            )
+        }
+
+        guard !dailyActivity.isEmpty || !projectStats.isEmpty || !finalModelUsage.isEmpty else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        return LoadedClaudeStats(
+            activity: dailyActivity,
+            modelTokens: dailyModelTokens,
+            modelUsage: finalModelUsage,
+            totalSessions: totalSessions,
+            totalMessages: totalMessages,
+            totalSubagents: totalSubagents,
+            projects: projectStats.sorted { $0.sessions7d > $1.sessions7d }
+        )
     }
 
     private nonisolated static func readProjectStats(from url: URL) -> [LocalProjectStat] {
@@ -275,9 +430,9 @@ final class ClaudeLocalDBReader {
                 guard let record = try? decoder.decode(JNLRecord.self, from: Data(line)) else { continue }
                 switch record.type {
                 case "user":
-                    // Count only actual human text prompts, not tool_result messages
-                    let hasText = record.message?.content?.contains { $0.type == "text" } ?? false
-                    if hasText { messages += 1 }
+                    if isCountableUserMessage(record) {
+                        messages += 1
+                    }
                 case "assistant":
                     let msg = record.message
                     // Count tool_use blocks
@@ -287,17 +442,11 @@ final class ClaudeLocalDBReader {
                     if let usage = msg?.usage {
                         let tokens = usage.inputTokens + usage.outputTokens
                         totalTokens += tokens
-                        // Compute cost by model
-                        let model = msg?.model ?? ""
-                        let inM = Double(usage.inputTokens) / 1_000_000
-                        let outM = Double(usage.outputTokens) / 1_000_000
-                        if model.contains("opus") {
-                            costEquiv += inM * 15.0 + outM * 75.0
-                        } else if model.contains("sonnet") {
-                            costEquiv += inM * 3.0 + outM * 15.0
-                        } else if model.contains("haiku") {
-                            costEquiv += inM * 1.0 + outM * 5.0
-                        }
+                        costEquiv += costEquivalent(
+                            model: msg?.model ?? "",
+                            inputTokens: usage.inputTokens,
+                            outputTokens: usage.outputTokens
+                        )
                     }
                 default:
                     break
@@ -306,6 +455,170 @@ final class ClaudeLocalDBReader {
         }
         let hasActivity = messages > 0 || toolCalls > 0 || totalTokens > 0
         return (messages, toolCalls, totalTokens, costEquiv, hasActivity)
+    }
+
+    private nonisolated static func aggregateProjectData(
+        dirURL: URL,
+        jsonlFiles: [String],
+        cutoffDate: Date,
+        dailyActivityByDate: inout [String: LocalDailyActivityAccumulator],
+        dailyTokensByDate: inout [String: [String: Int]],
+        modelUsage: inout [String: LocalModelUsageAccumulator]
+    ) -> (
+        sessions7d: Int,
+        messages7d: Int,
+        toolCalls7d: Int,
+        totalTokens7d: Int,
+        costEquiv7d: Double,
+        totalMessages: Int,
+        hasActivity: Bool
+    ) {
+        let fm = FileManager.default
+        let decoder = JSONDecoder()
+
+        var sessions7d = 0
+        var messages7d = 0
+        var toolCalls7d = 0
+        var totalTokens7d = 0
+        var costEquiv7d = 0.0
+        var totalMessages = 0
+
+        for file in jsonlFiles {
+            let fileURL = dirURL.appendingPathComponent(file)
+            let attrs = try? fm.attributesOfItem(atPath: fileURL.path)
+            let modifiedAt = (attrs?[.modificationDate] as? Date) ?? Date.distantPast
+            let sessionDateString = dayString(from: modifiedAt)
+            let isInLast7Days = modifiedAt >= cutoffDate
+
+            if isInLast7Days {
+                sessions7d += 1
+                dailyActivityByDate[sessionDateString, default: .init()].sessionCount += 1
+            }
+
+            guard let data = try? Data(contentsOf: fileURL) else { continue }
+            let lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+            for line in lines {
+                guard let record = try? decoder.decode(JNLRecord.self, from: Data(line)) else { continue }
+
+                let eventDate = parseTimestamp(record.timestamp) ?? modifiedAt
+                let eventDateString = dayString(from: eventDate)
+                let usage = record.message?.usage
+                let model = record.message?.model ?? ""
+
+                switch record.type {
+                case "user":
+                    guard isCountableUserMessage(record) else { continue }
+                    totalMessages += 1
+                    if eventDate >= cutoffDate {
+                        messages7d += 1
+                        dailyActivityByDate[eventDateString, default: .init()].messageCount += 1
+                    }
+
+                case "assistant":
+                    let tools = record.message?.content?.filter { $0.type == "tool_use" }.count ?? 0
+                    if eventDate >= cutoffDate, tools > 0 {
+                        toolCalls7d += tools
+                        dailyActivityByDate[eventDateString, default: .init()].toolCallCount += tools
+                    }
+
+                    guard let usage else { continue }
+                    let tokens = usage.inputTokens + usage.outputTokens
+
+                    if !model.isEmpty {
+                        var aggregate = modelUsage[model, default: .init()]
+                        aggregate.inputTokens += usage.inputTokens
+                        aggregate.outputTokens += usage.outputTokens
+                        aggregate.cacheReadInputTokens += usage.cacheReadInputTokens ?? 0
+                        aggregate.cacheCreationInputTokens += usage.cacheCreationInputTokens ?? 0
+                        modelUsage[model] = aggregate
+                    }
+
+                    if eventDate >= cutoffDate {
+                        totalTokens7d += tokens
+                        costEquiv7d += costEquivalent(
+                            model: model,
+                            inputTokens: usage.inputTokens,
+                            outputTokens: usage.outputTokens
+                        )
+                        if !model.isEmpty {
+                            dailyTokensByDate[eventDateString, default: [:]][model, default: 0] += tokens
+                        }
+                    }
+
+                default:
+                    break
+                }
+            }
+        }
+
+        let hasActivity = sessions7d > 0 || messages7d > 0 || toolCalls7d > 0 || totalTokens7d > 0
+        return (sessions7d, messages7d, toolCalls7d, totalTokens7d, costEquiv7d, totalMessages, hasActivity)
+    }
+
+    private nonisolated static func isCountableUserMessage(_ record: JNLRecord) -> Bool {
+        guard record.isMeta != true else { return false }
+        guard record.type == "user" else { return false }
+        if let role = record.message?.role, role != "user" {
+            return false
+        }
+
+        if let content = record.message?.content, content.contains(where: { $0.type == "text" || $0.type == "image" }) {
+            return true
+        }
+
+        if let contentText = record.message?.contentText?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !contentText.isEmpty,
+           !contentText.contains("<local-command"),
+           !contentText.contains("<command-name>"),
+           !contentText.contains("<command-message>"),
+           !contentText.contains("<tool_result") {
+            return true
+        }
+
+        return false
+    }
+
+    private nonisolated static func costEquivalent(
+        model: String,
+        inputTokens: Int,
+        outputTokens: Int
+    ) -> Double {
+        let inM = Double(inputTokens) / 1_000_000
+        let outM = Double(outputTokens) / 1_000_000
+
+        if model.contains("opus") {
+            return inM * 15.0 + outM * 75.0
+        }
+        if model.contains("sonnet") {
+            return inM * 3.0 + outM * 15.0
+        }
+        if model.contains("haiku") {
+            return inM * 1.0 + outM * 5.0
+        }
+        return 0
+    }
+
+    private nonisolated static func dayString(from date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
+    }
+
+    private nonisolated static func parseTimestamp(_ raw: String?) -> Date? {
+        guard let raw else { return nil }
+
+        let withFractional = ISO8601DateFormatter()
+        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = withFractional.date(from: raw) {
+            return date
+        }
+
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        return standard.date(from: raw)
     }
 
     private nonisolated static func countSubagents(at url: URL) -> Int {
@@ -343,9 +656,40 @@ final class ClaudeLocalDBReader {
         fmt.dateFormat = "yyyy-MM-dd"
         return fmt.string(from: date)
     }
+
+    private nonisolated static var isSandboxed: Bool {
+        ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+    }
+
+    private nonisolated static func isPermissionError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoPermissionError {
+            return true
+        }
+        if nsError.domain == NSPOSIXErrorDomain && nsError.code == EACCES {
+            return true
+        }
+        if nsError.domain == NSPOSIXErrorDomain && nsError.code == EPERM {
+            return true
+        }
+        return false
+    }
 }
 
 // MARK: - Private decode model
+
+nonisolated private struct LocalDailyActivityAccumulator {
+    var messageCount = 0
+    var sessionCount = 0
+    var toolCallCount = 0
+}
+
+nonisolated private struct LocalModelUsageAccumulator {
+    var inputTokens = 0
+    var outputTokens = 0
+    var cacheReadInputTokens = 0
+    var cacheCreationInputTokens = 0
+}
 
 nonisolated private struct StatsCache: Decodable {
     let dailyActivity: [LocalDailyActivity]

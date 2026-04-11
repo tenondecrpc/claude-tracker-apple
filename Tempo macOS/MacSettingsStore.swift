@@ -14,12 +14,14 @@ final class MacSettingsStore {
         static let use24HourTime = "mac.settings.use24HourTime"
         static let serviceStatusMonitoring = "mac.settings.serviceStatusMonitoring"
         static let syncHistoryViaICloud = "mac.settings.syncHistoryViaICloud"
-        static let autoCheckForUpdates = "mac.settings.autoCheckForUpdates"
+        static let iPhoneAlertsEnabled = "mac.settings.iPhoneAlertsEnabled"
+        static let watchAlertsEnabled = "mac.settings.watchAlertsEnabled"
         static let appearanceMode = "mac.settings.appearanceMode"
     }
 
     var onServiceStatusMonitoringChanged: ((Bool) -> Void)?
     var onSyncHistoryViaICloudChanged: ((Bool) -> Void)?
+    var onSessionAlertPreferencesChanged: ((SessionAlertPreferences) -> Void)?
 
     var launchAtLogin: Bool {
         didSet {
@@ -81,9 +83,23 @@ final class MacSettingsStore {
         }
     }
 
-    var autoCheckForUpdates: Bool {
+    var iPhoneAlertsEnabled: Bool {
         didSet {
-            persist(autoCheckForUpdates, forKey: Key.autoCheckForUpdates)
+            persist(iPhoneAlertsEnabled, forKey: Key.iPhoneAlertsEnabled)
+            if !isHydrating {
+                DevLog.trace("AlertTrace", "MacSettingsStore iPhoneAlertsEnabled=\(iPhoneAlertsEnabled)")
+                onSessionAlertPreferencesChanged?(sessionAlertPreferences)
+            }
+        }
+    }
+
+    var watchAlertsEnabled: Bool {
+        didSet {
+            persist(watchAlertsEnabled, forKey: Key.watchAlertsEnabled)
+            if !isHydrating {
+                DevLog.trace("AlertTrace", "MacSettingsStore watchAlertsEnabled=\(watchAlertsEnabled)")
+                onSessionAlertPreferencesChanged?(sessionAlertPreferences)
+            }
         }
     }
 
@@ -91,6 +107,13 @@ final class MacSettingsStore {
         didSet {
             defaults.set(appearanceMode.rawValue, forKey: Key.appearanceMode)
         }
+    }
+
+    var sessionAlertPreferences: SessionAlertPreferences {
+        SessionAlertPreferences(
+            iPhoneAlertsEnabled: iPhoneAlertsEnabled,
+            watchAlertsEnabled: watchAlertsEnabled
+        )
     }
 
     private let defaults: UserDefaults
@@ -136,9 +159,13 @@ final class MacSettingsStore {
             ? defaults.bool(forKey: Key.syncHistoryViaICloud)
             : true
 
-        autoCheckForUpdates = defaults.object(forKey: Key.autoCheckForUpdates) != nil
-            ? defaults.bool(forKey: Key.autoCheckForUpdates)
-            : true
+        iPhoneAlertsEnabled = defaults.object(forKey: Key.iPhoneAlertsEnabled) != nil
+            ? defaults.bool(forKey: Key.iPhoneAlertsEnabled)
+            : SessionAlertPreferences.default.iPhoneAlertsEnabled
+
+        watchAlertsEnabled = defaults.object(forKey: Key.watchAlertsEnabled) != nil
+            ? defaults.bool(forKey: Key.watchAlertsEnabled)
+            : SessionAlertPreferences.default.watchAlertsEnabled
 
         if let raw = defaults.string(forKey: Key.appearanceMode),
            let mode = AppearanceMode(rawValue: raw) {

@@ -43,6 +43,8 @@ struct DetailWindowView: View {
     @State private var showSession = true
     @State private var showWeekly = true
     @State private var shareAnchorView: NSView?
+    @State private var hostingWindow: NSWindow?
+    @State private var hasActivatedWindow = false
     @State private var shareErrorMessage = ""
     @State private var showShareError = false
 
@@ -67,7 +69,11 @@ struct DetailWindowView: View {
             }
         }
         .background(ClaudeCodeTheme.background)
-        .preferredColorScheme(.dark)
+        .background(StatsWindowAccessor(window: $hostingWindow))
+        .preferredColorScheme(coordinator.settings.preferredColorScheme)
+        .onChange(of: hostingWindow, initial: true) { _, window in
+            activateWindowIfNeeded(window)
+        }
         .frame(minWidth: 900, minHeight: 780)
         .alert("Unable to Share Chart", isPresented: $showShareError) {
             Button("OK", role: .cancel) {}
@@ -333,28 +339,28 @@ struct DetailWindowView: View {
                         compactStatCard(icon: "arrow.up.right", title: "Peak", value: peakSession, subtitle: "highest session", color: ClaudeCodeTheme.textPrimary)
                     }
 
-                    // Heatmap card
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Usage Activity")
-                            .font(.headline)
-                            .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                        if !localDB.isAvailable {
-                            if localDB.needsAccessGrant {
-                                grantAccessView
-                            } else {
+                    if localDB.needsAccessGrant {
+                        localPermissionCard
+                    } else {
+                        // Heatmap card
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Usage Activity")
+                                .font(.headline)
+                                .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                            if !localDB.isAvailable {
                                 unavailableView("Activity data unavailable")
+                            } else {
+                                ActivityHeatmapView(dailyActivity: localDB.dailyActivity)
                             }
-                        } else {
-                            ActivityHeatmapView(dailyActivity: localDB.dailyActivity)
                         }
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ClaudeCodeTheme.card)
-                    .clipShape(.rect(cornerRadius: 12))
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(ClaudeCodeTheme.card)
+                        .clipShape(.rect(cornerRadius: 12))
 
-                    // Claude Code section card
-                    claudeCodeStatsSection
+                        // Claude Code section card
+                        claudeCodeStatsSection
+                    }
                 }
             }
         } else {
@@ -469,6 +475,16 @@ struct DetailWindowView: View {
 
     private var preferencesTab: some View {
         PreferencesWindowView(coordinator: coordinator, standalone: false)
+    }
+
+    private func activateWindowIfNeeded(_ window: NSWindow?) {
+        guard !hasActivatedWindow, let window else { return }
+        hasActivatedWindow = true
+
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 
     // MARK: - Claude Code Stats Section
@@ -1286,6 +1302,29 @@ struct DetailWindowView: View {
         .padding(.vertical, 8)
     }
 
+    private var localPermissionCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder.badge.questionmark")
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                Text("Local Claude Access")
+                    .font(.headline)
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                Spacer()
+            }
+
+            Text("Grant read access to your ~/.claude folder to enable both Usage Activity and Claude Code local statistics.")
+                .font(.subheadline)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+
+            grantAccessView
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ClaudeCodeTheme.card)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
     @ViewBuilder
     private func unavailableView(_ reason: String) -> some View {
         HStack(spacing: 8) {
@@ -2017,6 +2056,24 @@ private struct ShareAnchorView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             anchorView = nsView
+        }
+    }
+}
+
+private struct StatsWindowAccessor: NSViewRepresentable {
+    @Binding var window: NSWindow?
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            window = view.window
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            window = nsView.window
         }
     }
 }

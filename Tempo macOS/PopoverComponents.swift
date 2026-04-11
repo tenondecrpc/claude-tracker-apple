@@ -144,6 +144,59 @@ struct BurnRateCard: View {
     }
 }
 
+// MARK: - MenuActionRow
+
+struct MenuActionRow: View {
+    let icon: String
+    let label: String
+    var subtitle: String? = nil
+    var iconColor: Color = ClaudeCodeTheme.textSecondary
+    var labelColor: Color = ClaudeCodeTheme.textPrimary
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isDestructive ? ClaudeCodeTheme.error : iconColor)
+                    .frame(width: 16, alignment: .center)
+
+                if let subtitle {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(label)
+                            .font(.system(size: 13))
+                            .foregroundStyle(isDestructive ? ClaudeCodeTheme.error : labelColor)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textTertiary)
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text(label)
+                        .font(.system(size: 13))
+                        .foregroundStyle(isDestructive ? ClaudeCodeTheme.error : labelColor)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? ClaudeCodeTheme.surface : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.1), value: isHovered)
+    }
+}
+
 // MARK: - MenuBarHeaderView
 
 struct MenuBarHeaderView: View {

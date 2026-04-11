@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class IOSAppStore {
     let iCloudReader: iCloudUsageReader
+    private var isApplyingSyncedAlertPreferences = false
 
     var historyRange: UsageHistoryRange {
         didSet { defaults.set(historyRange.rawValue, forKey: Keys.historyRange) }
@@ -20,13 +21,17 @@ final class IOSAppStore {
     var iPhoneAlertsEnabled: Bool {
         didSet {
             defaults.set(iPhoneAlertsEnabled, forKey: Keys.iPhoneAlertsEnabled)
-            onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            if !isApplyingSyncedAlertPreferences {
+                onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            }
         }
     }
     var watchAlertsEnabled: Bool {
         didSet {
             defaults.set(watchAlertsEnabled, forKey: Keys.watchAlertsEnabled)
-            onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            if !isApplyingSyncedAlertPreferences {
+                onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            }
         }
     }
 
@@ -140,6 +145,27 @@ final class IOSAppStore {
 
     func refreshStaleness() {
         iCloudReader.refreshStaleness()
+    }
+
+    func applySyncedAlertPreferences(_ preferences: SessionAlertPreferences) {
+        guard sessionAlertPreferences != preferences else {
+            DevLog.trace(
+                "AlertTrace",
+                "IOSAppStore received unchanged synced preferences iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
+            )
+            return
+        }
+
+        DevLog.trace(
+            "AlertTrace",
+            "IOSAppStore applying synced preferences oldIPhone=\(iPhoneAlertsEnabled) oldWatch=\(watchAlertsEnabled) newIPhone=\(preferences.iPhoneAlertsEnabled) newWatch=\(preferences.watchAlertsEnabled)"
+        )
+        isApplyingSyncedAlertPreferences = true
+        iPhoneAlertsEnabled = preferences.iPhoneAlertsEnabled
+        watchAlertsEnabled = preferences.watchAlertsEnabled
+        isApplyingSyncedAlertPreferences = false
+
+        onSessionAlertPreferencesChange?(sessionAlertPreferences)
     }
 
     private static func map(_ freshness: ICloudDataFreshness) -> iCloudUsageReader.SyncStatus {

@@ -12,10 +12,6 @@ final class SessionEventWriter {
         let modifiedAt: Date
     }
 
-    nonisolated private static let projectsRootURL: URL = FileManager.default
-        .homeDirectoryForCurrentUser
-        .appendingPathComponent(".claude/projects")
-
     nonisolated private static let pollInterval: TimeInterval = 20
     nonisolated private static let idleThreshold: TimeInterval = 15
 
@@ -49,8 +45,14 @@ final class SessionEventWriter {
                 try Self.readLatestCompletedSession()
             }.value
 
-            guard let latestSession else { return }
-            guard latestSession.sessionId != lastWrittenSessionID else { return }
+            guard let latestSession else {
+                DevLog.trace("AlertTrace", "SessionWriter found no completed session to write")
+                return
+            }
+            guard latestSession.sessionId != lastWrittenSessionID else {
+                DevLog.trace("AlertTrace", "SessionWriter skipped duplicate session id=\(latestSession.sessionId)")
+                return
+            }
 
             try writeLatestSessionToICloud(latestSession)
             lastWrittenSessionID = latestSession.sessionId
@@ -71,6 +73,10 @@ final class SessionEventWriter {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(sessionInfo)
         try data.write(to: outputURL, options: .atomic)
+        DevLog.trace(
+            "AlertTrace",
+            "SessionWriter wrote latest session path=\(outputURL.path) id=\(sessionInfo.sessionId) timestamp=\(sessionInfo.timestamp)"
+        )
     }
 
     private func iCloudTrackerDirectory() -> URL {
@@ -89,30 +95,59 @@ final class SessionEventWriter {
     }
 
     nonisolated private static func readLatestCompletedSession(now: Date = Date()) throws -> SessionInfo? {
-        let candidates = try latestSessionCandidates()
-            .sorted(by: { $0.modifiedAt > $1.modifiedAt })
+        do {
+            return try ClaudeLocalDBReader.withClaudeFolderAccess { claudeURL in
+                let candidates = try latestSessionCandidates(in: claudeURL)
+                    .sorted(by: { $0.modifiedAt > $1.modifiedAt })
 
-        for candidate in candidates {
-            let age = now.timeIntervalSince(candidate.modifiedAt)
-            guard age >= idleThreshold else { continue }
-            if let info = parseSessionInfo(from: candidate) {
-                return info
+                DevLog.trace("AlertTrace", "SessionWriter discovered \(candidates.count) session candidate(s)")
+
+                for candidate in candidates {
+                    let age = now.timeIntervalSince(candidate.modifiedAt)
+                    guard age >= idleThreshold else {
+                        DevLog.trace(
+                            "AlertTrace",
+                            "SessionWriter skipping active candidate file=\(candidate.fileURL.lastPathComponent) ageSeconds=\(Int(age)) threshold=\(Int(idleThreshold))"
+                        )
+                        continue
+                    }
+                    if let info = parseSessionInfo(from: candidate) {
+                        DevLog.trace(
+                            "AlertTrace",
+                            "SessionWriter selected session id=\(info.sessionId) source=\(candidate.fileURL.path)"
+                        )
+                        return info
+                    }
+                    DevLog.trace("AlertTrace", "SessionWriter failed to parse candidate path=\(candidate.fileURL.path)")
+                }
+                DevLog.trace("AlertTrace", "SessionWriter did not find a parseable completed session")
+                return nil
             }
+        } catch ClaudeLocalDBReader.AccessError.accessRequired {
+            DevLog.trace("AlertTrace", "SessionWriter cannot access ~/.claude because the app still needs folder access grant")
+            return nil
         }
-        return nil
     }
 
-    nonisolated private static func latestSessionCandidates() throws -> [SessionCandidate] {
+    nonisolated private static func latestSessionCandidates(in claudeURL: URL) throws -> [SessionCandidate] {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: projectsRootURL.path) else { return [] }
-        let projectEntries = try fm.contentsOfDirectory(at: projectsRootURL, includingPropertiesForKeys: nil)
+        let projectsURL = claudeURL.appendingPathComponent("projects")
+        guard fm.fileExists(atPath: projectsURL.path) else {
+            DevLog.trace("AlertTrace", "SessionWriter projects directory not found at path=\(projectsURL.path)")
+            return []
+        }
 
+        let projectEntries = try fm.contentsOfDirectory(at: projectsURL, includingPropertiesForKeys: nil)
         var candidates: [SessionCandidate] = []
 
         for projectURL in projectEntries {
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: projectURL.path, isDirectory: &isDir), isDir.boolValue else { continue }
             let projectDirName = projectURL.lastPathComponent
+            if shouldIgnoreProjectDirectory(named: projectDirName) {
+                DevLog.trace("AlertTrace", "SessionWriter ignoring internal project directory name=\(projectDirName)")
+                continue
+            }
             let files = (try? fm.contentsOfDirectory(at: projectURL, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
             for fileURL in files where fileURL.pathExtension == "jsonl" {
                 let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey])
@@ -130,11 +165,21 @@ final class SessionEventWriter {
         return candidates
     }
 
+    nonisolated private static func shouldIgnoreProjectDirectory(named projectDirName: String) -> Bool {
+        projectDirName.contains("claude-mem-observer-sessions")
+    }
+
     nonisolated private static func parseSessionInfo(from candidate: SessionCandidate) -> SessionInfo? {
         let decoder = JSONDecoder()
-        guard let data = try? Data(contentsOf: candidate.fileURL) else { return nil }
+        guard let data = try? Data(contentsOf: candidate.fileURL) else {
+            DevLog.trace("AlertTrace", "SessionWriter failed reading candidate data path=\(candidate.fileURL.path)")
+            return nil
+        }
         let lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
-        guard !lines.isEmpty else { return nil }
+        guard !lines.isEmpty else {
+            DevLog.trace("AlertTrace", "SessionWriter found empty candidate file path=\(candidate.fileURL.path)")
+            return nil
+        }
 
         var totalInputTokens = 0
         var totalOutputTokens = 0
@@ -171,7 +216,10 @@ final class SessionEventWriter {
             }
         }
 
-        guard totalInputTokens > 0 || totalOutputTokens > 0 else { return nil }
+        guard totalInputTokens > 0 || totalOutputTokens > 0 else {
+            DevLog.trace("AlertTrace", "SessionWriter candidate had no assistant token usage path=\(candidate.fileURL.path)")
+            return nil
+        }
 
         let endDate = lastTimestamp ?? candidate.modifiedAt
         let startDate = firstTimestamp ?? endDate

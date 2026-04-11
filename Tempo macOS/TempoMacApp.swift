@@ -15,12 +15,7 @@ final class MacAppCoordinator {
     let localDB: ClaudeLocalDBReader
     let sessionEventWriter: SessionEventWriter
     let appUpdater: AppUpdater
-    let distribution: AppDistribution
     private var hasLaunched = false
-
-    var supportsInAppUpdates: Bool {
-        distribution.supportsInAppUpdates
-    }
 
     init() {
         let authState = MacAuthState()
@@ -32,11 +27,7 @@ final class MacAppCoordinator {
         let history = UsageHistory(syncHistoryViaICloud: settings.syncHistoryViaICloud)
         let localDB = ClaudeLocalDBReader()
         let sessionEventWriter = SessionEventWriter()
-        let distribution = AppDistribution.current
-        let appUpdater = AppUpdater(
-            updatesEnabled: distribution.supportsInAppUpdates,
-            autoCheckEnabled: { settings.autoCheckForUpdates && distribution.supportsInAppUpdates }
-        )
+        let appUpdater = AppUpdater()
 
         self.authState = authState
         self.client = client
@@ -48,7 +39,6 @@ final class MacAppCoordinator {
         self.localDB = localDB
         self.sessionEventWriter = sessionEventWriter
         self.appUpdater = appUpdater
-        self.distribution = distribution
 
         client.onSignOut = { [weak self] in
             self?.poller.stop()
@@ -64,6 +54,9 @@ final class MacAppCoordinator {
         settings.onSyncHistoryViaICloudChanged = { [weak history] enabled in
             history?.setSyncHistoryEnabled(enabled)
         }
+        settings.onSessionAlertPreferencesChanged = { [weak self] preferences in
+            self?.syncAlertPreferencesToICloud(preferences)
+        }
 
         launchAtLoginManager.refresh()
         if settings.launchAtLogin != launchAtLoginManager.isEnabled {
@@ -77,7 +70,6 @@ final class MacAppCoordinator {
         hasLaunched = true
 
         sessionEventWriter.start()
-        await appUpdater.checkOnLaunchIfNeeded()
 
         guard !authState.requiresExplicitSignIn else { return }
         let restored = await client.tryRestoreSession()
@@ -103,6 +95,18 @@ final class MacAppCoordinator {
             serviceStatusMonitor.start()
         } else {
             serviceStatusMonitor.stop()
+        }
+    }
+
+    private func syncAlertPreferencesToICloud(_ preferences: SessionAlertPreferences) {
+        do {
+            DevLog.trace(
+                "AlertTrace",
+                "MacAppCoordinator syncing alert preferences to iCloud iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
+            )
+            try AlertPreferencesSync.write(preferences)
+        } catch {
+            print("[AlertPreferences] failed to sync to iCloud: \(error.localizedDescription)")
         }
     }
 }
