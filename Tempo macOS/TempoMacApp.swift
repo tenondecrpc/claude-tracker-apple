@@ -118,9 +118,6 @@ struct TempoMacApp: App {
             MacMenuView(coordinator: coordinator)
                 .frame(width: 320)
                 .preferredColorScheme(coordinator.settings.preferredColorScheme)
-                .task {
-                    await coordinator.onLaunch()
-                }
         } label: {
             MenuBarIconView(
                 usage: coordinator.poller.latestUsage,
@@ -132,6 +129,9 @@ struct TempoMacApp: App {
                 showExtraUsageCredits: coordinator.settings.showExtraUsageCredits,
                 use24HourTime: coordinator.settings.use24HourTime
             )
+            .task {
+                await coordinator.onLaunch()
+            }
         }
         .menuBarExtraStyle(.window)
 
