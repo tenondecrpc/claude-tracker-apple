@@ -125,7 +125,17 @@ struct ActivityTabView: View {
                 "7D Weekly": ClaudeCodeTheme.error
             ])
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5))
+                AxisMarks(preset: .aligned, values: chartXAxisValues) { value in
+                    AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
+                    AxisTick().foregroundStyle(ClaudeCodeTheme.border)
+                    AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 12)) {
+                        if let date = value.as(Date.self) {
+                            Text(chartXAxisLabel(for: date))
+                                .font(.caption2)
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        }
+                    }
+                }
             }
             .chartYAxis {
                 AxisMarks(position: .leading, values: [0, 25, 50, 75, 100]) { value in
@@ -234,7 +244,58 @@ struct ActivityTabView: View {
             return first.addingTimeInterval(-1800)...first.addingTimeInterval(1800)
         }
         let span = last.timeIntervalSince(first)
-        let padding = max(span * 0.02, 60)
+        let padding = max(span * 0.06, 15 * 60)
         return first.addingTimeInterval(-padding)...last.addingTimeInterval(padding)
+    }
+
+    private var chartXAxisValues: [Date] {
+        let dates = chartSnapshots.map(\.date)
+        guard !dates.isEmpty else { return [] }
+
+        let targetCount: Int
+        switch store.historyRange {
+        case .last24Hours:
+            targetCount = 4
+        case .last7Days:
+            targetCount = 4
+        case .last30Days:
+            targetCount = 5
+        }
+
+        guard dates.count > targetCount else {
+            return dates
+        }
+
+        var selected: [Date] = []
+        var seenTimestamps = Set<Double>()
+
+        for step in 0..<targetCount {
+            let progress = Double(step) / Double(targetCount - 1)
+            let index = Int(round(progress * Double(dates.count - 1)))
+            let date = dates[index]
+            let key = date.timeIntervalSinceReferenceDate
+            if seenTimestamps.insert(key).inserted {
+                selected.append(date)
+            }
+        }
+
+        return selected.isEmpty ? dates : selected
+    }
+
+    private func chartXAxisLabel(for date: Date) -> String {
+        switch store.historyRange {
+        case .last24Hours:
+            let formatter = DateFormatter()
+            formatter.locale = store.use24HourTime
+                ? Locale(identifier: "en_GB_POSIX")
+                : Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = store.use24HourTime ? "HH" : "ha"
+            return formatter.string(from: date).lowercased()
+        case .last7Days, .last30Days:
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "d MMM"
+            return formatter.string(from: date)
+        }
     }
 }

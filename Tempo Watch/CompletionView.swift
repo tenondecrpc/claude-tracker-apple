@@ -1,21 +1,26 @@
-import SwiftUI
 import Foundation
+import SwiftUI
 
 struct CompletionView: View {
     let session: SessionInfo
 
     var body: some View {
+        let presentation = session.notificationPresentation()
+
         VStack(spacing: 8) {
-            Text("Session Done")
+            Text(presentation.title)
                 .font(.headline)
+                .multilineTextAlignment(.center)
 
-            Text("\(session.inputTokens + session.outputTokens) tokens")
-                .font(.title3)
-                .fontWeight(.semibold)
-
-            Text(session.costUSD, format: .currency(code: "USD"))
+            Text(presentation.subtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text(presentation.body)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
 
             Text("Tap to dismiss")
                 .font(.caption2)

@@ -1,8 +1,11 @@
 import SwiftUI
+import AppKit
 
 struct PreferencesWindowView: View {
     let coordinator: MacAppCoordinator
     var standalone: Bool = true
+    @State private var hostingWindow: NSWindow?
+    @State private var hasActivatedWindow = false
     @State private var use24HourTime: Bool
 
     init(coordinator: MacAppCoordinator, standalone: Bool = true) {
@@ -19,6 +22,10 @@ struct PreferencesWindowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(ClaudeCodeTheme.background)
+            .background(PreferencesWindowAccessor(window: $hostingWindow))
+            .onChange(of: hostingWindow, initial: true) { _, window in
+                activateWindowIfNeeded(window)
+            }
             .frame(minWidth: 420, idealWidth: 460, maxWidth: 520, minHeight: 800)
         } else {
             preferencesContent
@@ -30,6 +37,7 @@ struct PreferencesWindowView: View {
     @ViewBuilder
     private var preferencesContent: some View {
         @Bindable var settings = coordinator.settings
+        let needsClaudeAccess = coordinator.localDB.needsAccessGrant
 
         VStack(alignment: .leading, spacing: 16) {
             // Appearance card
@@ -83,82 +91,66 @@ struct PreferencesWindowView: View {
             }
 
             preferencesCard(title: "Updates") {
-                if coordinator.supportsInAppUpdates {
-                    settingsRow(
-                        icon: "arrow.trianglehead.2.clockwise.rotate.90",
-                        title: "Automatic Update Checks",
-                        subtitle: "Check GitHub releases on launch (max every 12 hours)",
-                        toggle: $settings.autoCheckForUpdates
-                    )
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "app.badge")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(ClaudeCodeTheme.accent)
+                        .frame(width: 24, height: 24)
 
-                    Divider().overlay(ClaudeCodeTheme.progressTrack)
-
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Current Version")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                            Text(coordinator.appUpdater.currentVersionDisplay)
-                                .font(.caption)
-                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                        }
-
-                        Spacer(minLength: 12)
-
-                        if coordinator.appUpdater.isChecking {
-                            ProgressView()
-                                .controlSize(.small)
-                                .tint(ClaudeCodeTheme.textSecondary)
-                        } else if coordinator.appUpdater.availableVersion != nil {
-                            Button("Download Update") {
-                                coordinator.appUpdater.openLatestRelease()
-                            }
-                            .buttonStyle(.plain)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(ClaudeCodeTheme.accent)
-                        } else {
-                            Button("Check Now") {
-                                Task {
-                                    await coordinator.appUpdater.checkForUpdates(userInitiated: true)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(ClaudeCodeTheme.accent)
-                        }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Updates are managed by the App Store")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                        Text("Current version: \(coordinator.appUpdater.currentVersionDisplay)")
+                            .font(.callout)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 2)
 
-                    if let statusMessage = coordinator.appUpdater.statusMessage {
-                        Divider().overlay(ClaudeCodeTheme.progressTrack)
+                    Spacer(minLength: 12)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 2)
+            }
 
-                        Text(statusMessage)
+            preferencesCard(title: "Alerts") {
+                settingsRow(
+                    icon: "iphone",
+                    title: "iPhone Notifications",
+                    subtitle: needsClaudeAccess
+                        ? "Grant access to your ~/.claude folder before enabling session notifications"
+                        : "Show an experimental local iPhone alert when a Claude Code task finishes",
+                    toggle: $settings.iPhoneAlertsEnabled,
+                    isDisabled: needsClaudeAccess
+                )
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
+                settingsRow(
+                    icon: "applewatch",
+                    title: "Apple Watch Notifications",
+                    subtitle: needsClaudeAccess
+                        ? "Grant access to your ~/.claude folder before enabling watch relay alerts"
+                        : "Relay experimental local completion alerts from iPhone to Apple Watch",
+                    toggle: $settings.watchAlertsEnabled,
+                    isDisabled: needsClaudeAccess
+                )
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
+                if needsClaudeAccess {
+                    alertGrantAccessView
+                        .padding(.top, 10)
+                        .padding(.horizontal, 2)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Experimental local alerts only")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(ClaudeCodeTheme.warning)
+                        Text("No real push notifications: no backend, no device tokens, and no APNs infrastructure. Tempo only schedules local UNNotificationRequest alerts on-device.")
                             .font(.caption)
                             .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                            .padding(.top, 10)
-                            .padding(.horizontal, 2)
+                        Text("These alerts can arrive late because delivery depends on iCloud sync and the iPhone-to-watch relay. Each device still needs notification permission from the OS. These preferences sync to the iPhone companion app via iCloud.")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     }
-                } else {
-                    HStack(alignment: .center, spacing: 12) {
-                        Image(systemName: "app.badge")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(ClaudeCodeTheme.accent)
-                            .frame(width: 24, height: 24)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Updates are managed by the App Store")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                            Text("Current version: \(coordinator.appUpdater.currentVersionDisplay)")
-                                .font(.callout)
-                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                        }
-
-                        Spacer(minLength: 12)
-                    }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 2)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 2)
                 }
             }
 
@@ -286,8 +278,7 @@ struct PreferencesWindowView: View {
             Spacer(minLength: 8)
             Toggle("", isOn: toggle)
                 .labelsHidden()
-                .toggleStyle(.switch)
-                .tint(ClaudeCodeTheme.accent)
+                .toggleStyle(AccentSwitchToggleStyle())
         }
         .padding(.vertical, 7)
     }
@@ -321,11 +312,107 @@ struct PreferencesWindowView: View {
 
             Toggle("", isOn: toggle)
                 .labelsHidden()
-                .toggleStyle(.switch)
-                .tint(ClaudeCodeTheme.accent)
+                .toggleStyle(AccentSwitchToggleStyle())
                 .disabled(isDisabled)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 2)
+    }
+
+    private func activateWindowIfNeeded(_ window: NSWindow?) {
+        guard standalone, !hasActivatedWindow, let window else { return }
+        hasActivatedWindow = true
+
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    @ViewBuilder
+    private var alertGrantAccessView: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "folder.badge.questionmark")
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude folder access required")
+                    .font(.caption.bold())
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                Text("Grant read access to your ~/.claude folder to enable notification triggers.")
+                    .font(.caption2)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            }
+
+            Spacer()
+
+            Button("Grant Access") {
+                coordinator.localDB.requestFolderAccess()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+    }
+}
+
+private struct PreferencesWindowAccessor: NSViewRepresentable {
+    @Binding var window: NSWindow?
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            window = view.window
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            window = nsView.window
+        }
+    }
+}
+
+private struct AccentSwitchToggleStyle: ToggleStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(trackColor(isOn: configuration.isOn))
+                    .overlay {
+                        Capsule()
+                            .stroke(borderColor, lineWidth: 1)
+                    }
+
+                Circle()
+                    .fill(knobColor)
+                    .shadow(color: .black.opacity(isEnabled ? 0.18 : 0.08), radius: 2, y: 1)
+                    .padding(3)
+            }
+            .frame(width: 50, height: 30)
+            .animation(.easeInOut(duration: 0.16), value: configuration.isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(configuration.isOn ? "On" : "Off")
+        .accessibilityValue(configuration.isOn ? "Enabled" : "Disabled")
+    }
+
+    private func trackColor(isOn: Bool) -> Color {
+        if isOn {
+            return isEnabled ? ClaudeCodeTheme.accent : ClaudeCodeTheme.textTertiary
+        }
+        return isEnabled ? ClaudeCodeTheme.progressTrack : ClaudeCodeTheme.progressTrack.opacity(0.75)
+    }
+
+    private var borderColor: Color {
+        isEnabled ? ClaudeCodeTheme.border.opacity(0.65) : ClaudeCodeTheme.border.opacity(0.4)
+    }
+
+    private var knobColor: Color {
+        isEnabled ? ClaudeCodeTheme.textPrimary : ClaudeCodeTheme.textSecondary
     }
 }

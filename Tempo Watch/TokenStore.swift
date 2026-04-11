@@ -7,6 +7,8 @@ final class TokenStore {
     var pendingCompletion: SessionInfo? = nil
     private(set) var usageState: UsageState = .mock
     private(set) var usageHistory: [UsageHistorySnapshot] = []
+    private(set) var areNotificationsEnabled = false
+    private(set) var watchAlertsEnabledInPreferences = SessionAlertPreferences.default.watchAlertsEnabled
 
     var lastSession: SessionInfo? {
         sessions.max(by: { $0.timestamp < $1.timestamp })
@@ -25,5 +27,13 @@ final class TokenStore {
         sessions.append(session)
         sessions.sort { $0.timestamp < $1.timestamp }
         pendingCompletion = session
+    }
+
+    func setNotificationsEnabled(_ enabled: Bool) {
+        areNotificationsEnabled = enabled
+    }
+
+    func setWatchAlertsEnabledInPreferences(_ enabled: Bool) {
+        watchAlertsEnabledInPreferences = enabled
     }
 }

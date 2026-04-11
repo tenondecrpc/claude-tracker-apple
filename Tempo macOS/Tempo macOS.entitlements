@@ -4,6 +4,10 @@
 <dict>
 	<key>com.apple.developer.aps-environment</key>
 	<string>development</string>
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.com.tenondev.tempo.claude</string>

@@ -21,7 +21,7 @@ struct SettingsTabView: View {
             Text("Settings")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
-            Text("Local display preferences and iCloud sync diagnostics")
+            Text("Display preferences and iCloud sync diagnostics")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }
@@ -81,6 +81,10 @@ struct SettingsTabView: View {
     private var helpCard: some View {
         card(title: "Connection") {
             Text("iOS reads usage from iCloud only. Authentication and polling happen on your Mac app.")
+                .font(.subheadline)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
+            Text("Notification preferences are managed in the Mac app and sync to iPhone and Apple Watch through iCloud.")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
             Divider().overlay(ClaudeCodeTheme.progressTrack)

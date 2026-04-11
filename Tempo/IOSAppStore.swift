@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class IOSAppStore {
     let iCloudReader: iCloudUsageReader
+    private var isApplyingSyncedAlertPreferences = false
 
     var historyRange: UsageHistoryRange {
         didSet { defaults.set(historyRange.rawValue, forKey: Keys.historyRange) }
@@ -16,6 +17,22 @@ final class IOSAppStore {
     }
     var use24HourTime: Bool {
         didSet { defaults.set(use24HourTime, forKey: Keys.use24HourTime) }
+    }
+    var iPhoneAlertsEnabled: Bool {
+        didSet {
+            defaults.set(iPhoneAlertsEnabled, forKey: Keys.iPhoneAlertsEnabled)
+            if !isApplyingSyncedAlertPreferences {
+                onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            }
+        }
+    }
+    var watchAlertsEnabled: Bool {
+        didSet {
+            defaults.set(watchAlertsEnabled, forKey: Keys.watchAlertsEnabled)
+            if !isApplyingSyncedAlertPreferences {
+                onSessionAlertPreferencesChange?(sessionAlertPreferences)
+            }
+        }
     }
 
     var usage: UsageState? { iCloudReader.latestUsage }
@@ -52,6 +69,7 @@ final class IOSAppStore {
 
     private(set) var isWatchPaired = false
     private(set) var isWatchAppInstalled = false
+    var onSessionAlertPreferencesChange: ((SessionAlertPreferences) -> Void)?
 
     func updateWatchState(isPaired: Bool, isInstalled: Bool) {
         isWatchPaired = isPaired
@@ -72,6 +90,15 @@ final class IOSAppStore {
         static let showSessionSeries = "ios.showSessionSeries"
         static let showWeeklySeries = "ios.showWeeklySeries"
         static let use24HourTime = "ios.use24HourTime"
+        static let iPhoneAlertsEnabled = "ios.iPhoneAlertsEnabled"
+        static let watchAlertsEnabled = "ios.watchAlertsEnabled"
+    }
+
+    var sessionAlertPreferences: SessionAlertPreferences {
+        SessionAlertPreferences(
+            iPhoneAlertsEnabled: iPhoneAlertsEnabled,
+            watchAlertsEnabled: watchAlertsEnabled
+        )
     }
 
     init(iCloudReader: iCloudUsageReader, defaults: UserDefaults = .standard) {
@@ -102,10 +129,43 @@ final class IOSAppStore {
         } else {
             use24HourTime = defaults.bool(forKey: Keys.use24HourTime)
         }
+
+        if defaults.object(forKey: Keys.iPhoneAlertsEnabled) == nil {
+            iPhoneAlertsEnabled = SessionAlertPreferences.default.iPhoneAlertsEnabled
+        } else {
+            iPhoneAlertsEnabled = defaults.bool(forKey: Keys.iPhoneAlertsEnabled)
+        }
+
+        if defaults.object(forKey: Keys.watchAlertsEnabled) == nil {
+            watchAlertsEnabled = SessionAlertPreferences.default.watchAlertsEnabled
+        } else {
+            watchAlertsEnabled = defaults.bool(forKey: Keys.watchAlertsEnabled)
+        }
     }
 
     func refreshStaleness() {
         iCloudReader.refreshStaleness()
+    }
+
+    func applySyncedAlertPreferences(_ preferences: SessionAlertPreferences) {
+        guard sessionAlertPreferences != preferences else {
+            DevLog.trace(
+                "AlertTrace",
+                "IOSAppStore received unchanged synced preferences iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
+            )
+            return
+        }
+
+        DevLog.trace(
+            "AlertTrace",
+            "IOSAppStore applying synced preferences oldIPhone=\(iPhoneAlertsEnabled) oldWatch=\(watchAlertsEnabled) newIPhone=\(preferences.iPhoneAlertsEnabled) newWatch=\(preferences.watchAlertsEnabled)"
+        )
+        isApplyingSyncedAlertPreferences = true
+        iPhoneAlertsEnabled = preferences.iPhoneAlertsEnabled
+        watchAlertsEnabled = preferences.watchAlertsEnabled
+        isApplyingSyncedAlertPreferences = false
+
+        onSessionAlertPreferencesChange?(sessionAlertPreferences)
     }
 
     private static func map(_ freshness: ICloudDataFreshness) -> iCloudUsageReader.SyncStatus {

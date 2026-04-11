@@ -1,18 +1,16 @@
 import Foundation
 import WatchConnectivity
 import WidgetKit
-import WatchKit
 
 final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
     private let store: TokenStore
+    private let alertManager: WatchAlertManager
 
-    init(store: TokenStore) {
+    init(store: TokenStore, alertManager: WatchAlertManager) {
         self.store = store
+        self.alertManager = alertManager
         super.init()
-        let bundleID = Bundle.main.bundleIdentifier ?? "nil"
-        let companionID = Bundle.main.object(forInfoDictionaryKey: "WKCompanionAppBundleIdentifier") as? String ?? "nil"
-        print("[WCSession] watchBundleID=\(bundleID), WKCompanionAppBundleIdentifier=\(companionID)")
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         session.delegate = self
@@ -26,28 +24,22 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        print("[WCSession] activation: \(activationState.rawValue), companionInstalled: \(session.isCompanionAppInstalled), error: \(String(describing: error))")
         // Apply any context already delivered before this launch
         let ctx = session.receivedApplicationContext
         if !ctx.isEmpty {
-            print("[WCSession] applying receivedApplicationContext on activation")
             applyUserInfo(ctx)
         }
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        print("[WCSession] didReceiveApplicationContext keys: \(applicationContext.keys.sorted())")
         applyUserInfo(applicationContext)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        print("[WCSession] didReceiveUserInfo keys: \(userInfo.keys.sorted())")
         applyUserInfo(userInfo)
     }
 
-    func sessionReachabilityDidChange(_ session: WCSession) {
-        print("[WCSession] reachabilityChanged: \(WCSession.default.isReachable)")
-    }
+    func sessionReachabilityDidChange(_ session: WCSession) {}
 
     private func applyUserInfo(_ userInfo: [String: Any]) {
         guard let payloadType = userInfo["type"] as? String else { return }
@@ -80,6 +72,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             isDoubleLimitPromoActive: nil
         )
 
+        let watchAlertsEnabled = userInfo["watchAlertsEnabled"] as? Bool ?? SessionAlertPreferences.default.watchAlertsEnabled
+
         var snapshots: [UsageHistorySnapshot]? = nil
         if let historyData = userInfo["usageHistory"] as? Data {
             snapshots = try? JSONDecoder().decode([UsageHistorySnapshot].self, from: historyData)
@@ -91,10 +85,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
         Task { @MainActor in
             self.store.apply(state)
+            self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
             if let snapshots {
                 self.store.applyHistory(snapshots)
             }
         }
+        alertManager.refreshAlertState(enabledInPreferences: watchAlertsEnabled)
     }
 
     private func applySessionInfo(_ userInfo: [String: Any]) {
@@ -107,6 +103,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             let timestampInterval = userInfo["timestamp"] as? TimeInterval
         else { return }
 
+        let watchAlertsEnabled = userInfo["watchAlertsEnabled"] as? Bool ?? SessionAlertPreferences.default.watchAlertsEnabled
+
         let sessionInfo = SessionInfo(
             sessionId: sessionId,
             inputTokens: inputTokens,
@@ -118,7 +116,11 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
         Task { @MainActor in
             self.store.applySession(sessionInfo)
-            WKInterfaceDevice.current().play(.notification)
+            self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
         }
+        alertManager.notifySessionCompletion(
+            for: sessionInfo,
+            enabledInPreferences: watchAlertsEnabled
+        )
     }
 }

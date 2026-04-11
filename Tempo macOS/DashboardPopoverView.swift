@@ -6,9 +6,6 @@ struct DashboardPopoverView: View {
     let coordinator: MacAppCoordinator
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
-    @State private var isCheckingUpdates = false
-    @State private var updateStatusMessage: String?
-    @State private var updateVersion: String?
 
     var body: some View {
         let use24HourTime = coordinator.settings.use24HourTime
@@ -40,10 +37,6 @@ struct DashboardPopoverView: View {
             }
         }
         .background(ClaudeCodeTheme.background)
-        .onAppear {
-            updateVersion = coordinator.appUpdater.availableVersion
-            updateStatusMessage = coordinator.appUpdater.statusMessage
-        }
     }
 
     // MARK: - Usage Content
@@ -129,117 +122,45 @@ struct DashboardPopoverView: View {
 
     private var actionItems: some View {
         VStack(spacing: 0) {
-            // Usage History
-            Button {
-                let menuWindow = NSApp.keyWindow
-                openWindow(id: "stats-detail")
-                NSApp.activate(ignoringOtherApps: true)
-                DispatchQueue.main.async {
-                    menuWindow?.close()
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
+
+            // Primary actions
+            VStack(spacing: 2) {
+                MenuActionRow(icon: "chart.line.uptrend.xyaxis", label: "Stats") {
+                    let menuWindow = NSApp.keyWindow
+                    openWindow(id: "stats-detail")
+                    NSApp.activate(ignoringOtherApps: true)
+                    DispatchQueue.main.async { menuWindow?.close() }
                 }
-            } label: {
-                HStack {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                    Text("Usage History")
-                    Spacer()
+
+                MenuActionRow(icon: "gearshape", label: "Preferences") {
+                    let menuWindow = NSApp.keyWindow
+                    openSettings()
+                    NSApp.activate(ignoringOtherApps: true)
+                    DispatchQueue.main.async { menuWindow?.close() }
                 }
-                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
+
+                MenuActionRow(
+                    icon: "arrow.right.square",
+                    label: "Logout",
+                    subtitle: coordinator.authState.accountEmail
+                ) {
+                    coordinator.client.signOut()
+                }
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
 
             Divider().overlay(ClaudeCodeTheme.progressTrack)
 
-            if coordinator.supportsInAppUpdates {
-                // Updates
-                Button {
-                    if displayedUpdateVersion != nil {
-                        coordinator.appUpdater.openLatestRelease()
-                    } else {
-                        Task {
-                            await runManualUpdateCheck()
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: updateLeadingIconName)
-                            .foregroundStyle(updateLeadingIconColor)
-                        if let version = displayedUpdateVersion {
-                            Text("Download Update \(version)")
-                        } else {
-                            Text("Check for Updates")
-                        }
-                        Spacer()
-                    }
-                    .foregroundStyle(displayedUpdateVersion != nil ? Color.green : ClaudeCodeTheme.textPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(isCheckingUpdates)
-
-                Divider().overlay(ClaudeCodeTheme.progressTrack)
-            }
-
-            // Preferences
-            Button {
-                let menuWindow = NSApp.keyWindow
-                openSettings()
-                NSApp.activate(ignoringOtherApps: true)
-                DispatchQueue.main.async {
-                    menuWindow?.close()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "gearshape")
-                    Text("Preferences")
-                    Spacer()
-                }
-                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            // Logout
-            Button {
-                coordinator.client.signOut()
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.right.square")
-                    Text("Logout")
-                    if let email = coordinator.authState.accountEmail {
-                        Text("(\(email))")
-                            .font(.caption)
-                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                    }
-                    Spacer()
-                }
-                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Divider().overlay(ClaudeCodeTheme.progressTrack)
-
-            // Quit
-            HStack {
-                Button("Quit") {
+            // Destructive actions
+            VStack(spacing: 2) {
+                MenuActionRow(icon: "power", label: "Quit Tempo", isDestructive: true) {
                     NSApplication.shared.terminate(nil)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(ClaudeCodeTheme.error)
-                .font(.caption)
-                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
         }
     }
 
@@ -286,38 +207,5 @@ struct DashboardPopoverView: View {
         let hoursUntilReset = max(0, usage.resetAt5h.timeIntervalSince(now) / 3600)
         let hoursElapsed = max(0.1, 5.0 - hoursUntilReset)
         return usage.utilization5h * 100.0 / hoursElapsed
-    }
-
-    private var displayedUpdateVersion: String? {
-        updateVersion ?? coordinator.appUpdater.availableVersion
-    }
-
-    private var updateLeadingIconName: String {
-        if displayedUpdateVersion != nil {
-            return "arrow.down.circle.fill"
-        }
-        if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
-            return "exclamationmark.circle.fill"
-        }
-        return "arrow.down.circle"
-    }
-
-    private var updateLeadingIconColor: Color {
-        if displayedUpdateVersion != nil {
-            return .green
-        }
-        if updateStatusMessage?.localizedCaseInsensitiveContains("failed") == true {
-            return ClaudeCodeTheme.warning
-        }
-        return ClaudeCodeTheme.textPrimary
-    }
-
-    private func runManualUpdateCheck() async {
-        isCheckingUpdates = true
-        updateStatusMessage = "Checking for updates..."
-        await coordinator.appUpdater.checkForUpdates(userInitiated: true)
-        updateVersion = coordinator.appUpdater.availableVersion
-        updateStatusMessage = coordinator.appUpdater.statusMessage
-        isCheckingUpdates = false
     }
 }
