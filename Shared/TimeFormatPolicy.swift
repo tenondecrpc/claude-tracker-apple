@@ -13,7 +13,8 @@ enum TimeFormatPolicy {
     }
 
     static func sessionResetString(resetAt date: Date, now: Date, use24HourTime: Bool) -> String {
-        let totalMinutes = max(0, Int(date.timeIntervalSince(now) / 60))
+        guard date > now else { return "Fresh window" }
+        let totalMinutes = Int(date.timeIntervalSince(now) / 60)
         let duration: String
         if totalMinutes >= 60 {
             let hours = totalMinutes / 60

@@ -87,7 +87,7 @@ struct ContentView: View {
 
     private func formatCountdown(to date: Date) -> String {
         let seconds = date.timeIntervalSinceNow
-        guard seconds > 0 else { return "Resetting…" }
+        guard seconds > 0 else { return "Fresh window" }
         let totalMinutes = Int(seconds / 60)
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
