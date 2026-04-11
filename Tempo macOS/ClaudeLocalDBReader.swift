@@ -253,7 +253,7 @@ final class ClaudeLocalDBReader {
             projectStats = loaded.projects
             isAvailable = true
             needsAccessGrant = false
-        } catch let error as AccessError {
+        } catch AccessError.accessRequired {
             clearLoadedStats()
             isAvailable = false
             needsAccessGrant = true

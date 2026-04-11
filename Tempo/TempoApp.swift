@@ -22,18 +22,12 @@ final class AppCoordinator {
         self.relay = relay
         self.phoneAlertManager = phoneAlertManager
 
-        #if DEBUG
-        print("[Tempo iOS] AppCoordinator init bundleID=\(Bundle.main.bundleIdentifier ?? "nil") iPhoneAlerts=\(store.iPhoneAlertsEnabled) watchAlerts=\(store.watchAlertsEnabled)")
-        #endif
         DevLog.trace(
             "AlertTrace",
             "TempoApp coordinator init initialIPhoneAlerts=\(store.iPhoneAlertsEnabled) initialWatchAlerts=\(store.watchAlertsEnabled)"
         )
 
         iCloudReader.onUsageState = { [weak relay, weak iCloudReader, weak store] (state: UsageState) in
-            #if DEBUG
-            print("[Tempo iOS] received usage state utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)")
-            #endif
             DevLog.trace(
                 "AlertTrace",
                 "TempoApp received usage state utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d) historyCount=\(iCloudReader?.historySnapshots.count ?? 0)"
@@ -46,11 +40,6 @@ final class AppCoordinator {
         }
         iCloudReader.onSessionInfo = { [weak relay, weak store, weak phoneAlertManager] (session: SessionInfo) in
             let preferences = store?.sessionAlertPreferences ?? .default
-            #if DEBUG
-            print(
-                "[Tempo iOS] received synced session id=\(session.sessionId) iPhoneAlerts=\(preferences.iPhoneAlertsEnabled) watchAlerts=\(preferences.watchAlertsEnabled)"
-            )
-            #endif
             DevLog.trace(
                 "AlertTrace",
                 "TempoApp received synced session id=\(session.sessionId) iPhoneAlerts=\(preferences.iPhoneAlertsEnabled) watchAlerts=\(preferences.watchAlertsEnabled)"
@@ -62,11 +51,6 @@ final class AppCoordinator {
             relay?.sendSession(session, alertPreferences: preferences)
         }
         iCloudReader.onAlertPreferences = { [weak store] preferences in
-            #if DEBUG
-            print(
-                "[Tempo iOS] received synced alert preferences iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
-            )
-            #endif
             DevLog.trace(
                 "AlertTrace",
                 "TempoApp received synced alert preferences iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
@@ -81,11 +65,6 @@ final class AppCoordinator {
             }
         }
         store.onSessionAlertPreferencesChange = { [weak relay, weak iCloudReader, weak phoneAlertManager] preferences in
-            #if DEBUG
-            print(
-                "[Tempo iOS] local preference change iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
-            )
-            #endif
             DevLog.trace(
                 "AlertTrace",
                 "TempoApp local preference change iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
@@ -96,9 +75,7 @@ final class AppCoordinator {
             }
             do {
                 try AlertPreferencesSync.write(preferences)
-            } catch {
-                print("[AlertPreferences] failed to sync to iCloud: \(error.localizedDescription)")
-            }
+            } catch {}
         }
         relay.activate()
         DevLog.trace("AlertTrace", "TempoApp requested WatchRelay activation")
@@ -109,9 +86,6 @@ final class AppCoordinator {
     // MARK: - Lifecycle
 
     func onBecomeActive() {
-        #if DEBUG
-        print("[Tempo iOS] became active iPhoneAlerts=\(store.iPhoneAlertsEnabled) watchAlerts=\(store.watchAlertsEnabled)")
-        #endif
         DevLog.trace(
             "AlertTrace",
             "TempoApp became active iPhoneAlerts=\(store.iPhoneAlertsEnabled) watchAlerts=\(store.watchAlertsEnabled)"
@@ -138,18 +112,12 @@ struct TempoApp: App {
         WindowGroup {
             ContentView(store: coordinator.store)
                 .task {
-                    #if DEBUG
-                    print("[Tempo iOS] ContentView task scenePhase=\(String(describing: scenePhase))")
-                    #endif
                     DevLog.trace("AlertTrace", "TempoApp ContentView task scenePhase=\(String(describing: scenePhase))")
                     if scenePhase == .active {
                         coordinator.onBecomeActive()
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    #if DEBUG
-                    print("[Tempo iOS] scenePhase changed to \(String(describing: phase))")
-                    #endif
                     DevLog.trace("AlertTrace", "TempoApp scenePhase changed to \(String(describing: phase))")
                     if phase == .active {
                         coordinator.onBecomeActive()

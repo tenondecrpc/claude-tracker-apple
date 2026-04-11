@@ -6,7 +6,7 @@ final class SessionEventWriter {
         static let lastWrittenSessionID = "session-writer.lastWrittenSessionID"
     }
 
-    private struct SessionCandidate {
+    nonisolated private struct SessionCandidate {
         let fileURL: URL
         let projectDirName: String
         let modifiedAt: Date
@@ -56,10 +56,7 @@ final class SessionEventWriter {
 
             try writeLatestSessionToICloud(latestSession)
             lastWrittenSessionID = latestSession.sessionId
-            print("[SessionWriter] wrote latest.json for session id=\(latestSession.sessionId)")
-        } catch {
-            print("[SessionWriter] failed to write latest session: \(error.localizedDescription)")
-        }
+        } catch {}
     }
 
     private func writeLatestSessionToICloud(_ sessionInfo: SessionInfo) throws {
@@ -250,18 +247,18 @@ final class SessionEventWriter {
     }
 }
 
-private struct JSONLRecord: Decodable {
+nonisolated private struct JSONLRecord: Decodable {
     let type: String
     let timestamp: String?
     let message: JSONLMessage?
 }
 
-private struct JSONLMessage: Decodable {
+nonisolated private struct JSONLMessage: Decodable {
     let model: String?
     let usage: JSONLUsage?
 }
 
-private struct JSONLUsage: Decodable {
+nonisolated private struct JSONLUsage: Decodable {
     let inputTokens: Int
     let outputTokens: Int
 

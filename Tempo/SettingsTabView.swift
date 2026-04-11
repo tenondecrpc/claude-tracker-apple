@@ -8,7 +8,6 @@ struct SettingsTabView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 preferencesCard
-                alertsCard
                 diagnosticsCard
                 helpCard
             }
@@ -22,7 +21,7 @@ struct SettingsTabView: View {
             Text("Settings")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
-            Text("Local alerts, display preferences, and iCloud sync diagnostics")
+            Text("Display preferences and iCloud sync diagnostics")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }
@@ -79,23 +78,13 @@ struct SettingsTabView: View {
         }
     }
 
-    private var alertsCard: some View {
-        card(title: "Alerts") {
-            Toggle("Alert on iPhone when a task finishes", isOn: $store.iPhoneAlertsEnabled)
-                .tint(ClaudeCodeTheme.accent)
-            Divider().overlay(ClaudeCodeTheme.progressTrack)
-            Toggle("Alert on Apple Watch when a task finishes", isOn: $store.watchAlertsEnabled)
-                .tint(ClaudeCodeTheme.info)
-
-            Text("Each device still needs notification permission from the OS. The watch toggle is relayed through the iPhone companion app.")
-                .font(.caption)
-                .foregroundStyle(ClaudeCodeTheme.textSecondary)
-        }
-    }
-
     private var helpCard: some View {
         card(title: "Connection") {
             Text("iOS reads usage from iCloud only. Authentication and polling happen on your Mac app.")
+                .font(.subheadline)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            Divider().overlay(ClaudeCodeTheme.progressTrack)
+            Text("Notification preferences are managed in the Mac app and sync to iPhone and Apple Watch through iCloud.")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
             Divider().overlay(ClaudeCodeTheme.progressTrack)

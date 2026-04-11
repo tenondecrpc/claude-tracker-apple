@@ -62,8 +62,6 @@ final class WatchRelayManager: NSObject {
 
         let isPaired = session.isPaired
         let isWatchAppInstalled = session.isWatchAppInstalled
-        let watchDir = session.watchDirectoryURL?.path ?? "nil"
-        print("[WatchRelay] bundleID=\(Bundle.main.bundleIdentifier ?? "nil"), paired=\(isPaired), watchInstalled=\(isWatchAppInstalled), reachable=\(session.isReachable), watchDir=\(watchDir), isMocked=\(state.isMocked)")
 
         guard isPaired else {
             pendingState = state
@@ -81,7 +79,6 @@ final class WatchRelayManager: NSObject {
             enqueueLatestUsagePayload(state.toUserInfo(history: history, alertPreferences: alertPreferences))
             if !hasLoggedMissingWatchApp {
                 hasLoggedMissingWatchApp = true
-                print("[WatchRelay] watch counterpart app not installed on paired Apple Watch. Install the watch app, then the latest state will be sent automatically.")
             }
             return
         }
@@ -92,7 +89,6 @@ final class WatchRelayManager: NSObject {
         do {
             try session.updateApplicationContext(payload)
         } catch {
-            print("[WatchRelay] updateApplicationContext failed: \(error)")
             enqueueLatestUsagePayload(payload)
         }
     }
@@ -102,7 +98,6 @@ final class WatchRelayManager: NSObject {
             .filter { ($0.userInfo["type"] as? String) == "UsageState" }
             .forEach { $0.cancel() }
         session.transferUserInfo(payload)
-        print("[WatchRelay] queued transferUserInfo fallback for UsageState")
     }
 
     private func flushPendingStateIfPossible() {
@@ -137,7 +132,6 @@ final class WatchRelayManager: NSObject {
 
         session.transferUserInfo(sessionInfo.toUserInfo(alertPreferences: alertPreferences))
         lastRelayedSessionID = sessionInfo.sessionId
-        print("[WatchRelay] queued transferUserInfo for SessionInfo id=\(sessionInfo.sessionId)")
     }
 
     private func flushPendingSessionsIfPossible() {
@@ -151,7 +145,6 @@ final class WatchRelayManager: NSObject {
             session.transferUserInfo($0.sessionInfo.toUserInfo(alertPreferences: $0.alertPreferences))
             lastRelayedSessionID = $0.sessionInfo.sessionId
         }
-        print("[WatchRelay] flushed \(queued.count) queued SessionInfo payload(s)")
     }
 
     private func enqueuePendingSessionIfNeeded(
@@ -179,8 +172,6 @@ extension WatchRelayManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        let watchDir = session.watchDirectoryURL?.path ?? "nil"
-        print("[WatchRelay] activation: state=\(activationState.rawValue), paired=\(session.isPaired), watchInstalled=\(session.isWatchAppInstalled), reachable=\(session.isReachable), watchDir=\(watchDir), error=\(String(describing: error))")
         hasRequestedActivation = (activationState == .activated)
         onWatchStateChange?(session.isPaired, session.isWatchAppInstalled)
         // Activation complete; send latest pending state if we have one.
@@ -198,8 +189,6 @@ extension WatchRelayManager: WCSessionDelegate {
     }
 
     func sessionWatchStateDidChange(_ session: WCSession) {
-        let watchDir = session.watchDirectoryURL?.path ?? "nil"
-        print("[WatchRelay] watchStateChanged: paired=\(session.isPaired), watchInstalled=\(session.isWatchAppInstalled), reachable=\(session.isReachable), watchDir=\(watchDir)")
         if session.isWatchAppInstalled {
             hasLoggedMissingWatchApp = false
         }

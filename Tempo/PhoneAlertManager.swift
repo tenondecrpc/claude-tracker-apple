@@ -11,9 +11,7 @@ final class PhoneAlertManager: NSObject {
     private var hasRequestedAuthorization = false
 
     private static func debugPrint(_ message: @autoclosure () -> String) {
-        #if DEBUG
-        print("[Tempo iOS] \(message())")
-        #endif
+        _ = message
     }
 
     init(
@@ -42,13 +40,9 @@ final class PhoneAlertManager: NSObject {
         }
         if enabledInPreferences, !hasRequestedAuthorization {
             hasRequestedAuthorization = true
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { _, error in
                 if let error {
                     Self.debugPrint("PhoneAlertManager authorization request failed error=\(error.localizedDescription)")
-                    print("[PhoneAlert] authorization request failed: \(error)")
-                } else {
-                    Self.debugPrint("PhoneAlertManager authorization request granted=\(granted)")
-                    print("[PhoneAlert] authorization granted: \(granted)")
                 }
             }
         }
@@ -86,13 +80,14 @@ final class PhoneAlertManager: NSObject {
             )
             guard Self.isNotificationsEnabled(settings.authorizationStatus) else {
                 Self.debugPrint("PhoneAlertManager authorization missing for session \(session.sessionId)")
-                print("[PhoneAlert] authorization missing; skipping session id=\(session.sessionId)")
                 return
             }
 
+            let presentation = session.notificationPresentation()
             let content = UNMutableNotificationContent()
-            content.title = "Claude Code Task Finished"
-            content.body = Self.notificationBody(for: session)
+            content.title = presentation.title
+            content.subtitle = presentation.subtitle
+            content.body = presentation.body
             content.sound = .default
             content.userInfo = [
                 "type": "SessionInfo",
@@ -108,7 +103,6 @@ final class PhoneAlertManager: NSObject {
             self.center.add(request) { error in
                 if let error {
                     Self.debugPrint("PhoneAlertManager failed scheduling session \(session.sessionId) error=\(error.localizedDescription)")
-                    print("[PhoneAlert] failed to schedule notification for session id=\(session.sessionId): \(error)")
                     return
                 }
 
@@ -121,7 +115,6 @@ final class PhoneAlertManager: NSObject {
                     "PhoneAlertManager scheduled notification identifier=\(Self.notificationIdentifier(for: session)) body=\(content.body)"
                 )
                 self.logPendingRequests(prefix: "after schedule success")
-                print("[PhoneAlert] scheduled session completion notification id=\(session.sessionId)")
             }
         }
     }
@@ -132,27 +125,6 @@ final class PhoneAlertManager: NSObject {
 
     private static func notificationIdentifier(for session: SessionInfo) -> String {
         "session-complete.\(session.sessionId)"
-    }
-
-    private static func notificationBody(for session: SessionInfo) -> String {
-        "\(formatTokens(session.inputTokens + session.outputTokens)) in \(formatDuration(session.durationSeconds))"
-    }
-
-    private static func formatTokens(_ count: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        let value = formatter.string(from: NSNumber(value: count)) ?? "\(count)"
-        return "\(value) tokens"
-    }
-
-    private static func formatDuration(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-
-        if minutes > 0 {
-            return "\(minutes)m \(remainingSeconds)s"
-        }
-        return "\(remainingSeconds)s"
     }
 
     private var lastAlertedSessionID: String? {

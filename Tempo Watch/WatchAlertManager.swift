@@ -25,12 +25,7 @@ final class WatchAlertManager: NSObject {
     func syncAuthorization(enabledInPreferences: Bool) {
         if enabledInPreferences, !hasRequestedAuthorization {
             hasRequestedAuthorization = true
-            center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
-                if let error {
-                    print("[WatchAlert] authorization request failed: \(error)")
-                } else {
-                    print("[WatchAlert] authorization granted: \(granted)")
-                }
+            center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
                 self?.refreshAlertState(enabledInPreferences: enabledInPreferences)
             }
             return
@@ -64,13 +59,14 @@ final class WatchAlertManager: NSObject {
             }
 
             guard isEnabled else {
-                print("[WatchAlert] authorization missing; skipping session id=\(session.sessionId)")
                 return
             }
 
+            let presentation = session.notificationPresentation()
             let content = UNMutableNotificationContent()
-            content.title = "Claude Code Task Finished"
-            content.body = Self.notificationBody(for: session)
+            content.title = presentation.title
+            content.subtitle = presentation.subtitle
+            content.body = presentation.body
             content.sound = .default
             content.userInfo = [
                 "type": "SessionInfo",
@@ -84,13 +80,11 @@ final class WatchAlertManager: NSObject {
             )
 
             self.center.add(request) { error in
-                if let error {
-                    print("[WatchAlert] failed to schedule notification for session id=\(session.sessionId): \(error)")
+                if error != nil {
                     return
                 }
 
                 self.lastAlertedSessionID = session.sessionId
-                print("[WatchAlert] scheduled session completion notification id=\(session.sessionId)")
             }
         }
     }
@@ -101,27 +95,6 @@ final class WatchAlertManager: NSObject {
 
     private static func notificationIdentifier(for session: SessionInfo) -> String {
         "session-complete.\(session.sessionId)"
-    }
-
-    private static func notificationBody(for session: SessionInfo) -> String {
-        "\(formatTokens(session.inputTokens + session.outputTokens)) in \(formatDuration(session.durationSeconds))"
-    }
-
-    private static func formatTokens(_ count: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        let value = formatter.string(from: NSNumber(value: count)) ?? "\(count)"
-        return "\(value) tokens"
-    }
-
-    private static func formatDuration(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-
-        if minutes > 0 {
-            return "\(minutes)m \(remainingSeconds)s"
-        }
-        return "\(remainingSeconds)s"
     }
 
     private var lastAlertedSessionID: String? {

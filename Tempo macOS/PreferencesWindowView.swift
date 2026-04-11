@@ -118,7 +118,7 @@ struct PreferencesWindowView: View {
                     title: "iPhone Notifications",
                     subtitle: needsClaudeAccess
                         ? "Grant access to your ~/.claude folder before enabling session notifications"
-                        : "Show a local iPhone alert when a Claude Code task finishes",
+                        : "Show an experimental local iPhone alert when a Claude Code task finishes",
                     toggle: $settings.iPhoneAlertsEnabled,
                     isDisabled: needsClaudeAccess
                 )
@@ -128,7 +128,7 @@ struct PreferencesWindowView: View {
                     title: "Apple Watch Notifications",
                     subtitle: needsClaudeAccess
                         ? "Grant access to your ~/.claude folder before enabling watch relay alerts"
-                        : "Relay session completion alerts from iPhone to Apple Watch",
+                        : "Relay experimental local completion alerts from iPhone to Apple Watch",
                     toggle: $settings.watchAlertsEnabled,
                     isDisabled: needsClaudeAccess
                 )
@@ -138,9 +138,17 @@ struct PreferencesWindowView: View {
                         .padding(.top, 10)
                         .padding(.horizontal, 2)
                 } else {
-                    Text("Each device still needs notification permission from the OS. These preferences sync to the iPhone companion app via iCloud.")
-                        .font(.caption)
-                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Experimental local alerts only")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(ClaudeCodeTheme.warning)
+                        Text("No real push notifications: no backend, no device tokens, and no APNs infrastructure. Tempo only schedules local UNNotificationRequest alerts on-device.")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        Text("These alerts can arrive late because delivery depends on iCloud sync and the iPhone-to-watch relay. Each device still needs notification permission from the OS. These preferences sync to the iPhone companion app via iCloud.")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    }
                         .padding(.top, 10)
                         .padding(.horizontal, 2)
                 }

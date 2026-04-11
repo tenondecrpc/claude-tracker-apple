@@ -32,9 +32,7 @@ final class iCloudUsageReader: NSObject {
     private var latestAlertPreferences: SessionAlertPreferences?
 
     private static func debugPrint(_ message: @autoclosure () -> String) {
-        #if DEBUG
-        print("[Tempo iOS] \(message())")
-        #endif
+        _ = message
     }
 
     // MARK: - Start / Stop

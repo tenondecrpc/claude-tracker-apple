@@ -105,9 +105,7 @@ final class MacAppCoordinator {
                 "MacAppCoordinator syncing alert preferences to iCloud iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
             )
             try AlertPreferencesSync.write(preferences)
-        } catch {
-            print("[AlertPreferences] failed to sync to iCloud: \(error.localizedDescription)")
-        }
+        } catch {}
     }
 }
 

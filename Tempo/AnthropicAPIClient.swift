@@ -155,7 +155,6 @@ final class AnthropicAPIClient {
         oauthState = state
 
         let authURL = buildAuthorizationURL(challenge: challenge, state: state)
-        print("[Auth] Opening browser: \(authURL)")
         UIApplication.shared.open(authURL)
         authState.isAwaitingCode = true
     }
@@ -291,4 +290,3 @@ final class AnthropicAPIClient {
         onSignOut?()
     }
 }
-
