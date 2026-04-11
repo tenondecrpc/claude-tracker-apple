@@ -102,7 +102,7 @@ final class MacSettingsStore {
 
         launchAtLogin = defaults.object(forKey: Key.launchAtLogin) != nil
             ? defaults.bool(forKey: Key.launchAtLogin)
-            : false
+            : true
 
         show5hPercentage = defaults.object(forKey: Key.show5hPercentage) != nil
             ? defaults.bool(forKey: Key.show5hPercentage)

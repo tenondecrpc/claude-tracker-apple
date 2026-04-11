@@ -66,11 +66,10 @@ final class MacAppCoordinator {
         }
 
         launchAtLoginManager.refresh()
-        settings.updateLaunchAtLoginFromSystem(launchAtLoginManager.isEnabled)
         if settings.launchAtLogin != launchAtLoginManager.isEnabled {
             launchAtLoginManager.setEnabled(settings.launchAtLogin)
-            settings.updateLaunchAtLoginFromSystem(launchAtLoginManager.isEnabled)
         }
+        settings.updateLaunchAtLoginFromSystem(launchAtLoginManager.isEnabled)
     }
 
     func onLaunch() async {
