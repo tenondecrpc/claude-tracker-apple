@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.tenondev.tempo.claude.ioswidget</string>
+		<string>group.com.tenondev.tempo.claude.macwidget</string>
 	</array>
 </dict>
 </plist>
