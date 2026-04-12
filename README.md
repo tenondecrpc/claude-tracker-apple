@@ -6,25 +6,53 @@ A macOS menu bar app that tracks your Claude Code token and credit usage in real
 
 ## Screenshots
 
-### Compact popover (portrait)
+### macOS menu bar
 
 <p align="center">
-  <a href="screenshots/screenshot-01.png">
-    <img src="screenshots/screenshot-01.png" alt="Tempo menu bar popover" width="280" />
+  <a href="screenshots/mac-01.png">
+    <img src="screenshots/mac-01.png" alt="Tempo menu bar popover" width="280" />
   </a>
 </p>
 
-### Desktop windows (landscape)
+### macOS desktop windows
 
 <p align="center">
-  <a href="screenshots/screenshot-02.png">
-    <img src="screenshots/screenshot-02.png" alt="Tempo overview window" width="31%" />
+  <a href="screenshots/mac-02.png">
+    <img src="screenshots/mac-02.png" alt="Tempo overview window" width="31%" />
   </a>
-  <a href="screenshots/screenshot-03.png">
-    <img src="screenshots/screenshot-03.png" alt="Tempo activity window" width="31%" />
+  <a href="screenshots/mac-03.png">
+    <img src="screenshots/mac-03.png" alt="Tempo activity window" width="31%" />
   </a>
-  <a href="screenshots/screenshot-04.png">
-    <img src="screenshots/screenshot-04.png" alt="Tempo preferences window" width="31%" />
+  <a href="screenshots/mac-04.png">
+    <img src="screenshots/mac-04.png" alt="Tempo preferences window" width="31%" />
+  </a>
+</p>
+
+### iPhone companion app
+
+<p align="center">
+  <a href="screenshots/ios-01.jpeg">
+    <img src="screenshots/ios-01.jpeg" alt="Tempo iPhone dashboard" width="30%" />
+  </a>
+  <a href="screenshots/ios-02.jpeg">
+    <img src="screenshots/ios-02.jpeg" alt="Tempo iPhone activity view" width="30%" />
+  </a>
+  <a href="screenshots/ios-03.jpeg">
+    <img src="screenshots/ios-03.jpeg" alt="Tempo iPhone settings view" width="30%" />
+  </a>
+</p>
+
+### Apple Watch
+
+<p align="center">
+  <a href="screenshots/watch_01.jpeg">
+    <img src="screenshots/watch_01.jpeg" alt="Tempo Apple Watch dashboard" width="30%" />
+  </a>
+  <a href="screenshots/watch_02.jpeg">
+    <img src="screenshots/watch_02.jpeg" alt="Tempo Apple Watch session detail" width="30%" />
+  </a>
+  <a href="screenshots/watch_03.jpeg">
+    <img src="screenshots/watch_03.jpeg" alt="Tempo Apple Watch completion view" width="30%" />
   </a>
 </p>
 

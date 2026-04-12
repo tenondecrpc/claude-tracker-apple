@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose an improvement to the product, UX, or developer workflow.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user or developer problem first.
+      placeholder: I want a reset alert exactly when the 5-hour limit becomes available again.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the change you want to see.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Affected targets
+      description: Note which parts of the project would likely change.
+      placeholder: macOS polling, Shared models, iOS relay, watchOS UI
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: List any workarounds or other approaches you considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Link roadmap items, screenshots, or related issues if relevant.

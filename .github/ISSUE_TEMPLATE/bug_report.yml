@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible problem in the macOS, iOS, or watchOS app.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which app target shows the problem?
+      options:
+        - macOS
+        - iOS
+        - watchOS
+        - Shared logic
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem in one or two sentences.
+      placeholder: The Apple Watch haptic never fires when a Claude Code session ends.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps required to trigger the issue.
+      placeholder: |
+        1. Launch the macOS app
+        2. Sign in with OAuth
+        3. End a Claude Code session
+        4. Observe the watch behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS versions, device details, and app target if relevant.
+      placeholder: macOS 14.6, iPhone iOS 18.0, Apple Watch watchOS 11.0
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or additional context
+      description: Paste logs or add links to screenshots if available.

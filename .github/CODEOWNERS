@@ -1,0 +1,12 @@
+* @tenondecrpc
+
+# Security-sensitive files always require maintainer review.
+.github/** @tenondecrpc
+Tempo.xcodeproj/** @tenondecrpc
+**/*.entitlements @tenondecrpc
+**/Info.plist @tenondecrpc
+Shared/** @tenondecrpc
+Tempo/** @tenondecrpc
+Tempo macOS/** @tenondecrpc
+.opencode/package.json @tenondecrpc
+.opencode/package-lock.json @tenondecrpc

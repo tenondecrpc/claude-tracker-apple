@@ -1,30 +1,30 @@
-name: Security - CodeQL (Swift)
+name: CI - Build
 
 on:
   pull_request:
     branches:
       - main
-    paths:
-      - '**/*.swift'
-      - '**/*.xcodeproj/**'
-      - '.github/workflows/*.yml'
-  schedule:
-    - cron: "22 4 * * 1"
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  actions: read
   contents: read
-  security-events: write
 
 jobs:
-  analyze:
-    name: Analyze (Swift)
+  build:
+    name: Build (${{ matrix.scheme }})
     runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: Tempo macOS
+            destination: platform=macOS
+          - scheme: Tempo
+            destination: generic/platform=iOS Simulator
 
     steps:
       - name: Checkout
@@ -35,25 +35,14 @@ jobs:
         with:
           xcode-version: latest
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: swift
-          build-mode: manual
-
-      - name: Build for CodeQL
+      - name: Build
         run: |
           xcodebuild build \
             -project "Tempo.xcodeproj" \
-            -scheme "Tempo macOS" \
+            -scheme "${{ matrix.scheme }}" \
             -configuration Debug \
-            -destination 'platform=macOS' \
+            -destination "${{ matrix.destination }}" \
             ENABLE_PREVIEWS=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:swift"
