@@ -12,6 +12,10 @@
 	<array>
 		<string>CloudDocuments</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.tenondev.tempo.claude.ioswidget</string>
+	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
 		<string>iCloud.com.tenondev.tempo.claude</string>

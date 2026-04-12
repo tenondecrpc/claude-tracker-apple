@@ -1,3 +1,7 @@
+## Purpose
+
+Define how the macOS app polls usage and publishes durable usage snapshots for iCloud consumers and desktop widgets.
+
 ## Requirements
 
 ### Requirement: Usage polled every 30 minutes on macOS
@@ -50,7 +54,7 @@ On HTTP 429, the poller SHALL back off exponentially. If a `Retry-After` header 
 
 #### Scenario: Recovery after 429
 - **WHEN** a poll after backoff returns 200
-- **THEN** the polling interval resets to 15 minutes
+- **THEN** the polling interval resets to 30 minutes
 
 ### Requirement: Credentials file updated after token refresh
 When the poller triggers a token refresh (due to 401 or expiry), the new credentials SHALL be written back to `~/.config/tempo-for-claude/credentials.json` before retrying the API call.
@@ -58,3 +62,25 @@ When the poller triggers a token refresh (due to 401 or expiry), the new credent
 #### Scenario: Credentials file updated after refresh
 - **WHEN** a token refresh succeeds during polling
 - **THEN** `credentials.json` is updated with the new `access_token` and `expiresAt`
+
+### Requirement: macOS writes widget snapshot after successful usage polls
+After a successful macOS usage poll, the app SHALL derive a widget snapshot from the latest `UsageState` and write it to shared App Group storage for the macOS widget extension.
+
+#### Scenario: Widget snapshot written after poll success
+- **WHEN** the macOS poller receives a valid usage response and updates `latestUsage`
+- **THEN** the app writes a corresponding widget snapshot to the macOS widget App Group storage
+
+#### Scenario: Snapshot timestamp matches successful poll
+- **WHEN** the app writes a widget snapshot after a successful poll
+- **THEN** the snapshot records the successful poll time as its freshness timestamp
+
+### Requirement: macOS reloads widget timelines only after valid snapshot writes
+The macOS app SHALL request widget timeline reloads only after it has successfully written a valid widget snapshot. Failed polls SHALL NOT clear the previous valid widget snapshot.
+
+#### Scenario: Widget timelines reloaded after valid write
+- **WHEN** the app successfully writes a new widget snapshot
+- **THEN** it calls WidgetKit reload APIs for Tempo's macOS widget kinds
+
+#### Scenario: Failed poll preserves last valid widget content
+- **WHEN** a macOS usage poll fails because of auth, rate limit, or network error
+- **THEN** the previous valid widget snapshot remains in shared storage and is not deleted or overwritten
