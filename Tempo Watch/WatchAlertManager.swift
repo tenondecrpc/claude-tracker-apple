@@ -37,7 +37,7 @@ final class WatchAlertManager: NSObject {
     func refreshAlertState(enabledInPreferences: Bool) {
         center.getNotificationSettings { [weak self] settings in
             let isEnabled = enabledInPreferences && Self.isNotificationsEnabled(settings.authorizationStatus)
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.onAlertStateChange?(isEnabled)
             }
         }
@@ -54,8 +54,8 @@ final class WatchAlertManager: NSObject {
             guard let self else { return }
 
             let isEnabled = enabledInPreferences && Self.isNotificationsEnabled(settings.authorizationStatus)
-            Task { @MainActor in
-                self.onAlertStateChange?(isEnabled)
+            DispatchQueue.main.async { [weak self] in
+                self?.onAlertStateChange?(isEnabled)
             }
 
             guard isEnabled else {

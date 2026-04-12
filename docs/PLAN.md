@@ -29,27 +29,27 @@ The local DB (`~/.claude/`) already contains the full session history (209 sessi
 
 ---
 
-## iCloud Transport — Opciones
+## iCloud Transport — Options
 
-El relay macOS → iOS usa iCloud Drive como canal. El entitlement "iCloud Documents" **requiere una cuenta Apple Developer de pago ($99/año)**. Con Personal Team gratuita, la escritura desde macOS funciona (path directo), pero la lectura desde iOS vía `NSMetadataQuery` queda bloqueada.
+The macOS → iOS relay uses iCloud Drive as the channel. The "iCloud Documents" entitlement **requires a paid Apple Developer account ($99/year)**. With a free Personal Team, writing from macOS works (direct path), but reading from iOS via `NSMetadataQuery` is blocked.
 
-### Estado actual (2026-03-28)
-- ✅ macOS escribe `usage.json` a `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/` sin entitlement
-- ⚠️ iOS no puede leer vía `NSMetadataQuery` sin iCloud entitlement — pantalla "Connect via Mac app" estática
-- ✅ Todo el código está implementado y listo — solo falta activar el entitlement
+### Current Status (2026-03-28)
+- ✅ macOS writes `usage.json` to `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/` without entitlement
+- ⚠️ iOS cannot read via `NSMetadataQuery` without iCloud entitlement — static "Connect via Mac app" screen
+- ✅ All code is implemented and ready — only needs entitlement activation
 
-### Opción A — Cuenta Apple Developer ($99/año) ⭐ recomendada
-Activa iCloud Documents en ambos targets (macOS + iOS) usando el mismo container ID. El código actual funciona sin cambios. Desbloquea también Push Notifications y distribución en App Store.
+### Option A — Apple Developer Account ($99/year) ⭐ recommended
+Enables iCloud Documents on both targets (macOS + iOS) using the same container ID. Current code works without changes. Also unlocks Push Notifications and App Store distribution.
 
-### Opción B — Cloudflare Workers KV (gratuito)
-Reemplazar `UsagePoller.writeToiCloud()` y `iCloudUsageReader` por HTTP PUT/GET a un KV store gratuito. Requiere:
-- Cuenta Cloudflare (gratis)
-- Worker con endpoint autenticado (token compartido en `credentials.json`)
-- Refactor de `UsagePoller.swift` (write) e `iCloudUsageReader.swift` (read → HTTP polling cada 60s)
-- Sin entitlements de Apple requeridos
+### Option B — Cloudflare Workers KV (free)
+Replace `UsagePoller.writeToiCloud()` and `iCloudUsageReader` with HTTP PUT/GET to a free KV store. Requires:
+- Cloudflare account (free)
+- Worker with authenticated endpoint (shared token in `credentials.json`)
+- Refactor `UsagePoller.swift` (write) and `iCloudUsageReader.swift` (read → HTTP polling every 60s)
+- No Apple entitlements required
 
-### Opción C — Diferir iOS sync (situación actual)
-macOS app funciona standalone: OAuth, polling, datos visibles en el menu bar. iOS queda en pantalla "Connect via Mac app" sin sincronizar. Watch sin datos reales. Aceptable como v0 mientras se decide el transporte.
+### Option C — Defer iOS sync (current situation)
+macOS app works standalone: OAuth, polling, data visible in menu bar. iOS shows static "Connect via Mac app" screen without syncing. Watch has no real data. Acceptable as v0 while deciding on transport.
 
 ---
 
@@ -150,17 +150,17 @@ watchOS → TokenStore → usage ring
 
 **Goal**: Watch receives `UsageState` from iOS, updates `TokenStore`, ring shows real utilization %, mock badge disappears.
 
-**What to implement:**
+**What to implement:** ✅ Complete
 
 1. **`WatchSessionReceiver.swift`** (Watch Extension) — `WCSessionDelegate`:
-   - `session(_:didReceiveUserInfo:)` → decode payload type (UsageState vs SessionInfo)
-   - On `UsageState`: update `TokenStore.usageState`, set `isMocked = false`
+   - ✅ `session(_:didReceiveUserInfo:)` → decode payload type (UsageState vs SessionInfo)
+   - ✅ On `UsageState`: update `TokenStore.usageState`, set `isMocked = false`
 
-2. **`TokenStore` update** — add `func apply(_ state: UsageState)`:
-   - Sets `usageState = state`
-   - Called by `WatchSessionReceiver`
+2. **`TokenStore` update** — ✅ `func apply(_ state: UsageState)`:
+   - ✅ Sets `usageState = state`
+   - ✅ Called by `WatchSessionReceiver`
 
-3. **Wire receiver to app entry point** — `WatchSessionReceiver` activated on watch app launch
+3. **Wire receiver to app entry point** — ✅ `WatchSessionReceiver` activated on watch app launch
 
 **Verification checklist:**
 - Run Phase 1 iOS → watch simulator shows real % (not 42%)
@@ -201,28 +201,28 @@ watchOS → TokenStore → usage ring
 
 **Goal**: iOS detects new `latest.json` in iCloud and forwards `SessionInfo` to the watch via `WatchRelayManager`.
 
-**What to implement:**
+**What to implement:** ✅ Complete
 
-1. **`iCloudMonitor.swift`** (iOS target):
-   - `NSMetadataQuery` watching `~/Library/Mobile Documents/com~apple~CloudDocs/Tempo/latest.json`
-   - On change → decode `SessionInfo` → call `WatchRelayManager.sendSession(_:)`
+1. **`iCloudUsageReader.swift`** (iOS target):
+   - ✅ `NSMetadataQuery` watching `latest.json`
+   - ✅ On change → decode `SessionInfo` → call `WatchRelayManager.sendSession(_:)`
 
-2. **`WatchRelayManager` update** — add `sendSession(_ session: SessionInfo)`:
-   - Encodes `SessionInfo` as `[String: Any]` with a type discriminator key (e.g. `"type": "session"`)
-   - Uses `transferUserInfo(_:)` (reliable background delivery)
+2. **`WatchRelayManager` update** — ✅ `sendSession(_ session: SessionInfo)`:
+   - ✅ Encodes `SessionInfo` as `[String: Any]` with type discriminator `"type": "session"`
+   - ✅ Uses `transferUserInfo(_:)` (reliable background delivery)
 
-3. **Wire to iOS app launch** — `iCloudMonitor.start()` alongside the poller
+3. **Wire to iOS app launch** — ✅ `iCloudUsageReader.start()` alongside the poller
 
 **Files:**
 ```
 Tempo/
-├── iCloudMonitor.swift
-└── WatchRelayManager.swift   ← extended from Phase 1
+├── iCloudUsageReader.swift   ← monitors latest.json, triggers relay
+└── WatchRelayManager.swift  ← sendSession implemented
 ```
 
 **Verification checklist:**
-- Drop a valid `latest.json` into the iCloud folder manually → `iCloudMonitor` fires
-- Confirm `WCSession` delivers `userInfo` to watch simulator with `"type": "session"`
+- Drop a valid `latest.json` into the iCloud folder manually → `iCloudUsageReader` fires
+- Confirm `WCSession` delivers `userInfo` to watch simulator with `"type": "SessionInfo"`
 
 ---
 
@@ -231,13 +231,17 @@ Tempo/
 
 **Goal**: Watch receives `SessionInfo`, plays haptic, presents `CompletionView`.
 
-**What to implement:**
+**What to implement:** ✅ Complete
 
 1. **`WatchSessionReceiver` update** (from Phase 2):
-   - On `SessionInfo` payload: play haptic + set `TokenStore.pendingCompletion`
-   - `WKInterfaceDevice.current().play(.notification)`
+   - ✅ On `SessionInfo` payload: play haptic + set `TokenStore.pendingCompletion`
+   - ✅ `WKInterfaceDevice.current().play(.notification)`
 
-2. **`TokenStore` update** — `pendingCompletion` already exists; just confirm it's set from the receiver
+2. **`TokenStore` update** — `pendingCompletion` already exists; confirmed set from the receiver
+
+3. **`WatchAlertManager`** — handles notification presentation on session complete
+
+4. **`CompletionView.swift`** — shows session details (tokens, cost, duration)
 
 **Verification checklist:**
 - End a real Claude Code session → watch vibrates + `CompletionView` appears with correct tokens + cost
@@ -285,6 +289,8 @@ Tempo/
 **TIER 2 — Visibility & glanceability**
 
 **Data source for history**: Claude Code already stores full session history in `~/.claude/` (the same data `/stats` shows in the CLI — 209 sessions, activity grid, model breakdown). Read this directly instead of building a redundant history store from Stop hook events. Schema confirmed in Phase 0.
+
+**What to implement:**
 
 1. **`StatsView.swift`** — scrollable list of past sessions with token bars
 
@@ -343,7 +349,7 @@ Total:        50k / 200k tokens (25%)
 
 2. **Stop hook extension** — extend `stop-tracker.sh` to also write `context.json` to iCloud
 
-3. **iOS companion update** — `iCloudMonitor` watches `context.json`, relays `ContextState` via `WatchRelayManager`
+3. **iOS companion update** — `iCloudUsageReader` watches `context.json`, relays `ContextState` via `WatchRelayManager`
 
 4. **watchOS dashboard update** — `TokenStore` gains `contextState: ContextState?`; `ContentView` shows context gauge
 
@@ -364,7 +370,7 @@ Stop hook (any OS) → curl POST to relay → iOS app (polling/WebSocket) → Wa
 
 **Relay options:** ntfy.sh (zero backend), Supabase Realtime (free tier), Cloudflare Worker + KV
 
-**What changes:** `stop-tracker.sh` + `iCloudMonitor.swift`
+**What changes:** `stop-tracker.sh` + `iCloudUsageReader.swift`
 **What does NOT change:** `SessionInfo` model, WatchConnectivity relay, all watchOS code.
 
 ---

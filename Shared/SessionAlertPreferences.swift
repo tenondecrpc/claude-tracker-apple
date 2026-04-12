@@ -5,7 +5,7 @@ struct SessionAlertPreferences: Codable, Equatable {
     var watchAlertsEnabled: Bool
 
     static let `default` = SessionAlertPreferences(
-        iPhoneAlertsEnabled: true,
-        watchAlertsEnabled: true
+        iPhoneAlertsEnabled: false,
+        watchAlertsEnabled: false
     )
 }

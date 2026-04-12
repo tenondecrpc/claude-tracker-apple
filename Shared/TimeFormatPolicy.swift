@@ -12,7 +12,7 @@ enum TimeFormatPolicy {
         return formatter.string(from: date)
     }
 
-    static func sessionResetString(resetAt date: Date, now: Date, use24HourTime: Bool) -> String {
+    static func sessionResetString(resetAt date: Date, now: Date, use24HourTime: Bool, compact: Bool = false) -> String {
         guard date > now else { return "Fresh window" }
         let totalMinutes = Int(date.timeIntervalSince(now) / 60)
         let duration: String
@@ -22,6 +22,9 @@ enum TimeFormatPolicy {
             duration = minutes > 0 ? "\(hours) hr \(minutes) min" : "\(hours) hr"
         } else {
             duration = "\(totalMinutes) min"
+        }
+        if compact {
+            return "Resets in \(duration)"
         }
         return "Resets in \(duration) (\(clockString(from: date, use24HourTime: use24HourTime)))"
     }

@@ -55,8 +55,7 @@ final class iCloudUsageReader: NSObject {
         historyReadError = message
         DevLog.trace("AlertTrace", "iCloudUsageReader start aborted on simulator message=\(message)")
         return
-        #endif
-
+        #else
         let q = NSMetadataQuery()
         q.predicate = NSPredicate(
             format: "%K IN %@", NSMetadataItemFSNameKey, ["usage.json", "usage-history.json", "latest.json", AlertPreferencesSync.fileName]
@@ -94,6 +93,7 @@ final class iCloudUsageReader: NSObject {
         DevLog.trace("AlertTrace", "iCloudUsageReader query start requested didStart=\(didStart)")
         query = q
         bootstrapReadFromKnownPaths(documentsScope: documentsScope)
+        #endif
     }
 
     func stop() {

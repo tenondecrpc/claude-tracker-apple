@@ -32,6 +32,11 @@ final class AppCoordinator {
                 "AlertTrace",
                 "TempoApp received usage state utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d) historyCount=\(iCloudReader?.historySnapshots.count ?? 0)"
             )
+            let updatedAt = iCloudReader?.lastReceivedAt ?? Date()
+            let snapshot = WidgetUsageSnapshot(usage: state, updatedAt: updatedAt)
+            if TempoWidgetSnapshotStore.write(snapshot, platform: .iOS) {
+                TempoWidgetSnapshotStore.reloadTimelines(for: .iOS)
+            }
             relay?.send(
                 state,
                 history: iCloudReader?.historySnapshots ?? [],
@@ -106,11 +111,12 @@ final class AppCoordinator {
 @main
 struct TempoApp: App {
     @State private var coordinator = AppCoordinator()
+    @State private var widgetRoute: TempoWidgetRoute?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            ContentView(store: coordinator.store)
+            ContentView(store: coordinator.store, widgetRoute: widgetRoute)
                 .task {
                     DevLog.trace("AlertTrace", "TempoApp ContentView task scenePhase=\(String(describing: scenePhase))")
                     if scenePhase == .active {
@@ -122,6 +128,9 @@ struct TempoApp: App {
                     if phase == .active {
                         coordinator.onBecomeActive()
                     }
+                }
+                .onOpenURL { url in
+                    widgetRoute = TempoWidgetRoute(url: url)
                 }
         }
     }

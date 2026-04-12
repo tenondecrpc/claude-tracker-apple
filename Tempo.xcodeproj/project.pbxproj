@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* Tempo iOS Widget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000031 /* Tempo iOS Widget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000002 /* Tempo macOS Widget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000032 /* Tempo macOS Widget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F816E524A5914A4096954F82 /* Tempo Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -17,6 +19,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = 7731EEEB2F76AD3700C84A59;
 			remoteInfo = "Tempo Watch";
+		};
+		A10000000000000000000011 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7731EED22F76AD1800C84A59 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000061;
+			remoteInfo = "Tempo iOS Widget";
+		};
+		A10000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7731EED22F76AD1800C84A59 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000062;
+			remoteInfo = "Tempo macOS Widget";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -32,12 +48,36 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000021 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000001 /* Tempo iOS Widget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000022 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000002 /* Tempo macOS Widget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7731EEDA2F76AD1800C84A59 /* Tempo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tempo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Tempo Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7765DF702F78226F00A8EEB8 /* TempoForClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TempoForClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000031 /* Tempo iOS Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Tempo iOS Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000032 /* Tempo macOS Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Tempo macOS Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -59,6 +99,16 @@
 		7765DF712F78226F00A8EEB8 /* Tempo macOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Tempo macOS";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000041 /* Tempo iOS Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Tempo iOS Widget";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000042 /* Tempo macOS Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Tempo macOS Widget";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +135,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000052 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -92,9 +156,11 @@
 			isa = PBXGroup;
 			children = (
 				7731EEDC2F76AD1800C84A59 /* Tempo */,
+				A10000000000000000000041 /* Tempo iOS Widget */,
 				7731EEED2F76AD3700C84A59 /* Tempo Watch */,
 				7731EEAA2F76AD0000C84A59 /* Shared */,
 				7765DF712F78226F00A8EEB8 /* Tempo macOS */,
+				A10000000000000000000042 /* Tempo macOS Widget */,
 				7731EEDB2F76AD1800C84A59 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -103,8 +169,10 @@
 			isa = PBXGroup;
 			children = (
 				7731EEDA2F76AD1800C84A59 /* Tempo.app */,
+				A10000000000000000000031 /* Tempo iOS Widget.appex */,
 				7731EEEC2F76AD3700C84A59 /* Tempo Watch.app */,
 				7765DF702F78226F00A8EEB8 /* TempoForClaude.app */,
+				A10000000000000000000032 /* Tempo macOS Widget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -119,11 +187,13 @@
 				7731EED62F76AD1800C84A59 /* Sources */,
 				7731EED72F76AD1800C84A59 /* Frameworks */,
 				7731EED82F76AD1800C84A59 /* Resources */,
+				A10000000000000000000021 /* Embed App Extensions */,
 				538CA998B55D432E97A88ABC /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A10000000000000000000091 /* PBXTargetDependency */,
 				6FB72FB6003B465189F65665 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -167,10 +237,12 @@
 				7765DF6C2F78226F00A8EEB8 /* Sources */,
 				7765DF6D2F78226F00A8EEB8 /* Frameworks */,
 				7765DF6E2F78226F00A8EEB8 /* Resources */,
+				A10000000000000000000022 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A10000000000000000000092 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7731EEAA2F76AD0000C84A59 /* Shared */,
@@ -182,6 +254,52 @@
 			productName = "Tempo macOS";
 			productReference = 7765DF702F78226F00A8EEB8 /* TempoForClaude.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000061 /* Tempo iOS Widget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000111 /* Build configuration list for PBXNativeTarget "Tempo iOS Widget" */;
+			buildPhases = (
+				A10000000000000000000081 /* Sources */,
+				A10000000000000000000051 /* Frameworks */,
+				A10000000000000000000071 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7731EEAA2F76AD0000C84A59 /* Shared */,
+				A10000000000000000000041 /* Tempo iOS Widget */,
+			);
+			name = "Tempo iOS Widget";
+			packageProductDependencies = (
+			);
+			productName = "Tempo iOS Widget";
+			productReference = A10000000000000000000031 /* Tempo iOS Widget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A10000000000000000000062 /* Tempo macOS Widget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000112 /* Build configuration list for PBXNativeTarget "Tempo macOS Widget" */;
+			buildPhases = (
+				A10000000000000000000082 /* Sources */,
+				A10000000000000000000052 /* Frameworks */,
+				A10000000000000000000072 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7731EEAA2F76AD0000C84A59 /* Shared */,
+				A10000000000000000000042 /* Tempo macOS Widget */,
+			);
+			name = "Tempo macOS Widget";
+			packageProductDependencies = (
+			);
+			productName = "Tempo macOS Widget";
+			productReference = A10000000000000000000032 /* Tempo macOS Widget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -202,6 +320,12 @@
 					7765DF6F2F78226F00A8EEB8 = {
 						CreatedOnToolsVersion = 26.4;
 					};
+					A10000000000000000000061 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					A10000000000000000000062 = {
+						CreatedOnToolsVersion = 26.4;
+					};
 				};
 			};
 			buildConfigurationList = 7731EED52F76AD1800C84A59 /* Build configuration list for PBXProject "Tempo" */;
@@ -219,8 +343,10 @@
 			projectRoot = "";
 			targets = (
 				7731EED92F76AD1800C84A59 /* Tempo */,
+				A10000000000000000000061 /* Tempo iOS Widget */,
 				7731EEEB2F76AD3700C84A59 /* Tempo Watch */,
 				7765DF6F2F78226F00A8EEB8 /* Tempo macOS */,
+				A10000000000000000000062 /* Tempo macOS Widget */,
 			);
 		};
 /* End PBXProject section */
@@ -241,6 +367,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		7765DF6E2F78226F00A8EEB8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000071 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000072 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -271,6 +411,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000081 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000082 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +432,16 @@
 			isa = PBXTargetDependency;
 			target = 7731EEEB2F76AD3700C84A59 /* Tempo Watch */;
 			targetProxy = 4B2D0CD5DB1D4486B2CEE556 /* PBXContainerItemProxy */;
+		};
+		A10000000000000000000091 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000061 /* Tempo iOS Widget */;
+			targetProxy = A10000000000000000000011 /* PBXContainerItemProxy */;
+		};
+		A10000000000000000000092 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000062 /* Tempo macOS Widget */;
+			targetProxy = A10000000000000000000012 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -340,6 +504,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TEMPO_BASE_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
 			};
 			name = Debug;
 		};
@@ -393,6 +558,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				TEMPO_BASE_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
 			};
 			name = Release;
 		};
@@ -412,6 +578,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Tempo For Claude";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.tenondev.tempo.claude\";\n    CFBundleURLSchemes =     (\n        tempoforclaude\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -426,8 +593,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
@@ -459,6 +626,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Tempo For Claude";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.tenondev.tempo.claude\";\n    CFBundleURLSchemes =     (\n        tempoforclaude\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -473,8 +641,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
@@ -508,8 +676,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude.watchkitapp;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
@@ -545,8 +713,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude.watchkitapp;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
@@ -591,6 +759,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Tempo For Claude";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.tenondev.tempo.claude\";\n    CFBundleURLSchemes =     (\n        tempoforclaude\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -599,8 +768,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = TempoForClaude;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
@@ -639,6 +808,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Tempo For Claude";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.tenondev.tempo.claude\";\n    CFBundleURLSchemes =     (\n        tempoforclaude\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -647,12 +817,152 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
-				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenondev.tempo.claude;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = TempoForClaude;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A10000000000000000000101 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "Tempo iOS Widget/Tempo iOS Widget.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/TempoiOSWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tempo;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).ioswidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10000000000000000000102 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "Tempo iOS Widget/Tempo iOS Widget.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/TempoiOSWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tempo;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).ioswidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A10000000000000000000103 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "Tempo macOS Widget/Tempo macOS Widget.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/TempoMacWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tempo;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).macwidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000000104 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = "Tempo macOS Widget/Tempo macOS Widget.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R245G8D22A;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Config/TempoMacWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tempo;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0.13;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).macwidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -696,6 +1006,24 @@
 			buildConfigurations = (
 				7765DF792F78227100A8EEB8 /* Debug */,
 				7765DF7A2F78227100A8EEB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000111 /* Build configuration list for PBXNativeTarget "Tempo iOS Widget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000101 /* Debug */,
+				A10000000000000000000102 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000112 /* Build configuration list for PBXNativeTarget "Tempo macOS Widget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000103 /* Debug */,
+				A10000000000000000000104 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

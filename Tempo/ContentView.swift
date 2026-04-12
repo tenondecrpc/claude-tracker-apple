@@ -8,6 +8,7 @@ private enum IOSTab: Hashable {
 
 struct ContentView: View {
     let store: IOSAppStore
+    let widgetRoute: TempoWidgetRoute?
     @State private var selectedTab: IOSTab = .dashboard
     @State private var showsLaunchOverlay = true
 
@@ -42,6 +43,13 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .tint(ClaudeCodeTheme.accent)
+        .onChange(of: widgetRoute, initial: true) { _, route in
+            guard let route else { return }
+            switch route {
+            case .dashboard, .stats:
+                selectedTab = .dashboard
+            }
+        }
     }
 
     private var launchOverlay: some View {

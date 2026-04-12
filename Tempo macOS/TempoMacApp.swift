@@ -44,8 +44,9 @@ final class MacAppCoordinator {
             self?.poller.stop()
             self?.serviceStatusMonitor.stop()
         }
-        poller.onUsageState = { [weak history] state in
+        poller.onUsageState = { [weak self, weak history] state in
             history?.append(state)
+            self?.publishWidgetSnapshot(from: state, updatedAt: Date())
         }
 
         settings.onServiceStatusMonitoringChanged = { [weak self] _ in
@@ -63,6 +64,8 @@ final class MacAppCoordinator {
             launchAtLoginManager.setEnabled(settings.launchAtLogin)
         }
         settings.updateLaunchAtLoginFromSystem(launchAtLoginManager.isEnabled)
+
+        seedInitialWidgetSnapshotIfNeeded()
     }
 
     func onLaunch() async {
@@ -70,6 +73,7 @@ final class MacAppCoordinator {
         hasLaunched = true
 
         sessionEventWriter.start()
+        seedInitialWidgetSnapshotIfNeeded()
 
         guard !authState.requiresExplicitSignIn else { return }
         let restored = await client.tryRestoreSession()
@@ -106,6 +110,51 @@ final class MacAppCoordinator {
             )
             try AlertPreferencesSync.write(preferences)
         } catch {}
+    }
+
+    private func publishWidgetSnapshot(from usage: UsageState, updatedAt: Date) {
+        let snapshot = WidgetUsageSnapshot(usage: usage, updatedAt: updatedAt)
+        if TempoWidgetSnapshotStore.write(snapshot, platform: .macOS) {
+            TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+        }
+    }
+
+    private func seedInitialWidgetSnapshotIfNeeded() {
+        guard TempoWidgetSnapshotStore.read(platform: .macOS) == nil else { return }
+
+        if let usage = readLatestUsageFromICloudMirror() {
+            publishWidgetSnapshot(from: usage, updatedAt: Date())
+            return
+        }
+
+        guard let last = history.snapshots.last else { return }
+        let fallbackUsage = UsageState(
+            utilization5h: last.utilization5h,
+            utilization7d: last.utilization7d,
+            resetAt5h: Date().addingTimeInterval(5 * 3600),
+            resetAt7d: Date().addingTimeInterval(7 * 24 * 3600),
+            isMocked: false,
+            extraUsage: nil,
+            isDoubleLimitPromoActive: nil
+        )
+        publishWidgetSnapshot(from: fallbackUsage, updatedAt: last.date)
+    }
+
+    private func readLatestUsageFromICloudMirror() -> UsageState? {
+        let trackerDirectory: URL
+        if let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: TempoICloud.containerIdentifier) {
+            trackerDirectory = containerURL.appendingPathComponent("Documents/Tempo", isDirectory: true)
+        } else {
+            trackerDirectory = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo", isDirectory: true)
+        }
+
+        let usageURL = trackerDirectory.appendingPathComponent("usage.json")
+        guard let data = try? Data(contentsOf: usageURL) else { return nil }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(UsageState.self, from: data)
     }
 }
 
@@ -149,6 +198,10 @@ struct TempoMacApp: App {
                 .preferredColorScheme(coordinator.settings.preferredColorScheme)
         }
         .windowResizability(.contentSize)
+        .handlesExternalEvents(matching: Set([
+            TempoWidgetRoute.dashboard.rawValue,
+            TempoWidgetRoute.stats.rawValue,
+        ]))
 
         Settings {
             PreferencesWindowView(coordinator: coordinator)

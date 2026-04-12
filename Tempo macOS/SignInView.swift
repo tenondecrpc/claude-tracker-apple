@@ -5,6 +5,7 @@ import AppKit
 
 struct MacMenuView: View {
     let coordinator: MacAppCoordinator
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
