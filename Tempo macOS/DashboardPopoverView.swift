@@ -47,30 +47,28 @@ struct DashboardPopoverView: View {
         now: Date,
         use24HourTime: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Promo indicator (above ring, right-aligned)
+        VStack(alignment: .leading, spacing: 13) {
             if usage.isDoubleLimitPromoActive == true {
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Spacer()
-                    Image(systemName: "sparkles")
-                        .font(.caption)
+                    Label("2x promo active", systemImage: "sparkles")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(ClaudeCodeTheme.warning)
-                    Text("2x promo active")
-                        .font(.caption)
-                        .foregroundStyle(ClaudeCodeTheme.warning)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(ClaudeCodeTheme.warning.opacity(0.12))
+                        .clipShape(Capsule())
                 }
             }
 
-            // Ring gauges (centered)
             UsageRingView(
                 sessionProgress: usage.utilization5h,
                 weeklyProgress: usage.utilization7d,
                 centerLabel: "\(Int(usage.utilization5h * 100))%"
             )
-            .frame(width: 150, height: 150)
+            .frame(width: 144, height: 144)
             .frame(maxWidth: .infinity)
 
-            // Pill chips
             HStack(spacing: 8) {
                 SessionPillChip(
                     value: "\(Int(usage.utilization5h * 100))%",
@@ -91,7 +89,6 @@ struct DashboardPopoverView: View {
                 )
             }
 
-            // Burn rate card (with Extra Usage disclosure)
             BurnRateCard(
                 rate: burnRate(usage: usage, now: now),
                 resetCountdown: TimeFormatPolicy.sessionResetString(
@@ -102,7 +99,6 @@ struct DashboardPopoverView: View {
                 extraUsage: usage.extraUsage
             )
 
-            // Last polled
             if let lastPollAt = coordinator.poller.lastPollAt {
                 HStack(spacing: 4) {
                     Image(systemName: "clock")
@@ -112,9 +108,12 @@ struct DashboardPopoverView: View {
                         .font(.caption2)
                         .foregroundStyle(ClaudeCodeTheme.textTertiary)
                 }
+                .padding(.top, 2)
             }
         }
-        .padding(16)
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -124,8 +123,7 @@ struct DashboardPopoverView: View {
         VStack(spacing: 0) {
             Divider().overlay(ClaudeCodeTheme.progressTrack)
 
-            // Primary actions
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 MenuActionRow(icon: "chart.line.uptrend.xyaxis", label: "Stats") {
                     let menuWindow = NSApp.keyWindow
                     openWindow(id: "stats-detail")
@@ -148,19 +146,18 @@ struct DashboardPopoverView: View {
                     coordinator.client.signOut()
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
 
             Divider().overlay(ClaudeCodeTheme.progressTrack)
 
-            // Destructive actions
-            VStack(spacing: 2) {
+            VStack(spacing: 3) {
                 MenuActionRow(icon: "power", label: "Quit Tempo", isDestructive: true) {
                     NSApplication.shared.terminate(nil)
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
         }
     }
 

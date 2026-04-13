@@ -32,7 +32,7 @@ struct UsageRingView: View {
         ZStack {
             // Outer track (weekly)
             Circle()
-                .stroke(ClaudeCodeTheme.progressTrack, lineWidth: 8)
+                .stroke(ClaudeCodeTheme.ringTrack, lineWidth: 8)
 
             // Outer fill (weekly)
             Circle()
@@ -42,7 +42,7 @@ struct UsageRingView: View {
 
             // Inner track (session)
             Circle()
-                .stroke(ClaudeCodeTheme.progressTrack, lineWidth: 10)
+                .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 10)
                 .padding(18)
 
             // Inner fill (session)
@@ -51,6 +51,10 @@ struct UsageRingView: View {
                 .stroke(ClaudeCodeTheme.accent, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .padding(18)
+
+            Circle()
+                .fill(ClaudeCodeTheme.background)
+                .padding(36)
 
             // Center label
             if let label = centerLabel {
@@ -81,10 +85,15 @@ struct SessionPillChip: View {
                 Text(value)
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
                 Text(label)
                     .font(.footnote)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
         }
@@ -110,13 +119,15 @@ struct BurnRateCard: View {
                     .fill(statusColor)
                     .frame(width: 8, height: 8)
                 Text("\(onTrack ? "On track" : "High burn") · \(String(format: "%.1f", rate))%/hr")
-                    .font(.callout)
+                    .font(.callout.weight(.semibold))
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
             }
 
             Text(resetCountdown)
                 .font(.footnote)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             if let extra = extraUsage, extra.isEnabled,
                let used = extra.usedCreditsAmount, let limit = extra.monthlyLimitAmount {
@@ -125,7 +136,7 @@ struct BurnRateCard: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Extra Usage")
-                        .font(.footnote)
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     Text("\(ExtraUsage.formatUSD(used)) / \(ExtraUsage.formatUSD(limit))")
                         .font(.callout.monospacedDigit())
@@ -140,6 +151,10 @@ struct BurnRateCard: View {
         }
         .padding(12)
         .background(ClaudeCodeTheme.card)
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ClaudeCodeTheme.progressTrack.opacity(0.65), lineWidth: 1)
+        }
         .clipShape(.rect(cornerRadius: 12))
     }
 }
@@ -174,6 +189,7 @@ struct MenuActionRow: View {
                             .font(.caption)
                             .foregroundStyle(ClaudeCodeTheme.textTertiary)
                             .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                 } else {
                     Text(label)
@@ -183,8 +199,8 @@ struct MenuActionRow: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isHovered ? ClaudeCodeTheme.surface : Color.clear)
@@ -234,13 +250,13 @@ struct MenuBarHeaderView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 17)
             .padding(.vertical, 12)
             Divider()
                 .overlay(ClaudeCodeTheme.progressTrack)
             if serviceState != .operational {
                 ServiceStatusBannerView(state: serviceState)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 17)
                     .padding(.vertical, 8)
             }
         }
