@@ -4,9 +4,9 @@ Features in this spec depend on three distinct data sources with different imple
 
 | Label | Source | Status |
 |-------|--------|--------|
-| `[OAUTH]` | `UsagePoller` — current `utilization5h/7d`, `resetAt5h/7d` | ✅ Available now |
+| `[OAUTH]` | `UsagePoller` - current `utilization5h/7d`, `resetAt5h/7d` | ✅ Available now |
 | `[HISTORY]` | Polling snapshots stored locally (new `UsageHistory` store) | 🔴 Needs new data layer |
-| `[LOCALDB]` | `~/.claude/` session DB — sessions, messages, tokens, cost, model breakdown | 🟡 Phase 8 in FUTURE_PLAN |
+| `[LOCALDB]` | `~/.claude/` session DB - sessions, messages, tokens, cost, model breakdown | 🟡 Phase 8 in FUTURE_PLAN |
 
 ---
 
@@ -27,8 +27,8 @@ The app SHALL register a `Window("Stats", id: "stats-detail")` scene that displa
 
 ### Requirement: Two-column layout with circular gauges `[OAUTH]`
 The stats detail window SHALL display two columns side by side:
-1. **Left column — Current Session (5h)**: A large circular gauge showing `utilization5h`, the percentage as bold text inside the gauge, a "Current Session" label, and a reset countdown ("Resets in X min (HH:MM)").
-2. **Right column — Weekly Limit (7d)**: A large circular gauge showing `utilization7d`, the percentage as bold text inside the gauge, a "Weekly Limit" label, and a reset date ("Resets EEE, HH:mm").
+1. **Left column - Current Session (5h)**: A large circular gauge showing `utilization5h`, the percentage as bold text inside the gauge, a "Current Session" label, and a reset countdown ("Resets in X min (HH:MM)").
+2. **Right column - Weekly Limit (7d)**: A large circular gauge showing `utilization7d`, the percentage as bold text inside the gauge, a "Weekly Limit" label, and a reset date ("Resets EEE, HH:mm").
 
 Each circular gauge SHALL use a `Circle().trim` arc with `ClaudeTheme.accent` fill over a `ClaudeTheme.progressTrack` track, with rounded line caps and a line width of approximately 12 points.
 
@@ -94,7 +94,7 @@ The stats detail window SHALL display a scrollable line chart showing the histor
 
 #### Scenario: No history yet
 - **WHEN** the window opens and no snapshots are stored
-- **THEN** a placeholder "No history yet — check back after the next poll" is shown in place of the chart
+- **THEN** a placeholder "No history yet - check back after the next poll" is shown in place of the chart
 
 #### Scenario: Legend toggle hides a series
 - **WHEN** the user unchecks "Weekly" in the legend
@@ -119,10 +119,10 @@ The stats detail window SHALL display a GitHub-style activity heatmap grid showi
 
 ### Requirement: Summary stat cards `[LOCALDB]`
 Below the heatmap, the window SHALL display four stat cards in a 2×2 grid:
-1. **Avg Session** — average `utilization5h` at session end across the last 30 days
-2. **Avg Weekly** — average `utilization7d` across the last 4 complete weeks
-3. **High Usage** — count of days where peak utilization exceeded 90%
-4. **Peak** — highest single-session utilization ever recorded
+1. **Avg Session** - average `utilization5h` at session end across the last 30 days
+2. **Avg Weekly** - average `utilization7d` across the last 4 complete weeks
+3. **High Usage** - count of days where peak utilization exceeded 90%
+4. **Peak** - highest single-session utilization ever recorded
 
 #### Scenario: Stat cards show historical values
 - **WHEN** the local DB has 30 days of history
@@ -134,7 +134,7 @@ Below the heatmap, the window SHALL display four stat cards in a 2×2 grid:
 The stats detail window SHALL display a "Claude Code (7 days)" section with:
 1. **Aggregate row**: total Messages, Tool Calls, Sessions, API Cost Equivalent, Subagents count
 2. **Model breakdown**: token counts for Opus, Sonnet, Haiku
-3. **Per-project table**: columns Project, Sessions, Messages, Tools, Tokens, Cost — sorted by token count descending
+3. **Per-project table**: columns Project, Sessions, Messages, Tools, Tokens, Cost - sorted by token count descending
 
 **Data layer**: Read from `~/.claude/` local DB (same Phase 8 DB as heatmap). Schema and exact file path to be confirmed in Phase 8 discovery.
 
@@ -144,7 +144,7 @@ The stats detail window SHALL display a "Claude Code (7 days)" section with:
 
 #### Scenario: No local DB found
 - **WHEN** `~/.claude/` does not contain a readable session DB
-- **THEN** the section shows "Claude Code history unavailable — local DB not found"
+- **THEN** the section shows "Claude Code history unavailable - local DB not found"
 
 ---
 

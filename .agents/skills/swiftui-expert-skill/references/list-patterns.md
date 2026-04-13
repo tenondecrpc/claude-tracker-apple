@@ -288,7 +288,7 @@ struct SortableTable: View {
 }
 ```
 
-**Important:** The table does **not** sort data itself — you must re-sort the collection when `sortOrder` changes.
+**Important:** The table does **not** sort data itself - you must re-sort the collection when `sortOrder` changes.
 
 ### Adaptive Table for Compact Size Classes
 

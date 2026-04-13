@@ -89,7 +89,7 @@ Credentials on disk are NOT deleted. No confirmation dialog is required.
 
 #### Scenario: Reopening menu bar after logout stays signed out
 - **WHEN** the user clicks "Logout" and then reopens the menu bar popover
-- **THEN** the popover shows "Not Signed In" — no auto-restore occurs even if credentials exist on disk
+- **THEN** the popover shows "Not Signed In" - no auto-restore occurs even if credentials exist on disk
 
 #### Scenario: Credentials reusable via explicit sign-in
 - **WHEN** the user clicks "Sign in with Claude Code" after a logout

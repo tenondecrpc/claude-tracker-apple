@@ -60,7 +60,7 @@ final class UsageStatePoller {
 
     private func immeditatePoll() async {
         await doPoll()
-        // Intentionally does not touch the timer — timer runs on its own schedule
+        // Intentionally does not touch the timer - timer runs on its own schedule
     }
 
     // MARK: - Core Poll

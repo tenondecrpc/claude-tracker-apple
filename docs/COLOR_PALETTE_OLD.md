@@ -1,9 +1,9 @@
-# Tempo for Claude — Color Palette
+# Tempo for Claude - Color Palette
 
 Two palettes exist in the codebase:
 
-- **TempoTheme** (`Tempo macOS/TempoTheme.swift`) — active design system for the macOS menu bar app (graphite dark + electric violet)
-- **Shared/Theme** (`Shared/Theme.swift`) — legacy Claude terracotta palette, kept for shared targets
+- **TempoTheme** (`Tempo macOS/TempoTheme.swift`) - active design system for the macOS menu bar app (graphite dark + electric violet)
+- **Shared/Theme** (`Shared/Theme.swift`) - legacy Claude terracotta palette, kept for shared targets
 
 ---
 
@@ -18,7 +18,7 @@ Two palettes exist in the codebase:
 | `card` | `#26262B` | ██ | Card / panel layer |
 | `progressTrack` | `#333339` | ██ | Ring/progress track background |
 
-### Accent — Electric Violet
+### Accent - Electric Violet
 
 | Token | Hex | Preview | Notes |
 |---|---|---|---|
@@ -50,7 +50,7 @@ Two palettes exist in the codebase:
 
 Used by iOS and watchOS targets. Not used in the macOS Tempo UI.
 
-### Accent — Claude Terracotta
+### Accent - Claude Terracotta
 
 | Token | Hex | Notes |
 |---|---|---|

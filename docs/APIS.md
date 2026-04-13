@@ -1,4 +1,4 @@
-# APIS.md — Confirmed API Reference
+# APIS.md - Confirmed API Reference
 
 Phase 0 research output. All signatures verified before Phase 1+ implementation.
 
@@ -32,11 +32,11 @@ code_challenge_method=S256
 state=<random>
 ```
 
-**Callback note**: Uses a "paste code" flow — the redirect lands in the browser and the user pastes a `<code>#<state>` string. Code = part before `#`, state = part after.
+**Callback note**: Uses a "paste code" flow - the redirect lands in the browser and the user pastes a `<code>#<state>` string. Code = part before `#`, state = part after.
 
 **Claude Code credential reuse**: Claude Code does NOT expose reusable OAuth tokens. `~/.claude/.claude.json` contains account metadata (`oauthAccount.emailAddress`, `displayName`, `accountUuid`) but no `access_token` or `refresh_token`. `~/.claude/credentials.json` exists but is empty (3 bytes). Each app (Tempo, claude-usage-bar, etc.) MUST manage its own OAuth tokens via its own token exchange. The email from `.claude.json` can be read for display purposes only.
 
-**Token exchange — POST body (JSON):**
+**Token exchange - POST body (JSON):**
 ```json
 {
   "grant_type": "authorization_code",
@@ -50,7 +50,7 @@ state=<random>
 
 **Token response fields**: `access_token`, `refresh_token`, `expires_in`, `scope`
 
-**Token refresh — POST body (JSON):**
+**Token refresh - POST body (JSON):**
 ```json
 {
   "grant_type": "refresh_token",
@@ -109,11 +109,11 @@ GET https://api.anthropic.com/api/oauth/userinfo
 ```
 
 **Field notes:**
-- `utilization` — `Double?`, range **0–100** (not 0–1). Divide by 100 when mapping to `UsageState.utilization5h/7d`.
-- `resets_at` — ISO 8601 with microseconds: `"2024-01-15T14:30:45.123456+00:00"`
-- `seven_day_opus` / `seven_day_sonnet` — nullable; only present when per-model tracking is active
-- `used_credits` / `monthly_limit` — denominated in **cents**
-- `iguana_necktie` — reserved/future field, always null
+- `utilization` - `Double?`, range **0–100** (not 0–1). Divide by 100 when mapping to `UsageState.utilization5h/7d`.
+- `resets_at` - ISO 8601 with microseconds: `"2024-01-15T14:30:45.123456+00:00"`
+- `seven_day_opus` / `seven_day_sonnet` - nullable; only present when per-model tracking is active
+- `used_credits` / `monthly_limit` - denominated in **cents**
+- `iguana_necktie` - reserved/future field, always null
 
 **Mapping to `UsageState`:**
 ```swift
@@ -132,13 +132,13 @@ UsageState(
 - Check `Retry-After` header (seconds); if absent, double the current interval
 - Formula: `min(max(retryAfter ?? currentInterval, currentInterval * 2), 3600)`
 - Default polling target: **15 minutes** for our app (claude-usage-bar uses 30 min)
-- Token storage: **iOS Keychain only** — never `UserDefaults`
+- Token storage: **iOS Keychain only** - never `UserDefaults`
 
 ---
 
 ## 2. Claude Code Stop Hook
 
-**⚠️ Critical finding**: data is delivered via **stdin as JSON**, NOT as environment variables. The `FUTURE_PLAN.md` reference to `echo $CLAUDE_INPUT_TOKENS` was a hypothesis — env vars do not exist. Verify with a debug hook that dumps stdin to file.
+**⚠️ Critical finding**: data is delivered via **stdin as JSON**, NOT as environment variables. The earlier `PLAN.md` reference to `echo $CLAUDE_INPUT_TOKENS` was a hypothesis - env vars do not exist. Verify with a debug hook that dumps stdin to file.
 
 ### Stdin JSON Payload
 
@@ -160,11 +160,11 @@ UsageState(
 
 ### What is NOT in the Stop hook payload
 
-- Input/output tokens — **not present**
-- Cost in USD — **not present**
-- Duration — **not present**
-- Context window breakdown — **not present**
-- Utilization % or reset timestamps — **not present** (OAuth API only)
+- Input/output tokens - **not present**
+- Cost in USD - **not present**
+- Duration - **not present**
+- Context window breakdown - **not present**
+- Utilization % or reset timestamps - **not present** (OAuth API only)
 
 ### How to get token/cost data from the hook
 
@@ -197,7 +197,7 @@ INPUT_TOKENS=$(grep -o '"input_tokens":[0-9]*' "$TRANSCRIPT" | awk -F: '{sum+=$2
 OUTPUT_TOKENS=$(grep -o '"output_tokens":[0-9]*' "$TRANSCRIPT" | awk -F: '{sum+=$2} END {print sum}')
 ```
 
-**Cost**: Claude Code sets `costUSD: 0` in its local DB (subscription plan, no per-token billing). The hook approach would require hardcoding model pricing tables — uncertain value. Consider omitting `costUSD` from `SessionInfo` or always setting it to 0.
+**Cost**: Claude Code sets `costUSD: 0` in its local DB (subscription plan, no per-token billing). The hook approach would require hardcoding model pricing tables - uncertain value. Consider omitting `costUSD` from `SessionInfo` or always setting it to 0.
 
 **Duration**: calculate from first/last timestamps in the transcript JSONL.
 
@@ -216,7 +216,7 @@ Current fields and their sources:
 | `limitResetAt` | OAuth API only | ❌ remove from SessionInfo |
 | `isDoubleLimitActive` | No hook source | ❌ remove from SessionInfo |
 
-**Recommendation**: remove `limitResetAt` and `isDoubleLimitActive` from `SessionInfo` — they cannot be populated from the Stop hook and are not per-session data. Limit/reset info lives in `UsageState` (from OAuth).
+**Recommendation**: remove `limitResetAt` and `isDoubleLimitActive` from `SessionInfo` - they cannot be populated from the Stop hook and are not per-session data. Limit/reset info lives in `UsageState` (from OAuth).
 
 ### Hook registration (`~/.claude/settings.json`)
 
@@ -290,9 +290,9 @@ cat > /tmp/hook-debug.json
 ```
 
 **Notes:**
-- `costUSD: 0` throughout — subscription plan, no per-token cost tracked
+- `costUSD: 0` throughout - subscription plan, no per-token cost tracked
 - `duration` in `longestSession` is in **milliseconds**
-- Daily data only — no per-session aggregates in the cache
+- Daily data only - no per-session aggregates in the cache
 - Per-session token totals require summing across each message in the JSONL transcript
 
 ### `sessions/<pid>.json` schema
@@ -363,11 +363,11 @@ WCSession.default.outstandingUserInfoTransfers
     .forEach { $0.cancel() }
 WCSession.default.transferUserInfo(newPayload)
 ```
-**Do NOT cancel `SessionInfo` transfers** — every session event must be delivered.
+**Do NOT cancel `SessionInfo` transfers** - every session event must be delivered.
 
 ### Activation Sequence
 
-Set delegate **before** calling `activate()` — call both in `applicationDidFinishLaunching`:
+Set delegate **before** calling `activate()` - call both in `applicationDidFinishLaunching`:
 ```swift
 WCSession.default.delegate = self
 WCSession.default.activate()
@@ -379,19 +379,19 @@ WCSession.default.activate()
 
 **iOS** (3 required):
 - `activationDidCompleteWith(session:state:error:)`
-- `sessionDidBecomeInactive(_:)` — stop sending
-- `sessionDidDeactivate(_:)` — call `WCSession.default.activate()` to re-activate for new watch
+- `sessionDidBecomeInactive(_:)` - stop sending
+- `sessionDidDeactivate(_:)` - call `WCSession.default.activate()` to re-activate for new watch
 
 **watchOS** (1 required):
 - `activationDidCompleteWith(session:state:error:)`
 
 **Essential (optional in protocol):**
-- `session(_:didReceiveUserInfo:)` — called on a **background thread**; dispatch to `@MainActor` before mutating `TokenStore`
+- `session(_:didReceiveUserInfo:)` - called on a **background thread**; dispatch to `@MainActor` before mutating `TokenStore`
 
 ### Payload Encoding with Type Discriminator
 
 ```swift
-// Sender (iOS) — add "type" key to every payload
+// Sender (iOS) - add "type" key to every payload
 var info = usageState.toUserInfo()        // manual [String: Any] conversion
 info["type"] = "UsageState"
 WCSession.default.transferUserInfo(info)
@@ -410,11 +410,11 @@ func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
 
 ### Payload Size
 
-No concern — `SessionInfo` + `UsageState` are well under the ~65 KB practical limit.
+No concern - `SessionInfo` + `UsageState` are well under the ~65 KB practical limit.
 
 ---
 
-## 5. NSMetadataQuery — iCloud File Watching (iOS)
+## 5. NSMetadataQuery - iCloud File Watching (iOS)
 
 ### Setup
 
@@ -480,14 +480,14 @@ func handleQueryResults(_ query: NSMetadataQuery) {
 ```
 
 **Gotchas:**
-- `disableUpdates()` / `enableUpdates()` are mandatory around result access — skipping causes crashes
-- `NSFileCoordinator` is required even for reads — iCloud daemon uses file coordination
-- Must start on main run loop — background queues without a run loop silently fail
-- When app is backgrounded, `NSMetadataQueryDidUpdate` stops firing — restart query on `applicationDidBecomeActive`
+- `disableUpdates()` / `enableUpdates()` are mandatory around result access - skipping causes crashes
+- `NSFileCoordinator` is required even for reads - iCloud daemon uses file coordination
+- Must start on main run loop - background queues without a run loop silently fail
+- When app is backgrounded, `NSMetadataQueryDidUpdate` stops firing - restart query on `applicationDidBecomeActive`
 
 ### Required Entitlement
 
-`com.apple.developer.ubiquity-container-identifiers` — added automatically by Xcode when enabling iCloud capability with "iCloud Documents" checked.
+`com.apple.developer.ubiquity-container-identifiers` - added automatically by Xcode when enabling iCloud capability with "iCloud Documents" checked.
 
 ---
 
@@ -501,20 +501,20 @@ WKInterfaceDevice.current().play(.notification)
 
 | Event | Type | Pattern |
 |---|---|---|
-| Session completed | `.notification` | Double pulse — standard "something happened" |
-| Limit reset | `.success` | Two ascending pulses — confirms positive event |
-| Warning (approaching limit) | `.failure` | Descending buzz — conveys urgency |
+| Session completed | `.notification` | Double pulse - standard "something happened" |
+| Limit reset | `.success` | Two ascending pulses - confirms positive event |
+| Warning (approaching limit) | `.failure` | Descending buzz - conveys urgency |
 | Softer warning | `.retry` | Gentler prompt |
 
 **Full enum** (watchOS 1.0+): `.notification`, `.directionUp`, `.directionDown`, `.success`, `.failure`, `.retry`, `.start`, `.stop`, `.click`, `.navigationGenericManeuver`, `.navigationLeftTurn`, `.navigationRightTurn`, `.underwaterDepthPrompt` (watchOS 5+)
 
-**Note**: haptics only fire in foreground or via notification delivery. For background haptics, use `UNUserNotificationCenter` with `.sound = .default` — the OS triggers the haptic automatically on notification delivery.
+**Note**: haptics only fire in foreground or via notification delivery. For background haptics, use `UNUserNotificationCenter` with `.sound = .default` - the OS triggers the haptic automatically on notification delivery.
 
 ---
 
 ## 7. UNUserNotificationCenter (watchOS)
 
-**Available**: watchOS 3.0+. Fully independent of iOS — no paired iPhone needed at scheduling time.
+**Available**: watchOS 3.0+. Fully independent of iOS - no paired iPhone needed at scheduling time.
 
 **No special entitlement** required for local notifications.
 
@@ -530,7 +530,7 @@ let granted = try await UNUserNotificationCenter.current()
 ```swift
 let content = UNMutableNotificationContent()
 content.title = "Claude Limit Reset"
-content.body = "5-hour window has reset — you're good to go."
+content.body = "5-hour window has reset - you're good to go."
 content.sound = .default  // also triggers watch haptic
 
 let components = Calendar.current.dateComponents(
@@ -557,7 +557,7 @@ UNUserNotificationCenter.current()
 ```
 
 **Key behaviors:**
-- Local notifications are delivered by the OS kernel even when the app is not running — no background entitlement needed
-- `content.sound = .default` on watchOS triggers the haptic automatically — no need to call `WKInterfaceDevice.current().play()` separately
+- Local notifications are delivered by the OS kernel even when the app is not running - no background entitlement needed
+- `content.sound = .default` on watchOS triggers the haptic automatically - no need to call `WKInterfaceDevice.current().play()` separately
 - Pending notification limit: 64 per app (not a concern here)
 - Custom notification UI requires `WKNotificationScene` (Phase 6+ consideration)

@@ -1,4 +1,4 @@
-## 1. Data Layer — TokenStore & WatchSessionReceiver
+## 1. Data Layer - TokenStore & WatchSessionReceiver
 
 - [x] 1.1 Add `usageHistory: [UsageHistorySnapshot]` property and `applyHistory(_:)` method to `TokenStore`
 - [x] 1.2 Add computed `lastSession: SessionInfo?` property to `TokenStore`
@@ -39,7 +39,7 @@
 - [x] 5.6 Add relative timestamp label ("X min ago") updating via `TimelineView`
 - [x] 5.7 Handle empty state: SF Symbol + "No sessions yet" caption
 
-## 6. Complication — WidgetKit Extension
+## 6. Complication - WidgetKit Extension
 
 - [x] 6.1 Create watchOS Widget Extension target in Xcode project
 - [x] 6.2 Configure AppGroup capability on both watch app and widget extension targets

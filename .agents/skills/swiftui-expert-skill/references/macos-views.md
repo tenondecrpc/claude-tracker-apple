@@ -72,8 +72,8 @@ HSplitView {
 ```
 
 > **When to use which:**
-> - **`NavigationSplitView`** — sidebar-based navigation (sidebar drives content/detail)
-> - **`HSplitView`/`VSplitView`** — IDE-style layouts where all panes are equal peers
+> - **`NavigationSplitView`** - sidebar-based navigation (sidebar drives content/detail)
+> - **`HSplitView`/`VSplitView`** - IDE-style layouts where all panes are equal peers
 
 ---
 
@@ -165,7 +165,7 @@ On macOS, presents a native `NSOpenPanel` with column/list/gallery view, sidebar
 }
 ```
 
-> **Important:** Always call `startAccessingSecurityScopedResource()` on returned URLs, and `stopAccessingSecurityScopedResource()` when done. These are security-scoped bookmarks — access fails without this.
+> **Important:** Always call `startAccessingSecurityScopedResource()` on returned URLs, and `stopAccessingSecurityScopedResource()` when done. These are security-scoped bookmarks - access fails without this.
 
 ### fileExporter
 
@@ -312,7 +312,7 @@ struct SearchField: NSViewRepresentable {
 }
 ```
 
-> **Warning:** Never set `frame`/`bounds` directly on the managed `NSView` — SwiftUI owns the layout.
+> **Warning:** Never set `frame`/`bounds` directly on the managed `NSView` - SwiftUI owns the layout.
 
 ### NSViewControllerRepresentable (macOS-only)
 
@@ -332,7 +332,7 @@ struct MapViewWrapper: NSViewControllerRepresentable {
 
 ### NSHostingController & NSHostingView (macOS-only)
 
-Host SwiftUI content inside AppKit (reverse direction — AppKit app embedding SwiftUI views).
+Host SwiftUI content inside AppKit (reverse direction - AppKit app embedding SwiftUI views).
 
 ```swift
 // Host SwiftUI as a view controller
@@ -348,10 +348,10 @@ someNSView.addSubview(hostingView)
 
 ## Best Practices
 
-- **Use `NavigationSplitView`** for sidebar-driven navigation — reserve `HSplitView`/`VSplitView` for IDE-style equal peer panes
-- **Make `Table` adaptive** — handle compact size classes by showing combined info in the first column
-- **Always call `startAccessingSecurityScopedResource()`** on URLs from `fileImporter` — they are security-scoped
-- **Use `Transferable`** for drag & drop (modern) — fall back to `NSItemProvider` only for legacy compatibility
+- **Use `NavigationSplitView`** for sidebar-driven navigation - reserve `HSplitView`/`VSplitView` for IDE-style equal peer panes
+- **Make `Table` adaptive** - handle compact size classes by showing combined info in the first column
+- **Always call `startAccessingSecurityScopedResource()`** on URLs from `fileImporter` - they are security-scoped
+- **Use `Transferable`** for drag & drop (modern) - fall back to `NSItemProvider` only for legacy compatibility
 - **Use `NSViewRepresentable` with Coordinator** when you need delegate callbacks from AppKit views
-- **Never set `frame`/`bounds`** directly on views managed by `NSViewRepresentable` — SwiftUI owns the layout
-- **Prefer native SwiftUI** over AppKit interop when possible — only use `NSViewRepresentable` for features SwiftUI doesn't provide
+- **Never set `frame`/`bounds`** directly on views managed by `NSViewRepresentable` - SwiftUI owns the layout
+- **Prefer native SwiftUI** over AppKit interop when possible - only use `NSViewRepresentable` for features SwiftUI doesn't provide

@@ -245,7 +245,7 @@ Camera and pose configuration:
 - **Custom pose**: `.chart3DPose(azimuth: .degrees(45), inclination: .degrees(30))`
 - On visionOS, Chart3D supports natural 3D interaction gestures for rotation and exploration
 
-**Always** gate `Chart3D` with `#available(iOS 26, *)` — it is not available on earlier OS versions.
+**Always** gate `Chart3D` with `#available(iOS 26, *)` - it is not available on earlier OS versions.
 
 ## Axis Tweaks
 
@@ -500,7 +500,7 @@ Chart(sales) { item in
 }
 ```
 
-**Avoid** applying `.foregroundStyle(.red)` per mark for categorical data — this suppresses the automatic legend and breaks accessibility.
+**Avoid** applying `.foregroundStyle(.red)` per mark for categorical data - this suppresses the automatic legend and breaks accessibility.
 
 ### Custom Color Scales
 
@@ -591,7 +591,7 @@ withAnimation(.easeInOut) {
 ### Don't
 
 - Put chart-wide modifiers such as `chartXAxis` or `chartXSelection` on individual marks
-- Apply manual `.foregroundStyle(.color)` per mark for categorical data — use `foregroundStyle(by:)` instead
+- Apply manual `.foregroundStyle(.color)` per mark for categorical data - use `foregroundStyle(by:)` instead
 - Rely on unstable identities when chart data can be inserted, removed, or reordered
 - Use string values for naturally numeric or date-based axes unless you want categorical behavior
 - Stack unrelated series by default just because `BarMark` and `AreaMark` allow it

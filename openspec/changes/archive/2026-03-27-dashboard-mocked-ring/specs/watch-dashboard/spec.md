@@ -39,7 +39,7 @@ The dashboard SHALL display a human-readable countdown to `usageState.resetAt5h`
 
 #### Scenario: Reset in the past
 - **WHEN** `resetAt5h` is in the past
-- **THEN** the dashboard displays "Resetting…" or "—"
+- **THEN** the dashboard displays "Resetting…" or "-"
 
 ### Requirement: Secondary 7-day utilization indicator
 The dashboard SHALL display `usageState.utilization7d` as a secondary visual indicator (inner ring or badge). It SHALL be visually subordinate to the primary 5-hour ring.

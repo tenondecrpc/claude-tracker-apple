@@ -1,6 +1,6 @@
 ## Context
 
-The macOS app currently uses a flat VStack popover layout and a single-column scrolling stats window — patterns shared by both direct competitors. All views use `ClaudeTheme` (navy + terracotta), enforced dark mode only, and a signal-strength menu bar icon. The rebranding replaces visual and structural patterns across every user-facing surface while preserving all existing data models, services, and business logic entirely.
+The macOS app currently uses a flat VStack popover layout and a single-column scrolling stats window - patterns shared by both direct competitors. All views use `ClaudeTheme` (navy + terracotta), enforced dark mode only, and a signal-strength menu bar icon. The rebranding replaces visual and structural patterns across every user-facing surface while preserving all existing data models, services, and business logic entirely.
 
 ## Goals / Non-Goals
 
@@ -64,7 +64,7 @@ The macOS app currently uses a flat VStack popover layout and a single-column sc
 
 **Rationale**: macOS convention for a separate `Settings` window (`Settings { ... }` scene) conflicts with the in-window tab paradigm we're establishing. Moving settings inline eliminates the gear icon (simplifying the header), creates a predictable discovery path (users explore tabs naturally), and lets us style the settings surface with the same card layout as the rest of the window.
 
-**Alternative considered**: macOS `Settings` scene with `Form { }.formStyle(.grouped)`. Rejected: this is exactly what Competitor 1 (claude-usage-bar) uses — directly copying it would undermine differentiation.
+**Alternative considered**: macOS `Settings` scene with `Form { }.formStyle(.grouped)`. Rejected: this is exactly what Competitor 1 (claude-usage-bar) uses - directly copying it would undermine differentiation.
 
 ---
 
@@ -104,9 +104,9 @@ The macOS app currently uses a flat VStack popover layout and a single-column sc
 
 - **File rename risk**: Xcode's PBX file system synchronized root (`PBXFileSystemSynchronizedRootGroup`) should automatically pick up renamed files, but if the old file name is cached in build intermediates, a clean build may be needed. Mitigation: delete derived data after renaming files.
 
-- **ClaudeTheme reference completeness**: Any missed `ClaudeTheme` reference will produce a compile error (the type will no longer exist). This is actually desirable — the compiler enforces the migration. Mitigation: grep for `ClaudeTheme` before marking implementation complete.
+- **ClaudeTheme reference completeness**: Any missed `ClaudeTheme` reference will produce a compile error (the type will no longer exist). This is actually desirable - the compiler enforces the migration. Mitigation: grep for `ClaudeTheme` before marking implementation complete.
 
-- **Ring gauge animation**: The `Circle().trim` approach does not natively animate the ring on value changes without explicit `withAnimation`. Since the popover updates via `TimelineView(.periodic(from:by: 30))`, no smooth animation is needed — values update discretely. Non-issue for this scope.
+- **Ring gauge animation**: The `Circle().trim` approach does not natively animate the ring on value changes without explicit `withAnimation`. Since the popover updates via `TimelineView(.periodic(from:by: 30))`, no smooth animation is needed - values update discretely. Non-issue for this scope.
 
 - **DisclosureGroup styling**: `DisclosureGroup` on macOS uses system chevron styling which may not perfectly match the card aesthetic. Mitigation: Use `.disclosureGroupStyle` or wrap in a custom disclosure button if the system style clashes too much. Mark as an acceptable cosmetic trade-off for initial implementation.
 
@@ -114,4 +114,4 @@ The macOS app currently uses a flat VStack popover layout and a single-column sc
 
 ## Open Questions
 
-None — all design decisions resolved. Implementation may proceed directly to specs and tasks.
+None - all design decisions resolved. Implementation may proceed directly to specs and tasks.

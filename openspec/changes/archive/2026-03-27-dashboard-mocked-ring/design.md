@@ -15,14 +15,14 @@ The project uses the modern `@Observable` macro (not `ObservableObject`), target
 **Non-Goals:**
 - WatchConnectivity integration (Phase 3 real data)
 - OAuth polling or real `UsageState` (Phase 7)
-- Haptic triggers (Phase 3 — separate from the UI)
+- Haptic triggers (Phase 3 - separate from the UI)
 - Complications (Phase 5)
 - Persistence to `UserDefaults` (can be added in Phase 3 without UI changes)
 
 ## Decisions
 
 ### `@Observable` over `ObservableObject`
-Using the `@Observable` macro (`import Observation`) instead of `ObservableObject` + `@Published`. Rationale: the roadmap explicitly requires `@Observable @MainActor`, and the macro enables fine-grained dependency tracking. Consequence: `@AppStorage` cannot be used inside the class — `UserDefaults` + `JSONEncoder` must be used directly for persistence later.
+Using the `@Observable` macro (`import Observation`) instead of `ObservableObject` + `@Published`. Rationale: the roadmap explicitly requires `@Observable @MainActor`, and the macro enables fine-grained dependency tracking. Consequence: `@AppStorage` cannot be used inside the class - `UserDefaults` + `JSONEncoder` must be used directly for persistence later.
 
 ### Static mock via computed `var` not `let`
 `UsageState.mock` is a `static var` (not `let`) so `Date()` is evaluated fresh on each access. A `let` would freeze the mock countdown at first use, making the timer appear incorrect in Previews and during development. The roadmap explicitly calls this out.
@@ -44,8 +44,8 @@ The badge is an explicit contract: the watch face must never look "real" while s
 
 - **Ring appearance on small watch faces** → Use compact `lineWidth` (6–8pt) and verify in 41mm and 45mm previews. Mitigation: add `#Preview` with explicit `previewDevice`.
 - **`@Observable` and `@State` interaction** → `TokenStore` should be instantiated with `@State private var store = TokenStore()` in the root view (not `@StateObject`). Mitigation: follow the `@Observable` state management reference.
-- **Countdown display drift** — `TimelineView` or a `Timer`-based approach needed to keep countdown live. Using `TimelineView(.periodic(from:by:))` is the watchOS-idiomatic choice. Mitigation: wrap countdown text in a `TimelineView` with 60-second cadence.
+- **Countdown display drift** - `TimelineView` or a `Timer`-based approach needed to keep countdown live. Using `TimelineView(.periodic(from:by:))` is the watchOS-idiomatic choice. Mitigation: wrap countdown text in a `TimelineView` with 60-second cadence.
 
 ## Open Questions
 
-- Which watch target is the "real" one? There appear to be two: `Tempo Watch/` and `Tempo Watch Extension/`. The roadmap references `tempo-for-claude-applewatch Watch App/` — needs confirmation at implementation time. Both currently contain identical blank templates; implement in the one that builds successfully.
+- Which watch target is the "real" one? There appear to be two: `Tempo Watch/` and `Tempo Watch Extension/`. The roadmap references `tempo-for-claude-applewatch Watch App/` - needs confirmation at implementation time. Both currently contain identical blank templates; implement in the one that builds successfully.

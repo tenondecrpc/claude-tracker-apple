@@ -67,7 +67,7 @@ TextField("Search", text: $query)
 **Always use the `@Entry` macro instead of manual `EnvironmentKey` conformance.** The `@Entry` macro was introduced in Xcode 16 and back-deploys to all OS versions.
 
 ```swift
-// Modern — one line replaces ~10 lines of EnvironmentKey boilerplate
+// Modern - one line replaces ~10 lines of EnvironmentKey boilerplate
 extension EnvironmentValues {
     @Entry var myCustomValue: String = "Default value"
 }
@@ -134,7 +134,7 @@ The deprecated variant passes only the new value. The modern variants provide ei
 - **No-parameter** (most common): `.onChange(of: value) { doSomething() }`
 - **Old and new values**: `.onChange(of: value) { old, new in ... }`
 - **With initial trigger**: `.onChange(of: value, initial: true) { ... }`
-- **Deprecated**: `.onChange(of: value) { newValue in ... }` — single-parameter closure
+- **Deprecated**: `.onChange(of: value) { newValue in ... }` - single-parameter closure
 
 ### Gestures
 
@@ -151,8 +151,8 @@ Image("hero")
     .containerRelativeFrame(.horizontal) { length, axis in length * 0.8 }
 ```
 
-- **`visualEffect { content, geometry in ... }`** — position-based effects (parallax, offsets) without a `GeometryReader` wrapper.
-- **`onGeometryChange(for:of:action:)`** — react to geometry changes of a specific view; useful for driving state/effects. `GeometryReader` is still better when layout itself depends on geometry. Note the two-closure shape:
+- **`visualEffect { content, geometry in ... }`** - position-based effects (parallax, offsets) without a `GeometryReader` wrapper.
+- **`onGeometryChange(for:of:action:)`** - react to geometry changes of a specific view; useful for driving state/effects. `GeometryReader` is still better when layout itself depends on geometry. Note the two-closure shape:
   ```swift
   .onGeometryChange(for: CGFloat.self) { proxy in proxy.size.height } action: { newHeight in height = newHeight }
   ```

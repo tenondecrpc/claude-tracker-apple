@@ -11,7 +11,7 @@
 
 ## 3. macOS Menu Bar UI
 
-- [x] 3.1 Add "Extra Usage" section to `AuthenticatedMenuView.usageContent()` — show label, dollar amounts (`$X.XX / $Y.YY`), progress bar, and "Resets monthly" text, conditionally displayed when `extraUsage?.isEnabled == true`
+- [x] 3.1 Add "Extra Usage" section to `AuthenticatedMenuView.usageContent()` - show label, dollar amounts (`$X.XX / $Y.YY`), progress bar, and "Resets monthly" text, conditionally displayed when `extraUsage?.isEnabled == true`
 - [x] 3.2 Reposition burn-rate and last-polled rows after the Extra Usage section
 
 ## 4. Verification

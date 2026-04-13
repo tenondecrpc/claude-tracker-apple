@@ -1,8 +1,8 @@
 ## Context
 
 `SessionInfo` in `Shared/Models.swift` has two fields with no valid data source:
-- `limitResetAt: Date?` — limit reset timestamps are account-level OAuth data, not per-session hook data
-- `isDoubleLimitActive: Bool` — no hook env var or transcript field exists for this
+- `limitResetAt: Date?` - limit reset timestamps are account-level OAuth data, not per-session hook data
+- `isDoubleLimitActive: Bool` - no hook env var or transcript field exists for this
 
 Phase 0 confirmed the Stop hook delivers only `session_id`, `transcript_path`, `hook_event_name`, `stop_hook_active` via stdin. Token/cost data requires parsing the transcript JSONL. There is no mechanism by which the hook can learn `limitResetAt` or `isDoubleLimitActive`.
 
@@ -22,7 +22,7 @@ Phase 0 confirmed the Stop hook delivers only `session_id`, `transcript_path`, `
 
 **Remove both fields entirely (vs. keeping as optional/computed)**
 
-Both fields are `let` constants — they cannot be lazily populated. Making them `Optional` would just defer the problem: every callsite would need to unwrap a value that is always `nil`. Removal is cleaner and eliminates the false promise that this data exists.
+Both fields are `let` constants - they cannot be lazily populated. Making them `Optional` would just defer the problem: every callsite would need to unwrap a value that is always `nil`. Removal is cleaner and eliminates the false promise that this data exists.
 
 **Keep `costUSD: Double` at `0.0`**
 
@@ -37,4 +37,4 @@ Both fields are `let` constants — they cannot be lazily populated. Making them
 
 1. Remove fields from `SessionInfo` in `Shared/Models.swift`
 2. Fix `MockData.swift` fixtures (remove the two arguments from initializers)
-3. Build — verify no other call sites remain (there are none in current codebase)
+3. Build - verify no other call sites remain (there are none in current codebase)

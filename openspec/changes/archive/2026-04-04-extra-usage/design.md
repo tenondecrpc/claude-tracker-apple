@@ -1,6 +1,6 @@
 ## Context
 
-Tempo's macOS menu bar app polls `GET /api/oauth/usage` and displays two utilization gauges (5-hour session and 7-day weekly). The API response already includes an `extra_usage` object with billing data, but the app currently ignores it. The reference app `claude-usage-bar` already implements this feature — we follow its proven pattern (cents-to-dollars conversion, conditional display when enabled, `ExtraUsage` Codable struct).
+Tempo's macOS menu bar app polls `GET /api/oauth/usage` and displays two utilization gauges (5-hour session and 7-day weekly). The API response already includes an `extra_usage` object with billing data, but the app currently ignores it. The reference app `claude-usage-bar` already implements this feature - we follow its proven pattern (cents-to-dollars conversion, conditional display when enabled, `ExtraUsage` Codable struct).
 
 Current data flow: `UsagePoller.fetchUsage()` → `UsageState` → UI + iCloud write.
 
@@ -42,4 +42,4 @@ The screenshot shows Extra Usage below Weekly Limit with "Resets monthly" label,
 ## Risks / Trade-offs
 
 - **[iCloud schema growth]** → Adding `extraUsage` to the iCloud JSON is backward-compatible since `Codable` handles missing keys as `nil`. Old iOS app versions will simply ignore it.
-- **[API field absence]** → If `extra_usage` is missing from the response entirely, `JSONDecoder` with optional field handles it gracefully — no crash risk.
+- **[API field absence]** → If `extra_usage` is missing from the response entirely, `JSONDecoder` with optional field handles it gracefully - no crash risk.

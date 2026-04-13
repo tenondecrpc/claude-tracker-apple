@@ -71,7 +71,7 @@ struct MyView: View {
 
 **Critical**: When a view *owns* an `@Observable` object, always use `@State` -- not `let`. Without `@State`, SwiftUI may recreate the instance when a parent view redraws, losing accumulated state. `@State` tells SwiftUI to preserve the instance across view redraws. Using `@State` also provides bindings directly (no need for `@Bindable`).
 
-**Note**: You may want to mark `@Observable` classes with `@MainActor` to ensure thread safety with SwiftUI, unless your project or package uses Default Actor Isolation set to `MainActor`—in which case, the explicit attribute is redundant and can be omitted.
+**Note**: You may want to mark `@Observable` classes with `@MainActor` to ensure thread safety with SwiftUI, unless your project or package uses Default Actor Isolation set to `MainActor`-in which case, the explicit attribute is redundant and can be omitted.
 
 ## Property Wrappers Inside @Observable Classes
 
@@ -102,7 +102,7 @@ This applies to **any** property wrapper used inside an `@Observable` class, inc
 
 **Note**: Since `@ObservationIgnored` disables observation tracking for that property, SwiftUI won't detect changes through the Observation framework. However, property wrappers like `@AppStorage` already notify SwiftUI of changes through their own mechanisms (e.g., UserDefaults KVO), so views still update correctly.
 
-**Never remove `@ObservationIgnored`** from property-wrapper properties in `@Observable` classes — doing so causes a compiler error.
+**Never remove `@ObservationIgnored`** from property-wrapper properties in `@Observable` classes - doing so causes a compiler error.
 
 ## @Binding
 
@@ -191,11 +191,11 @@ Prefer storing the `@StateObject` in the parent view and passing it down. If you
 
 ```swift
 // Inside a View's init(movie:):
-// WRONG — assigning to a local first defeats @autoclosure
+// WRONG - assigning to a local first defeats @autoclosure
 let vm = MovieDetailsViewModel(movie: movie)
 _viewModel = StateObject(wrappedValue: vm)
 
-// CORRECT — inline expression defers creation
+// CORRECT - inline expression defers creation
 _viewModel = StateObject(wrappedValue: MovieDetailsViewModel(movie: movie))
 ```
 
@@ -414,4 +414,4 @@ SwiftUI can't track changes through nested `ObservableObject` properties. Workar
 5. **Always mark `@State` and `@StateObject` as `private`**
 6. **Never declare passed values as `@State` or `@StateObject`**
 7. With `@Observable`, nested objects work fine; with `ObservableObject`, pass nested objects directly to child views
-8. **Always add `@ObservationIgnored` to property wrappers** (e.g., `@AppStorage`, `@SceneStorage`, `@Query`) inside `@Observable` classes — they conflict with the macro's property transformation
+8. **Always add `@ObservationIgnored` to property wrappers** (e.g., `@AppStorage`, `@SceneStorage`, `@Query`) inside `@Observable` classes - they conflict with the macro's property transformation

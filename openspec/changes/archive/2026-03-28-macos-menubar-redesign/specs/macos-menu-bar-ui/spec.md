@@ -59,7 +59,7 @@ When the user clicks "Logout", the app SHALL:
 3. Reset `authState.isAuthenticated` and `authState.isAwaitingCode` to `false`
 4. Transition the popover immediately to the not-signed-in state
 
-No confirmation dialog is required. The operation SHALL be synchronous and non-reversible — the user must go through the sign-in flow again to reconnect.
+No confirmation dialog is required. The operation SHALL be synchronous and non-reversible - the user must go through the sign-in flow again to reconnect.
 
 #### Scenario: Credentials file deleted on logout
 - **WHEN** the user clicks "Logout"
@@ -75,7 +75,7 @@ No confirmation dialog is required. The operation SHALL be synchronous and non-r
 
 #### Scenario: Logging out while Welcome window is open
 - **WHEN** the Welcome window is open and the user triggers logout from another path
-- **THEN** the Welcome window remains open (no automatic close — user is already in the sign-in flow)
+- **THEN** the Welcome window remains open (no automatic close - user is already in the sign-in flow)
 
 #### Scenario: Subsequent launch starts unauthenticated
 - **WHEN** the user quits and relaunches the app after logging out

@@ -23,7 +23,7 @@ The poller SHALL map the API response to `UsageState`. `five_hour.utilization` (
 - **THEN** `UsageState.resetAt5h` is the corresponding `Date`
 
 ### Requirement: Reset timestamp reconciliation preserves last known value
-If the API response omits `resets_at` (null or missing), the poller SHALL retain the previously known reset timestamp. A reset is detected when `utilization` drops after having been above 0 — in that case the old timestamp is discarded.
+If the API response omits `resets_at` (null or missing), the poller SHALL retain the previously known reset timestamp. A reset is detected when `utilization` drops after having been above 0 - in that case the old timestamp is discarded.
 
 #### Scenario: Null resets_at preserves prior value
 - **WHEN** the API returns `"resets_at": null` and a previous `resetAt5h` exists

@@ -207,7 +207,7 @@ final class MacOSAPIClient {
             authState.isAuthenticated = true
             return true
         }
-        // Token expired — try refresh
+        // Token expired - try refresh
         do {
             _ = try await refreshAccessToken()
             authState.isAuthenticated = true

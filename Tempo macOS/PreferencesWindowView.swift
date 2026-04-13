@@ -154,7 +154,7 @@ struct PreferencesWindowView: View {
                 }
             }
 
-            // Menu Bar Display card — compact 2-column grid
+            // Menu Bar Display card - compact 2-column grid
             preferencesCard(title: "Menu Bar Display") {
                 HStack(alignment: .top, spacing: 0) {
                     // 5-Hour column
@@ -202,7 +202,7 @@ struct PreferencesWindowView: View {
 
                 Divider().overlay(ClaudeCodeTheme.progressTrack).padding(.vertical, 10)
 
-                // Extra usage — full-width compact row
+                // Extra usage - full-width compact row
                 menuBarCompactRow(
                     title: "Extra Usage Credits",
                     example: "$3.20/$20",

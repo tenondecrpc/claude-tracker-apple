@@ -17,14 +17,14 @@
 - [x] 3.1 Rename `AuthenticatedView.swift` to `DashboardPopoverView.swift`; update `MacMenuView` reference in `SignInView.swift`
 - [x] 3.2 Set popover width to 320pt in `TempoMacApp.swift` (update `.frame(width:)` on `MenuBarExtra` body)
 - [x] 3.3 Replace the flat VStack usage content with the ring dashboard layout: `UsageRingView` (150×150pt, centered), pill chips HStack, `BurnRateCard`, promo indicator (above ring, right-aligned, `TempoTheme.warning`, when `isDoubleLimitPromoActive`)
-- [x] 3.4 Move service status row out of the body — it is now only the dot in the header; remove the service status body row from `usageContent`
+- [x] 3.4 Move service status row out of the body - it is now only the dot in the header; remove the service status body row from `usageContent`
 - [x] 3.5 Update not-signed-in state: replace `ClaudeTheme.lockIcon` with `TempoTheme.info`, replace coral button with `TempoTheme.accent` violet, update subtitle text to "Sign in to view your usage", update quit button to `TempoTheme.critical`
 - [x] 3.6 Update action items: remove settings reference (settings now in Preferences tab), keep Usage History + Logout + Quit with `TempoTheme` colors
 
 ## 4. Menu Bar Icon (MenuBarIconView.swift)
 
 - [x] 4.1 Rename `DynamicMenuBarIconView.swift` to `MenuBarIconView.swift`
-- [x] 4.2 Replace `NSImage.usageBar(percentage:)` with `NSImage.pulseDot(percentage:)`: 18×18pt NSImage, `CGContext` drawing — track circle (center 9,9, radius 6pt, lineWidth 1.5pt, 30% opacity), arc fill (same center/radius, from −90° clockwise by `utilization × 360°`, lineWidth 1.5pt, `lineCap .round`), center filled ellipse (5×5pt at 6.5,6.5), `isTemplate = true`
+- [x] 4.2 Replace `NSImage.usageBar(percentage:)` with `NSImage.pulseDot(percentage:)`: 18×18pt NSImage, `CGContext` drawing - track circle (center 9,9, radius 6pt, lineWidth 1.5pt, 30% opacity), arc fill (same center/radius, from −90° clockwise by `utilization × 360°`, lineWidth 1.5pt, `lineCap .round`), center filled ellipse (5×5pt at 6.5,6.5), `isTemplate = true`
 - [x] 4.3 Verify optional percentage text still renders to the right of the pulse dot when `showPercentage` is enabled
 
 ## 5. Stats Detail Window (DetailWindowView.swift)
@@ -60,8 +60,8 @@
 ## 9. Preferences Tab
 
 - [x] 9.1 Build Preferences tab with three grouped card sections using `TempoTheme.card` bg, 12pt radius, 24pt padding
-- [x] 9.2 General card: Launch at Login (icon `power`), Show Percentage in Menu Bar (icon `percent`), 24-Hour Time (icon `clock.arrow.2.circlepath`) — each as HStack with icon, VStack(title+subtitle), and Toggle tinted `TempoTheme.accent`
-- [x] 9.3 Data & Sync card: Sync History via iCloud (icon `icloud`), Service Status Monitoring (icon `dot.radiowaves.left.and.right`) — same row structure
+- [x] 9.2 General card: Launch at Login (icon `power`), Show Percentage in Menu Bar (icon `percent`), 24-Hour Time (icon `clock.arrow.2.circlepath`) - each as HStack with icon, VStack(title+subtitle), and Toggle tinted `TempoTheme.accent`
+- [x] 9.3 Data & Sync card: Sync History via iCloud (icon `icloud`), Service Status Monitoring (icon `dot.radiowaves.left.and.right`) - same row structure
 - [x] 9.4 Account card: email in `.callout` `TempoTheme.textSecondary`, "Sign Out" button below in `TempoTheme.critical`; wire logout action
 - [x] 9.5 Constrain Preferences tab content to max width 560pt, horizontally centered
 - [x] 9.6 Remove the old inline settings popover (`@State private var showSettings`, `SettingsPopoverContent` or equivalent) from `DetailWindowView`
@@ -76,7 +76,7 @@
 ## 11. App Entry Point + Polish
 
 - [x] 11.1 In `TempoMacApp.swift`: update `Window("Stats", id: "stats-detail")` title/scene reference; update any "Usage for Claude" strings to "Tempo for Claude"; update `MenuBarExtra` label if it contains branding text
-- [x] 11.2 Grep entire macOS target for `ClaudeTheme` — fix any remaining references
-- [x] 11.3 Grep entire macOS target for "Usage for Claude" — update remaining occurrences to "Tempo for Claude" or "Tempo" as appropriate
+- [x] 11.2 Grep entire macOS target for `ClaudeTheme` - fix any remaining references
+- [x] 11.3 Grep entire macOS target for "Usage for Claude" - update remaining occurrences to "Tempo for Claude" or "Tempo" as appropriate
 - [x] 11.4 Build the macOS target in Xcode and fix any compile errors
 - [x] 11.5 Run the app: verify popover opens with ring gauges, detail window opens with tab bar, Preferences tab shows settings, pulse dot renders in menu bar, welcome flow shows "Tempo for Claude"

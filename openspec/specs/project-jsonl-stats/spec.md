@@ -36,7 +36,7 @@ The project breakdown table SHALL display Messages, Tools, Tokens, and Cost colu
 
 #### Scenario: Project with zero activity in 7 days
 - **WHEN** a project has no sessions modified in the last 7 days
-- **THEN** all 7-day columns SHALL display "—" for that project
+- **THEN** all 7-day columns SHALL display "-" for that project
 
 #### Scenario: Cost formatting
 - **WHEN** a project's 7-day API-equivalent cost is greater than 0

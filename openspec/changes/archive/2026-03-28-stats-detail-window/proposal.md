@@ -1,6 +1,6 @@
 ## Why
 
-The menu bar popup (310pt wide) is too narrow to display detailed usage statistics comfortably. Users need a way to see richer, better-organized data — circular gauges, side-by-side session/weekly comparisons, and burn-rate details — in a proper window that uses the full screen width.
+The menu bar popup (310pt wide) is too narrow to display detailed usage statistics comfortably. Users need a way to see richer, better-organized data - circular gauges, side-by-side session/weekly comparisons, and burn-rate details - in a proper window that uses the full screen width.
 
 ## What Changes
 
@@ -19,7 +19,7 @@ The menu bar popup (310pt wide) is too narrow to display detailed usage statisti
 
 ## Impact
 
-- **New file**: `Tempo macOS/StatsDetailView.swift` — window content view and circular gauge component.
-- **Modified**: `Tempo macOS/TempoMacApp.swift` — register new `Window` scene.
-- **Modified**: `Tempo macOS/AuthenticatedView.swift` — wire "Usage History" button to `openWindow`.
+- **New file**: `Tempo macOS/StatsDetailView.swift` - window content view and circular gauge component.
+- **Modified**: `Tempo macOS/TempoMacApp.swift` - register new `Window` scene.
+- **Modified**: `Tempo macOS/AuthenticatedView.swift` - wire "Usage History" button to `openWindow`.
 - No dependency or API changes. Uses existing `MacAppCoordinator`, `UsageState`, and `ClaudeTheme`.

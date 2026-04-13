@@ -1,6 +1,6 @@
 ## Why
 
-The current macOS menu bar app has a minimal, default-styled SwiftUI UI — a basic sign-in form and a plain "Connected" status. It doesn't surface the usage data it already polls (session %, weekly %, reset times) and lacks visual identity. Redesigning the popover to match a polished "Usage for Claude" aesthetic — dark navy palette with coral accents — turns it into a genuinely useful dashboard and makes sign-in more inviting via a dedicated Welcome window.
+The current macOS menu bar app has a minimal, default-styled SwiftUI UI - a basic sign-in form and a plain "Connected" status. It doesn't surface the usage data it already polls (session %, weekly %, reset times) and lacks visual identity. Redesigning the popover to match a polished "Usage for Claude" aesthetic - dark navy palette with coral accents - turns it into a genuinely useful dashboard and makes sign-in more inviting via a dedicated Welcome window.
 
 ## What Changes
 
@@ -18,11 +18,11 @@ The current macOS menu bar app has a minimal, default-styled SwiftUI UI — a ba
 - `claude-theme`: Reusable design token definitions (colors, spacing) for the Claude visual identity.
 
 ### Modified Capabilities
-- `macos-usage-writer`: The authenticated view now consumes `UsageState` fields for display (session %, weekly %, reset times) — adds a requirement that the poller exposes a published/observable `UsageState`.
+- `macos-usage-writer`: The authenticated view now consumes `UsageState` fields for display (session %, weekly %, reset times) - adds a requirement that the poller exposes a published/observable `UsageState`.
 
 ## Impact
 
 - **Files modified**: `SignInView.swift`, `AuthenticatedView.swift`, `TempoMacApp.swift` (macOS target)
 - **New files**: `ClaudeTheme.swift`, `WelcomeWindow.swift`, `MenuBarHeaderView.swift`, `UsageDashboardView.swift`, progress bar components
 - **No changes to**: OAuth flow, CredentialStore, UsagePoller logic, Shared/ models, iOS target, watchOS target
-- **Dependencies**: None new — pure SwiftUI, macOS 14+
+- **Dependencies**: None new - pure SwiftUI, macOS 14+

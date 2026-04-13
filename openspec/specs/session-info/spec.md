@@ -13,10 +13,10 @@ The `costUSD` field SHALL be retained in `SessionInfo` but SHALL always be `0.0`
 
 ### Requirement: LocalProjectStat model
 `LocalProjectStat` SHALL include the following fields in addition to existing `dirName`, `displayName`, and `sessionCount`:
-- `messages7d: Int` — user message count in the last 7 days
-- `toolCalls7d: Int` — tool_use block count in the last 7 days
-- `totalTokens7d: Int` — sum of input + output tokens in the last 7 days
-- `costEquiv7d: Double` — API-equivalent cost in USD in the last 7 days
+- `messages7d: Int` - user message count in the last 7 days
+- `toolCalls7d: Int` - tool_use block count in the last 7 days
+- `totalTokens7d: Int` - sum of input + output tokens in the last 7 days
+- `costEquiv7d: Double` - API-equivalent cost in USD in the last 7 days
 
 #### Scenario: Model initialized with 7-day fields
 - **WHEN** `LocalProjectStat` is constructed from JSONL parsing results

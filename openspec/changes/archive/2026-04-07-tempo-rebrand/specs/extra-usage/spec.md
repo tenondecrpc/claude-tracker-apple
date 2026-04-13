@@ -2,15 +2,15 @@
 
 ### Requirement: ExtraUsage data model
 The system SHALL define an `ExtraUsage` struct that is `Codable` with the following fields:
-- `isEnabled: Bool` — whether extra usage billing is active
-- `usedCredits: Double?` — credits consumed this month, in cents
-- `monthlyLimit: Double?` — maximum monthly spend, in cents
-- `utilization: Double?` — percentage of limit used (0–100)
+- `isEnabled: Bool` - whether extra usage billing is active
+- `usedCredits: Double?` - credits consumed this month, in cents
+- `monthlyLimit: Double?` - maximum monthly spend, in cents
+- `utilization: Double?` - percentage of limit used (0–100)
 
 The struct SHALL provide computed properties:
-- `usedCreditsAmount: Double?` — `usedCredits / 100.0` (dollars)
-- `monthlyLimitAmount: Double?` — `monthlyLimit / 100.0` (dollars)
-- `formatUSD(_:) -> String` — static method formatting a dollar amount as `$X.XX`
+- `usedCreditsAmount: Double?` - `usedCredits / 100.0` (dollars)
+- `monthlyLimitAmount: Double?` - `monthlyLimit / 100.0` (dollars)
+- `formatUSD(_:) -> String` - static method formatting a dollar amount as `$X.XX`
 
 #### Scenario: Decoding enabled extra usage from JSON
 - **WHEN** the API returns `{"is_enabled": true, "monthly_limit": 2000, "used_credits": 530, "utilization": 26.5}`
@@ -34,11 +34,11 @@ When `extraUsage?.isEnabled == true`, the macOS menu bar popover SHALL display E
 
 The Extra Usage section SHALL NOT appear as a standalone progress bar block in the popover body. When `extraUsage?.isEnabled == false` or `extraUsage` is `nil`, the disclosure group SHALL NOT appear.
 
-#### Scenario: Extra usage enabled — disclosure visible but collapsed
+#### Scenario: Extra usage enabled - disclosure visible but collapsed
 - **WHEN** `extraUsage` has `isEnabled=true` and `usedCredits=530`, `monthlyLimit=2000`
 - **THEN** the burn rate card shows a collapsed "Extra Usage" disclosure group
 
-#### Scenario: Extra usage enabled — disclosure expanded
+#### Scenario: Extra usage enabled - disclosure expanded
 - **WHEN** the user taps the "Extra Usage" disclosure group
 - **THEN** it expands to show "$5.30 / $20.00" and a 26.5% progress bar in sky blue
 

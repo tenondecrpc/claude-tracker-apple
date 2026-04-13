@@ -2,15 +2,15 @@
 
 ### Requirement: ExtraUsage data model
 The system SHALL define an `ExtraUsage` struct that is `Codable` with the following fields:
-- `isEnabled: Bool` — whether extra usage billing is active
-- `usedCredits: Double?` — credits consumed this month, in cents
-- `monthlyLimit: Double?` — maximum monthly spend, in cents
-- `utilization: Double?` — percentage of limit used (0–100)
+- `isEnabled: Bool` - whether extra usage billing is active
+- `usedCredits: Double?` - credits consumed this month, in cents
+- `monthlyLimit: Double?` - maximum monthly spend, in cents
+- `utilization: Double?` - percentage of limit used (0–100)
 
 The struct SHALL provide computed properties:
-- `usedCreditsAmount: Double?` — `usedCredits / 100.0` (dollars)
-- `monthlyLimitAmount: Double?` — `monthlyLimit / 100.0` (dollars)
-- `formatUSD(_:) -> String` — static method formatting a dollar amount as `$X.XX`
+- `usedCreditsAmount: Double?` - `usedCredits / 100.0` (dollars)
+- `monthlyLimitAmount: Double?` - `monthlyLimit / 100.0` (dollars)
+- `formatUSD(_:) -> String` - static method formatting a dollar amount as `$X.XX`
 
 #### Scenario: Decoding enabled extra usage from JSON
 - **WHEN** the API returns `{"is_enabled": true, "monthly_limit": 2000, "used_credits": 530, "utilization": 26.5}`

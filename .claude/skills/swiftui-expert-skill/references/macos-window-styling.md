@@ -60,10 +60,10 @@ struct MyApp: App {
 | `.expanded` | Title bar displayed above the toolbar (more toolbar space) |
 
 ```swift
-// Unified compact — minimal chrome
+// Unified compact - minimal chrome
 .windowToolbarStyle(.unifiedCompact)
 
-// Expanded — title bar above toolbar
+// Expanded - title bar above toolbar
 .windowToolbarStyle(.expanded)
 
 // Unified with title hidden
@@ -109,7 +109,7 @@ WindowGroup {
 }
 .windowStyle(.titleBar)
 
-// Hidden title bar — chromeless window
+// Hidden title bar - chromeless window
 WindowGroup {
     ContentView()
 }
@@ -294,10 +294,10 @@ struct ToolbarActions: View {
 
 ## Best Practices
 
-- **Use `.unified` or `.unifiedCompact`** for most apps — `.expanded` only when you need many toolbar items
+- **Use `.unified` or `.unifiedCompact`** for most apps - `.expanded` only when you need many toolbar items
 - **Set min frame sizes on content** and use `.windowResizability(.contentMinSize)` to enforce them
 - **Always provide `defaultSize`** so new windows start at a reasonable size
-- **Use `NavigationSplitView`** for sidebar navigation — not `HSplitView`
-- **Use `Inspector`** for supplementary panels — it integrates with the toolbar automatically
-- **Define `Commands`** for all repeatable actions — users expect keyboard shortcuts on macOS
+- **Use `NavigationSplitView`** for sidebar navigation - not `HSplitView`
+- **Use `Inspector`** for supplementary panels - it integrates with the toolbar automatically
+- **Define `Commands`** for all repeatable actions - users expect keyboard shortcuts on macOS
 - **Use `#if os(macOS)`** to wrap macOS-only window configuration in multiplatform projects

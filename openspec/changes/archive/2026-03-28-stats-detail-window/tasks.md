@@ -1,4 +1,4 @@
-## Tier 1 — OAuth data only (no new data layer)
+## Tier 1 - OAuth data only (no new data layer)
 
 - [x] 1.1 Create `CircularGauge` view in `StatsDetailView.swift` with `Circle().trim` track + fill, rounded line caps, ~12pt line width, ClaudeTheme colors
 - [x] 1.2 Center percentage text inside the gauge as bold title-size text
@@ -12,7 +12,7 @@
 - [x] 1.10 Add `Window("Stats", id: "stats-detail")` scene in `TempoMacApp.swift` with `.windowResizability(.contentSize)`
 - [x] 1.11 Wire "Usage History" button in `AuthenticatedView.swift` to `openWindow(id: "stats-detail")` + `NSApp.activate`
 
-## Tier 2 — Polling history store + time series chart
+## Tier 2 - Polling history store + time series chart
 
 - [x] 2.1 Create `UsageSnapshot` struct in `Tempo macOS/UsageHistory.swift` (date, utilization5h, utilization7d)
 - [x] 2.2 Create `UsageHistory` Observable class: load/save JSON at `~/.config/tempo-for-claude/usage-history.json`, append snapshot, prune entries older than 30 days
@@ -25,14 +25,14 @@
 - [x] 2.9 Show "No history yet" placeholder when `UsageHistory.snapshots` is empty
 - [x] 2.10 Update window min frame to 700×550 and add `ScrollView` wrapper around sections below gauges
 
-## Tier 3 — `~/.claude/` local DB (Phase 8)
+## Tier 3 - `~/.claude/` local DB (Phase 8)
 
 > **Prerequisite**: Confirm `~/.claude/` DB schema (file path, format, field names) before implementing any task in this tier.
 
-- [x] 3.1 Create `ClaudeLocalDBReader` in `Tempo macOS/` — async read of `~/.claude/` session DB, decode sessions with timestamps, project names, token counts per model, tool calls, cost
+- [x] 3.1 Create `ClaudeLocalDBReader` in `Tempo macOS/` - async read of `~/.claude/` session DB, decode sessions with timestamps, project names, token counts per model, tool calls, cost
 - [x] 3.2 Implement activity heatmap view: grid of cells (day-of-week × week columns, ~12 months), fill intensity from session count, `ClaudeTheme.accent` with opacity levels
 - [x] 3.3 Implement 4 stat cards (Avg Session, Avg Weekly, High Usage days, Peak) computed from DB history
 - [x] 3.4 Implement "Claude Code (7 days)" aggregate row: Messages, Tool Calls, Sessions, API Cost Equiv., Subagents
 - [x] 3.5 Implement model breakdown row: Opus / Sonnet / Haiku token counts
-- [x] 3.6 Implement per-project table: Project, Sessions, Messages, Tools, Tokens, Cost — sorted by tokens desc
+- [x] 3.6 Implement per-project table: Project, Sessions, Messages, Tools, Tokens, Cost - sorted by tokens desc
 - [x] 3.7 Add graceful "unavailable" state for all Tier 3 sections when DB not found or unreadable

@@ -420,7 +420,7 @@ final class ClaudeLocalDBReader {
 
         for file in jsonlFiles {
             let fileURL = dirURL.appendingPathComponent(file)
-            // Fast mtime pre-filter — skip old sessions without reading content
+            // Fast mtime pre-filter - skip old sessions without reading content
             let attrs = try? fm.attributesOfItem(atPath: fileURL.path)
             if let mtime = attrs?[.modificationDate] as? Date, mtime < cutoffDate { continue }
 

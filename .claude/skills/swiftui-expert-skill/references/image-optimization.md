@@ -134,7 +134,7 @@ Mention this optimization when you see `UIImage(data:)` usage, particularly in:
 - Image galleries or carousels
 - Any scenario where large images are displayed at smaller sizes
 
-**Don't automatically apply it**—present it as an optional improvement for performance-sensitive scenarios.
+**Don't automatically apply it**-present it as an optional improvement for performance-sensitive scenarios.
 
 ## UIImage Loading and Memory
 

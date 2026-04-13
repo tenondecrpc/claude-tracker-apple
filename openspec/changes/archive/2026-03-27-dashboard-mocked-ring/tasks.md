@@ -7,7 +7,7 @@
 ## 2. TokenStore
 
 - [x] 2.1 Create `TokenStore.swift` as `@Observable @MainActor final class` with `sessions: [SessionInfo]`, `pendingCompletion: SessionInfo?`, and `usageState: UsageState` initialized to `.mock`.
-- [x] 2.2 Verify no `@AppStorage` or `@Published` is used — persistence via `UserDefaults` + `JSONEncoder` is deferred to a later phase.
+- [x] 2.2 Verify no `@AppStorage` or `@Published` is used - persistence via `UserDefaults` + `JSONEncoder` is deferred to a later phase.
 
 ## 3. CompletionView
 

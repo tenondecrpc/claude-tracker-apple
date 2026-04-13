@@ -1,6 +1,6 @@
 ## Context
 
-The project breakdown table in `StatsDetailView` has headers for 5 data columns (Sessions, Messages, Tools, Tokens, Cost) but only Sessions is populated — the rest show "—". The underlying data lives in per-project JSONL files at `~/.claude/projects/<encoded-path>/`. Each `.jsonl` file is a session containing typed records (`user`, `assistant`, `system`, `file-history-snapshot`, `last-prompt`). Assistant records include a `message.usage` object with token counts and a `message.model` field. Tool calls are `tool_use` blocks inside `message.content`.
+The project breakdown table in `StatsDetailView` has headers for 5 data columns (Sessions, Messages, Tools, Tokens, Cost) but only Sessions is populated - the rest show "-". The underlying data lives in per-project JSONL files at `~/.claude/projects/<encoded-path>/`. Each `.jsonl` file is a session containing typed records (`user`, `assistant`, `system`, `file-history-snapshot`, `last-prompt`). Assistant records include a `message.usage` object with token counts and a `message.model` field. Tool calls are `tool_use` blocks inside `message.content`.
 
 Currently `ClaudeLocalDBReader.readProjectStats()` only counts `.jsonl` files per directory (session count). No JSONL content is parsed.
 
@@ -9,7 +9,7 @@ Currently `ClaudeLocalDBReader.readProjectStats()` only counts `.jsonl` files pe
 **Goals:**
 - Populate Messages, Tools, Tokens, and Cost columns in the project table for the 7-day view
 - Parse JSONL files to extract per-project aggregates: user message count, tool_use block count, total tokens (input+output), and API-equivalent cost
-- Keep parsing performant — run on a background thread, only process sessions with recent timestamps
+- Keep parsing performant - run on a background thread, only process sessions with recent timestamps
 
 **Non-Goals:**
 - Populating these columns for ALL HISTORY or custom date range filters (future work)
@@ -18,13 +18,13 @@ Currently `ClaudeLocalDBReader.readProjectStats()` only counts `.jsonl` files pe
 
 ## Decisions
 
-### 1. Parse JSONL inline during `load()` — no separate cache
+### 1. Parse JSONL inline during `load()` - no separate cache
 
 **Choice**: Read and parse JSONL files directly in the existing `Task.detached` block inside `load()`.
 
 **Why**: Adding a second cache file introduces sync complexity. The JSONL files are local and parsing is I/O-bound. For a menu bar app that loads on open, a single-pass read is simplest.
 
-**Alternative considered**: Build a separate `project-stats-cache.json` — rejected because it adds invalidation logic and the data changes every session.
+**Alternative considered**: Build a separate `project-stats-cache.json` - rejected because it adds invalidation logic and the data changes every session.
 
 ### 2. Only scan sessions modified in the last 7 days
 
@@ -44,7 +44,7 @@ Currently `ClaudeLocalDBReader.readProjectStats()` only counts `.jsonl` files pe
 
 **Why**: Consistency with the summary bar. These are API-equivalent costs, not actual billing.
 
-### 5. JSONL record schema — extract only what's needed
+### 5. JSONL record schema - extract only what's needed
 
 Per line, decode a minimal struct:
 - `type` → filter for `"user"` (count messages) and `"assistant"` (extract tool calls + usage)

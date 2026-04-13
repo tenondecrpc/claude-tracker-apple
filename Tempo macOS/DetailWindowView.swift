@@ -507,7 +507,7 @@ struct DetailWindowView: View {
                 if localDB.needsAccessGrant {
                     grantAccessView
                 } else {
-                    unavailableView("Claude Code history unavailable — local DB not found")
+                    unavailableView("Claude Code history unavailable - local DB not found")
                 }
             } else {
                 compactAggregateRow
@@ -541,7 +541,7 @@ struct DetailWindowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 statItem(icon: "square.stack.3d.up", label: "Sessions", value: sessionCount.formatted())
                     .frame(maxWidth: .infinity, alignment: .leading)
-                statItem(icon: "dollarsign.circle", label: "API Equiv.", value: costEquiv7d > 0 ? String(format: "$%.0f", costEquiv7d) : "—")
+                statItem(icon: "dollarsign.circle", label: "API Equiv.", value: costEquiv7d > 0 ? String(format: "$%.0f", costEquiv7d) : "-")
                     .frame(maxWidth: .infinity, alignment: .leading)
                 statItem(icon: "network", label: "Subagents", value: localDB.totalSubagents.formatted())
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -633,11 +633,11 @@ struct DetailWindowView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         Group {
-                            Text(stat.sessions7d > 0 ? "\(stat.sessions7d)" : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.messages7d > 0 ? stat.messages7d.formatted() : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.toolCalls7d > 0 ? stat.toolCalls7d.formatted() : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.totalTokens7d > 0 ? formatTokens(stat.totalTokens7d) : "—").frame(width: 80, alignment: .trailing)
-                            Text(stat.costEquiv7d > 0 ? String(format: "$%.2f", stat.costEquiv7d) : "—").frame(width: 80, alignment: .trailing)
+                            Text(stat.sessions7d > 0 ? "\(stat.sessions7d)" : "-").frame(width: 80, alignment: .trailing)
+                            Text(stat.messages7d > 0 ? stat.messages7d.formatted() : "-").frame(width: 80, alignment: .trailing)
+                            Text(stat.toolCalls7d > 0 ? stat.toolCalls7d.formatted() : "-").frame(width: 80, alignment: .trailing)
+                            Text(stat.totalTokens7d > 0 ? formatTokens(stat.totalTokens7d) : "-").frame(width: 80, alignment: .trailing)
+                            Text(stat.costEquiv7d > 0 ? String(format: "$%.2f", stat.costEquiv7d) : "-").frame(width: 80, alignment: .trailing)
                         }
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(ClaudeCodeTheme.textPrimary)
@@ -774,7 +774,7 @@ struct DetailWindowView: View {
             if visibleSnapshots.isEmpty {
                 HStack {
                     Spacer()
-                    Text("No history yet — check back after the next poll")
+                    Text("No history yet - check back after the next poll")
                         .font(.caption)
                         .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     Spacer()
@@ -1377,13 +1377,13 @@ struct DetailWindowView: View {
 
     private var avgSession: String {
         let values = history.snapshots.map(\.utilization5h)
-        guard !values.isEmpty else { return "—" }
+        guard !values.isEmpty else { return "-" }
         return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
     }
 
     private var avgWeekly: String {
         let values = history.snapshots.map(\.utilization7d)
-        guard !values.isEmpty else { return "—" }
+        guard !values.isEmpty else { return "-" }
         return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
     }
 
@@ -1394,7 +1394,7 @@ struct DetailWindowView: View {
     }
 
     private var peakSession: String {
-        guard let peak = history.snapshots.map(\.utilization5h).max() else { return "—" }
+        guard let peak = history.snapshots.map(\.utilization5h).max() else { return "-" }
         return "\(Int(peak * 100))%"
     }
 
@@ -1625,7 +1625,7 @@ struct ActivityHeatmapView: View {
     }()
 }
 
-// MARK: - StatsShareCardView (export only — retains its own visual style)
+// MARK: - StatsShareCardView (export only - retains its own visual style)
 
 private struct StatsShareCardView: View {
     let timeRangeLabel: String

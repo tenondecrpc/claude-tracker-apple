@@ -225,7 +225,7 @@ A key difference is **size proposal behavior**:
 - In `overlay` / `background`, the child view implicitly adopts the size proposed to the parent when it doesn’t define its own size, making decorative attachments feel natural and predictable.
 - In `ZStack`, each child participates independently in layout, and no implicit size inheritance exists. This makes it better suited for peer composition, but less intuitive for simple decoration.
 
-Use `ZStack` (or another container) when the “decoration” **must explicitly participate in layout sizing**—for example, when reserving space, extending tappable/visible bounds, or preventing overlap with neighboring views.
+Use `ZStack` (or another container) when the “decoration” **must explicitly participate in layout sizing**-for example, when reserving space, extending tappable/visible bounds, or preventing overlap with neighboring views.
 
 ### Examples
 
@@ -249,7 +249,7 @@ HStack(spacing: 12) { Text("Inbox"); Text("Next") }
 
 ## Compositing Group Before Clipping
 
-**Always add `.compositingGroup()` before `.clipShape()` when clipping layered views (`.overlay` or `.background`).** Without it, each layer is antialiased separately and then composited. Where antialiased edges overlap — typically at rounded corners — you get visible color fringes (semi-transparent pixels of different colors blending together).
+**Always add `.compositingGroup()` before `.clipShape()` when clipping layered views (`.overlay` or `.background`).** Without it, each layer is antialiased separately and then composited. Where antialiased edges overlap - typically at rounded corners - you get visible color fringes (semi-transparent pixels of different colors blending together).
 
 ```swift
 let shape = RoundedRectangle(cornerRadius: 16)
@@ -268,7 +268,7 @@ Color.red
     .frame(width: 200, height: 150)
 ```
 
-`.compositingGroup()` forces all child layers to be rendered into a single offscreen buffer before the clip is applied. This means antialiasing only happens once — on the final composited result — eliminating the fringe artifacts.
+`.compositingGroup()` forces all child layers to be rendered into a single offscreen buffer before the clip is applied. This means antialiasing only happens once - on the final composited result - eliminating the fringe artifacts.
 
 ## Reusable Styling with ViewModifier
 

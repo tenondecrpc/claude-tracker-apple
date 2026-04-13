@@ -88,7 +88,7 @@ final class UsagePoller {
         } catch MacAuthError.rateLimited(let retryAfter) {
             let backoff = min(max(retryAfter ?? currentInterval, currentInterval * 2), 3600)
             currentInterval = backoff
-            lastPollError = "Rate limited — retrying in \(Int(backoff / 60)) min"
+            lastPollError = "Rate limited - retrying in \(Int(backoff / 60)) min"
         } catch MacAuthError.httpError(let code) {
             lastPollError = "API error (\(code))"
         } catch MacAuthError.noToken {

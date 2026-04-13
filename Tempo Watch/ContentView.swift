@@ -10,13 +10,13 @@ struct ContentView: View {
                 ringLayer(for: store)
 
                 VStack(spacing: 2) {
-                    // Large center percentage — primary glanceable metric
+                    // Large center percentage - primary glanceable metric
                     Text("\(Int(store.usageState.utilization5h * 100))%")
                         .font(.system(.title, design: .rounded))
                         .fontWeight(.semibold)
                         .foregroundStyle(ringColor(utilization: store.usageState.utilization5h))
 
-                    // Countdown — secondary context below percentage
+                    // Countdown - secondary context below percentage
                     Text(formatCountdown(to: store.usageState.resetAt5h))
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(ClaudeCodeTheme.textSecondary)
@@ -53,7 +53,7 @@ struct ContentView: View {
                 .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 4)
                 .padding(16)
 
-            // Primary ring — 5h utilization
+            // Primary ring - 5h utilization
             Circle()
                 .trim(from: 0, to: store.usageState.utilization5h)
                 .stroke(
@@ -64,7 +64,7 @@ struct ContentView: View {
                 .padding(4)
                 .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization5h)
 
-            // Secondary ring — 7d utilization
+            // Secondary ring - 7d utilization
             Circle()
                 .trim(from: 0, to: store.usageState.utilization7d)
                 .stroke(

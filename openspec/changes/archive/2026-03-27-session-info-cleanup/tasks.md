@@ -10,4 +10,4 @@
 
 ## 3. Verification
 
-- [x] 3.1 Build the project — confirm zero compiler errors across all targets (Shared, iOS, Watch Extension)
+- [x] 3.1 Build the project - confirm zero compiler errors across all targets (Shared, iOS, Watch Extension)

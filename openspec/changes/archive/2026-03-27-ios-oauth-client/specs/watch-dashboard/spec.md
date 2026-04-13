@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Mock badge is always visible during development
-The dashboard SHALL display a `⚠ mock` badge whenever `usageState.isMocked == true`. The badge SHALL be persistently visible (not behind any tap or interaction). The badge SHALL disappear automatically when `isMocked` transitions to `false` — which occurs when the iOS relay delivers a real `UsageState` from the OAuth API.
+The dashboard SHALL display a `⚠ mock` badge whenever `usageState.isMocked == true`. The badge SHALL be persistently visible (not behind any tap or interaction). The badge SHALL disappear automatically when `isMocked` transitions to `false` - which occurs when the iOS relay delivers a real `UsageState` from the OAuth API.
 
 #### Scenario: Mock state active
 - **WHEN** `usageState.isMocked` is `true`

@@ -2,7 +2,7 @@
 
 The app has two color systems that evolved independently: `Theme.swift` in `Shared/` (Claude terracotta palette, consumed only by watchOS) and `TempoTheme.swift` in `Tempo macOS/` (purple/cool-gray palette, consumed by 26 macOS files). Neither matches the official Claude Code branding from Anthropic's `palette.ts`. The `AccentColor.colorset` files across all 4 targets are empty placeholders.
 
-The official Claude Code theme provides complete dark and light palettes with warm terracotta accents, warm-neutral backgrounds, and muted status colors — a cohesive system ready to adopt.
+The official Claude Code theme provides complete dark and light palettes with warm terracotta accents, warm-neutral backgrounds, and muted status colors - a cohesive system ready to adopt.
 
 ## Goals / Non-Goals
 
@@ -26,11 +26,11 @@ The official Claude Code theme provides complete dark and light palettes with wa
 
 **Decision**: Use `enum ClaudeCodeTheme` with static computed properties that resolve based on a stored appearance mode, rather than `Color` extensions.
 
-**Why**: An enum namespace avoids polluting `Color`'s namespace, provides clear call-site semantics (`ClaudeCodeTheme.accent` vs `Color.claudeAccent`), and matches the existing `TempoTheme` pattern that 26 files already use — minimizing migration friction.
+**Why**: An enum namespace avoids polluting `Color`'s namespace, provides clear call-site semantics (`ClaudeCodeTheme.accent` vs `Color.claudeAccent`), and matches the existing `TempoTheme` pattern that 26 files already use - minimizing migration friction.
 
 **Alternatives considered**:
-- `Color` extensions (current `Theme.swift` pattern) — unclear namespace, harder to search/refactor
-- Asset catalog colors — no runtime theme switching, can't encode light/dark logic in code
+- `Color` extensions (current `Theme.swift` pattern) - unclear namespace, harder to search/refactor
+- Asset catalog colors - no runtime theme switching, can't encode light/dark logic in code
 
 ### 2. Appearance resolution via static mode property
 
@@ -39,8 +39,8 @@ The official Claude Code theme provides complete dark and light palettes with wa
 **Why**: Avoids passing `colorScheme` through every call site. The `preferredColorScheme` modifier on the root view forces SwiftUI to match, so the static resolution stays in sync. Platform-conditional compilation (`#if os(macOS)`) keeps it simple.
 
 **Alternatives considered**:
-- `@Environment(\.colorScheme)` at every call site — too invasive, requires passing through 26+ files
-- Two separate enum cases (`.dark`, `.light`) with manual switching — more boilerplate, easy to forget
+- `@Environment(\.colorScheme)` at every call site - too invasive, requires passing through 26+ files
+- Two separate enum cases (`.dark`, `.light`) with manual switching - more boilerplate, easy to forget
 
 ### 3. Appearance mode preference: 3-state enum
 

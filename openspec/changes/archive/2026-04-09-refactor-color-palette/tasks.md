@@ -43,6 +43,6 @@
 
 ## 7. Verification
 
-- [x] 7.1 Build macOS target — zero compile errors
-- [x] 7.2 Build watchOS target — zero compile errors
-- [x] 7.3 Build iOS target — zero compile errors
+- [x] 7.1 Build macOS target - zero compile errors
+- [x] 7.2 Build watchOS target - zero compile errors
+- [x] 7.3 Build iOS target - zero compile errors

@@ -177,7 +177,7 @@ containerRelativeFrame(.horizontal) { width, _ in
 
 ### Keep Business Logic in Services and Models
 
-**Business logic belongs in services and models, not in views.** Views should stay simple and declarative — orchestrating UI state, not implementing business rules. This makes logic independently testable without requiring view instantiation.
+**Business logic belongs in services and models, not in views.** Views should stay simple and declarative - orchestrating UI state, not implementing business rules. This makes logic independently testable without requiring view instantiation.
 
 > **iOS 17+**: Use `@Observable` with `@State`.
 
@@ -191,7 +191,7 @@ final class AuthService {
     }
 
     func login() async throws {
-        // Business logic here — testable without the view
+        // Business logic here - testable without the view
     }
 }
 

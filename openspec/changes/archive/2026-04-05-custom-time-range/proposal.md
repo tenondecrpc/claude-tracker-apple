@@ -1,6 +1,6 @@
 ## Why
 
-The usage chart offers fixed time windows (5h, 24h, 7d, 30d, 90d) but users sometimes want to zoom into a specific date range — e.g., investigate a spike on a particular day. The `TimeRange.custom` case already exists in the enum but has no UI or filtering logic.
+The usage chart offers fixed time windows (5h, 24h, 7d, 30d, 90d) but users sometimes want to zoom into a specific date range - e.g., investigate a spike on a particular day. The `TimeRange.custom` case already exists in the enum but has no UI or filtering logic.
 
 ## What Changes
 
@@ -17,9 +17,9 @@ The usage chart offers fixed time windows (5h, 24h, 7d, 30d, 90d) but users some
 
 ### Modified Capabilities
 
-- `macos-usage-writer`: No spec-level change — implementation only touches `StatsDetailView.swift`
+- `macos-usage-writer`: No spec-level change - implementation only touches `StatsDetailView.swift`
 
 ## Impact
 
-- `Tempo macOS/StatsDetailView.swift` — all changes contained here
+- `Tempo macOS/StatsDetailView.swift` - all changes contained here
 - No new files, no model changes, no iCloud or API impact

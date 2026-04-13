@@ -1,6 +1,6 @@
 ## Context
 
-Currently, the macOS menu bar app for Claude Tracker uses a static app icon. The usage data is polled and available within the app, but the user must click the menu bar item to see their current token/credit usage. We want to improve this by drawing a dynamic indicator graph directly into the menu bar icon based on the percentage of usage.
+Currently, the macOS menu bar app for TempoForClaude uses a static app icon. The usage data is polled and available within the app, but the user must click the menu bar item to see their current token/credit usage. We want to improve this by drawing a dynamic indicator graph directly into the menu bar icon based on the percentage of usage.
 
 ## Goals / Non-Goals
 

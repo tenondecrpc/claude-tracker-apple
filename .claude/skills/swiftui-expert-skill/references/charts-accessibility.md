@@ -17,22 +17,22 @@
 
 Swift Charts provides built-in accessibility support. VoiceOver users get three rotor actions automatically:
 
-- **Describe Chart** — overview of axes and data series
-- **Audio Graph** — sonification where pitch represents data values
-- **Chart Detail** — interactive mode for exploring individual data points
+- **Describe Chart** - overview of axes and data series
+- **Audio Graph** - sonification where pitch represents data values
+- **Chart Detail** - interactive mode for exploring individual data points
 
 ### Meaningful Labels
 
 **Always** use clear, descriptive strings in `.value(_, _)` calls. These labels are read by VoiceOver and used in the Audio Graph.
 
 ```swift
-// Good — descriptive labels
+// Good - descriptive labels
 LineMark(
     x: .value("Date", entry.date),
     y: .value("Daily Steps", entry.count)
 )
 
-// Bad — generic labels
+// Bad - generic labels
 LineMark(
     x: .value("X", entry.date),
     y: .value("Y", entry.count)
@@ -99,7 +99,7 @@ Chart(weeklyRevenue) { week in
 
 ## Fallback Strategies
 
-Gate advanced APIs with `#available` and provide a fallback chart without the gated features. Because chart modifiers like `.chartXSelection` change the return type, you must duplicate the entire `Chart` — you cannot conditionally apply the modifier:
+Gate advanced APIs with `#available` and provide a fallback chart without the gated features. Because chart modifiers like `.chartXSelection` change the return type, you must duplicate the entire `Chart` - you cannot conditionally apply the modifier:
 
 ### Version Breakdown
 
@@ -110,13 +110,13 @@ Gate advanced APIs with `#available` and provide a fallback chart without the ga
 
 ## WWDC Sessions
 
-- [Hello Swift Charts](https://developer.apple.com/videos/play/wwdc2022/10136/) (WWDC 2022) — introduction to the framework
-- [Swift Charts: Raise the bar](https://developer.apple.com/videos/play/wwdc2022/10137/) (WWDC 2022) — marks, composition, customization
-- [Design an effective chart](https://developer.apple.com/videos/play/wwdc2022/110340/) (WWDC 2022) — chart design principles
-- [Design app experiences with charts](https://developer.apple.com/videos/play/wwdc2022/110342/) (WWDC 2022) — integrating charts into app UX
-- [Explore pie charts and interactivity in Swift Charts](https://developer.apple.com/videos/play/wwdc2023/10037/) (WWDC 2023) — SectorMark, selection, scrolling
-- [Swift Charts: Vectorized and function plots](https://developer.apple.com/videos/play/wwdc2024/10155/) (WWDC 2024) — LinePlot, AreaPlot, function plotting
-- [Bring Swift Charts to the third dimension](https://developer.apple.com/videos/play/wwdc2025/313/) (WWDC 2025) — Chart3D, SurfacePlot, 3D marks
+- [Hello Swift Charts](https://developer.apple.com/videos/play/wwdc2022/10136/) (WWDC 2022) - introduction to the framework
+- [Swift Charts: Raise the bar](https://developer.apple.com/videos/play/wwdc2022/10137/) (WWDC 2022) - marks, composition, customization
+- [Design an effective chart](https://developer.apple.com/videos/play/wwdc2022/110340/) (WWDC 2022) - chart design principles
+- [Design app experiences with charts](https://developer.apple.com/videos/play/wwdc2022/110342/) (WWDC 2022) - integrating charts into app UX
+- [Explore pie charts and interactivity in Swift Charts](https://developer.apple.com/videos/play/wwdc2023/10037/) (WWDC 2023) - SectorMark, selection, scrolling
+- [Swift Charts: Vectorized and function plots](https://developer.apple.com/videos/play/wwdc2024/10155/) (WWDC 2024) - LinePlot, AreaPlot, function plotting
+- [Bring Swift Charts to the third dimension](https://developer.apple.com/videos/play/wwdc2025/313/) (WWDC 2025) - Chart3D, SurfacePlot, 3D marks
 
 ## Summary Checklist
 

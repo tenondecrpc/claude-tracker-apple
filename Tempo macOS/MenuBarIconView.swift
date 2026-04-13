@@ -64,7 +64,7 @@ extension NSImage {
 
         image.unlockFocus()
 
-        // Only use template (monochrome) when utilization is low — colors need isTemplate = false
+        // Only use template (monochrome) when utilization is low - colors need isTemplate = false
         image.isTemplate = clampedPercentage < 0.60
 
         return image

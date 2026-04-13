@@ -2,7 +2,27 @@
 
 A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends.
 
+[![CI - Build](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml)
 [![Security - CodeQL (Swift)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml)
+[![Security - Dependency Review](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/dependency-review.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## Join the beta
+
+Want early access to new Tempo builds? You can join the public beta on TestFlight here:
+
+**[Join the Tempo beta on TestFlight](https://testflight.apple.com/join/1VJBBtVS)**
+
+Install the app, try it on your devices, and send feedback while features are still evolving.
+
+## Why this repo is trustworthy
+
+- **CI on pull requests**: the macOS and iOS targets are built automatically in GitHub Actions for every PR.
+- **Security checks**: Swift code is scanned with CodeQL, and dependency updates go through automated dependency review.
+- **Maintainer review gates**: [`CODEOWNERS`](.github/CODEOWNERS) requires maintainer review for sensitive areas like workflows, project settings, entitlements, and app targets.
+- **Structured contribution flow**: bug reports, feature requests, and PRs use templates with testing and risk checklists to keep changes reviewable.
+- **Transparent data handling**: Tempo uses no custom backend; usage data stays on your Apple devices through iCloud sync.
+- **Open license**: the project is released under the [`MIT License`](LICENSE), so the terms are explicit and easy to audit.
 
 ## Screenshots
 
@@ -81,7 +101,7 @@ Two independent data pipelines run in parallel:
 | **OAuth API** | 15-min poll | Utilization %, reset timestamps |
 | **Stop hook** | Session end event | Per-session tokens, cost, duration |
 
-The OAuth API is the authoritative source for utilization — the plan limit is account-specific and never exposed locally. The Stop hook is the only way to deliver an instant haptic the moment a session closes.
+The OAuth API is the authoritative source for utilization - the plan limit is account-specific and never exposed locally. The Stop hook is the only way to deliver an instant haptic the moment a session closes.
 
 ## Privacy and data handling
 
@@ -105,7 +125,7 @@ The OAuth API is the authoritative source for utilization — the plan limit is 
 2. Enable **Outgoing Connections (Client)** in App Sandbox for the macOS target (required for calls to `platform.claude.com`)
 3. Enable **iCloud Documents** on both the macOS and iOS targets using the same container ID (requires an Apple Developer account)
 4. Build and run the macOS target
-5. Sign in with your Claude account via OAuth — the app opens a browser and lets you paste the authorization code
+5. Sign in with your Claude account via OAuth - the app opens a browser and lets you paste the authorization code
 
 ## Requirements
 
@@ -116,8 +136,10 @@ The OAuth API is the authoritative source for utilization — the plan limit is 
 
 ## Roadmap
 
-See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, including:
+See [`docs/PLAN.md`](docs/PLAN.md) for the implementation roadmap and unscheduled backlog.
 
-- **Phase 6** — Reset alarm: strong haptic + notification at the exact moment your 5h limit resets
-- **Phase 8** — Stats dashboard: session history and watch face complications
-- **Phase 9** — Context window tracking: usage gauge per active session with threshold alerts
+Current roadmap highlights:
+
+- **Phase 6** - Reset alarm: strong haptic + notification at the exact moment your 5h limit resets
+- **Phase 8** - Stats dashboard: session history and watch face complications
+- **Phase 9** - Context window tracking: usage gauge per active session with threshold alerts
