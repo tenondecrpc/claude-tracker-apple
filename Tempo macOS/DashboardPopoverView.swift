@@ -18,6 +18,26 @@ struct DashboardPopoverView: View {
                 serviceState: showServiceStatus ? coordinator.serviceStatusMonitor.state : .operational
             )
 
+            if coordinator.isDemoMode {
+                HStack(spacing: 6) {
+                    Image(systemName: "eye.fill")
+                        .font(.caption2)
+                    Text("Demo Mode")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Button("Exit Demo") {
+                        coordinator.exitDemoMode()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(ClaudeCodeTheme.accent)
+                }
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(ClaudeCodeTheme.textSecondary.opacity(0.08))
+            }
+
             if let usage = coordinator.poller.latestUsage {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     VStack(spacing: 0) {

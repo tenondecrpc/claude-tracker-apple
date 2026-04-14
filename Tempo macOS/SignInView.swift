@@ -60,6 +60,21 @@ struct NotSignedInMenuView: View {
                 .background(ClaudeCodeTheme.accent)
                 .clipShape(.rect(cornerRadius: 10))
                 .padding(.horizontal, 16)
+
+                Button {
+                    coordinator.enterDemoMode()
+                } label: {
+                    Text("Try Demo")
+                        .font(.subheadline)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(ClaudeCodeTheme.textSecondary.opacity(0.12))
+                .clipShape(.rect(cornerRadius: 10))
+                .padding(.horizontal, 16)
                 .padding(.bottom, 8)
             }
 
