@@ -16,6 +16,7 @@ final class MacAppCoordinator {
     let sessionEventWriter: SessionEventWriter
     let appUpdater: AppUpdater
     private var hasLaunched = false
+    var isDemoMode = false
 
     init() {
         let authState = MacAuthState()
@@ -43,6 +44,7 @@ final class MacAppCoordinator {
         client.onSignOut = { [weak self] in
             self?.poller.stop()
             self?.serviceStatusMonitor.stop()
+            self?.isDemoMode = false
         }
         poller.onUsageState = { [weak self, weak history] state in
             history?.append(state)
@@ -86,6 +88,26 @@ final class MacAppCoordinator {
     func onAuthenticated() {
         poller.start()
         updateServiceStatusMonitoring()
+    }
+
+    func enterDemoMode() {
+        isDemoMode = true
+        authState.isAuthenticated = true
+        poller.latestUsage = UsageState(
+            utilization5h: 0.68,
+            utilization7d: 0.42,
+            resetAt5h: Date().addingTimeInterval(2 * 3600),
+            resetAt7d: Date().addingTimeInterval(5 * 24 * 3600),
+            isMocked: false,
+            extraUsage: nil,
+            isDoubleLimitPromoActive: nil
+        )
+    }
+
+    func exitDemoMode() {
+        isDemoMode = false
+        authState.isAuthenticated = false
+        poller.latestUsage = nil
     }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) {
