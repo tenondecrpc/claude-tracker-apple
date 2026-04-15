@@ -81,27 +81,32 @@ Install the app, try it on your devices, and send feedback while features are st
 - Shows your **5-hour and 7-day utilization** as a ring gauge in the macOS menu bar
 - Displays **burn rate**, extra usage, and next reset time at a glance
 - Includes an iOS companion UI (**Dashboard**, **Activity**, **Settings**) styled with Claude tokens
-- Delivers a **haptic alert on your Apple Watch** the moment a Claude Code session ends
-- Relays live usage data from macOS → iCloud (`usage.json`, `usage-history.json`) → iOS → Apple Watch
+- Shows **local Claude Code activity and project stats** in the macOS detail window
+- Ships **widgets on macOS, iPhone, and Apple Watch**
+- Delivers a **haptic alert on your Apple Watch** shortly after a Claude Code session ends
+- Relays live usage data from macOS -> iCloud (`usage.json`, `usage-history.json`) -> iOS -> Apple Watch
 
 ## Architecture
 
-```
-macOS menu bar app (OAuth + poll every 15 min)
-  └─ iCloud Drive (usage.json / usage-history.json)
-      └─ iOS companion (NSMetadataQuery + dashboard/activity/settings)
-          └─ WatchConnectivity (transferUserInfo)
-              └─ watchOS haptic + usage ring
+```text
+macOS menu bar app
+  |- OAuth poller -> iCloud Drive (usage.json / usage-history.json)
+  |- Claude local session reader -> iCloud Drive (latest.json)
+  └- Local Claude stats -> macOS detail window
+
+iOS companion (NSMetadataQuery + dashboard/activity/settings)
+  └- WatchConnectivity (application context + transferUserInfo)
+      └- watchOS alerts, trend, and usage surfaces
 ```
 
 Two independent data pipelines run in parallel:
 
 | Pipeline | Trigger | Data |
 |---|---|---|
-| **OAuth API** | 15-min poll | Utilization %, reset timestamps |
-| **Stop hook** | Session end event | Per-session tokens, cost, duration |
+| **OAuth API** | 15-min poll | Utilization %, reset timestamps, usage history snapshots |
+| **Claude local data** (`~/.claude/`) | 20-second poll | Session completion events, per-session tokens/duration, local activity stats |
 
-The OAuth API is the authoritative source for utilization - the plan limit is account-specific and never exposed locally. The Stop hook is the only way to deliver an instant haptic the moment a session closes.
+The OAuth API is the authoritative source for utilization - the plan limit is account-specific and never exposed locally. Claude local data powers session completion alerts and richer local stats in the current repo.
 
 ## Privacy and data handling
 
@@ -114,25 +119,27 @@ The OAuth API is the authoritative source for utilization - the plan limit is ac
 | Folder | Target | Role |
 |---|---|---|
 | `Tempo macOS/` | macOS menu bar app | OAuth sign-in, usage polling, iCloud writer |
-| `Tempo/` | iOS app | iCloud reader, WatchConnectivity sender |
-| `Tempo Watch/` | watchOS app shell | Entry point |
-| `Tempo Watch Extension/` | watchOS extension | All watch UI and haptic logic |
-| `Shared/` | Shared code | Data models, business logic (no UI frameworks) |
+| `Tempo/` | iOS companion app | iCloud reader, dashboard/activity/settings, WatchConnectivity sender |
+| `Tempo Watch/` | watchOS app | Watch UI, haptics, local alerts, WatchConnectivity receiver |
+| `Tempo macOS Widget/` | macOS widget extension | Desktop widgets backed by shared snapshots |
+| `Tempo iOS Widget/` | iOS widget extension | iPhone widgets backed by shared snapshots |
+| `Tempo Watch Widget/` | watchOS widget extension | Accessory widget surfaces |
+| `Shared/` | Shared code | Data models, widget snapshots, routes, shared logic |
 
 ## Getting started
 
 1. Open `Tempo.xcodeproj` in Xcode
-2. Enable **Outgoing Connections (Client)** in App Sandbox for the macOS target (required for calls to `platform.claude.com`)
-3. Enable **iCloud Documents** on both the macOS and iOS targets using the same container ID (requires an Apple Developer account)
-4. Build and run the macOS target
-5. Sign in with your Claude account via OAuth - the app opens a browser and lets you paste the authorization code
+2. Use a signing team that supports the committed iCloud container and widget app-group entitlements
+3. Build and run the macOS target, then grant access to `~/.claude` when Tempo asks for local Claude Code stats
+4. Sign in with your Claude account via OAuth - the app opens a browser and lets you paste the authorization code
+5. Launch the iOS and watch targets on physical devices if you want live iCloud sync and WatchConnectivity verification
 
 ## Requirements
 
 - macOS 13+ (menu bar app)
 - iOS 16+ (companion app)
 - watchOS 9+ (haptic alerts and usage ring)
-- Apple Developer account (for iCloud Documents entitlement)
+- Apple Developer account (for iCloud Documents and widget/app-group entitlements on device)
 
 ## Roadmap
 
@@ -141,5 +148,6 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the implementation roadmap and unschedule
 Current roadmap highlights:
 
 - **Phase 6** - Reset alarm: strong haptic + notification at the exact moment your 5h limit resets
-- **Phase 8** - Stats dashboard: session history and watch face complications
+- **Phase 7** - QA and reliability hardening across macOS, iPhone, and Apple Watch
+- **Phase 8** - Deeper stats surfaces and richer watch complications
 - **Phase 9** - Context window tracking: usage gauge per active session with threshold alerts
