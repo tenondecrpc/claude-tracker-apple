@@ -15,7 +15,8 @@ struct DashboardPopoverView: View {
             MenuBarHeaderView(
                 onRefresh: { coordinator.poller.pollNow() },
                 isPolling: coordinator.poller.isPolling,
-                serviceState: showServiceStatus ? coordinator.serviceStatusMonitor.state : .operational
+                serviceState: showServiceStatus ? coordinator.serviceStatusMonitor.state : .operational,
+                serviceName: showServiceStatus ? coordinator.serviceStatusMonitor.affectedServiceName : nil
             )
 
             if coordinator.isDemoMode {

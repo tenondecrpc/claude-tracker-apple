@@ -11,6 +11,10 @@ struct WelcomeWindowView: View {
     @State private var signInError: String?
     @State private var isRestoringSession = false
 
+    private var isSubmitDisabled: Bool {
+        pastedCode.isEmpty || isSubmitting
+    }
+
     var body: some View {
         ZStack {
             ClaudeCodeTheme.background.ignoresSafeArea()
@@ -149,16 +153,19 @@ struct WelcomeWindowView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
 
-                Button("Submit") {
+                Button {
                     Task { await submitCode() }
+                } label: {
+                    Text("Submit")
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(isSubmitDisabled ? ClaudeCodeTheme.progressTrack : ClaudeCodeTheme.accent)
+                        .clipShape(.rect(cornerRadius: 8))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 10)
-                .background(pastedCode.isEmpty || isSubmitting ? ClaudeCodeTheme.progressTrack : ClaudeCodeTheme.accent)
-                .clipShape(.rect(cornerRadius: 8))
-                .disabled(pastedCode.isEmpty || isSubmitting)
+                .disabled(isSubmitDisabled)
             }
 
             Spacer()
