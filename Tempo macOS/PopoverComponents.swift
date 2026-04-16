@@ -219,6 +219,7 @@ struct MenuBarHeaderView: View {
     var onRefresh: (() -> Void)? = nil
     var isPolling: Bool = false
     var serviceState: ServiceHealthState = .operational
+    var serviceName: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -255,7 +256,7 @@ struct MenuBarHeaderView: View {
             Divider()
                 .overlay(ClaudeCodeTheme.progressTrack)
             if serviceState != .operational {
-                ServiceStatusBannerView(state: serviceState)
+                ServiceStatusBannerView(state: serviceState, serviceName: serviceName)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 8)
             }
@@ -277,6 +278,7 @@ struct MenuBarHeaderView: View {
 
 struct ServiceStatusBannerView: View {
     let state: ServiceHealthState
+    let serviceName: String?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -328,11 +330,24 @@ struct ServiceStatusBannerView: View {
 
     private var bannerLabel: String {
         switch state {
-        case .majorOutage: return "Major outage · claude.ai"
-        case .degraded:    return "Degraded performance · claude.ai"
+        case .majorOutage: return issueLabel(prefix: "Major outage")
+        case .degraded:    return issueLabel(prefix: "Degraded performance")
         case .stale:       return "Status data may be outdated"
         case .unavailable: return "Service status unavailable"
         case .operational: return ""
         }
+    }
+
+    private func issueLabel(prefix: String) -> String {
+        guard let serviceName = normalizedServiceName else { return prefix }
+        return "\(prefix) - \(serviceName)"
+    }
+
+    private var normalizedServiceName: String? {
+        let trimmed = serviceName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmed, !trimmed.isEmpty {
+            return trimmed
+        }
+        return nil
     }
 }
