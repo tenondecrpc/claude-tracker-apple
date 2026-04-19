@@ -261,9 +261,9 @@ extension ClaudeCodeTheme {
     enum Usage {
         static var session: Color { ClaudeCodeTheme.accent }
         static var sessionEmphasis: Color { ClaudeCodeTheme.accentLight }
-        static var weekly: Color { ClaudeCodeTheme.info }
-        static var watchSession: Color { ClaudeCodeTheme.success }
-        static var watchWeekly: Color { ClaudeCodeTheme.highlight }
+        // Purple (`highlight`) from the Claude Code palette. Pairs with the
+        // terracotta session accent for a warm/cool dual-ring reading.
+        static var weekly: Color { ClaudeCodeTheme.highlight }
         static var warning: Color { ClaudeCodeTheme.warning }
         // A stronger warm red than the core error token so 100% usage
         // reads as a distinct limit state instead of blending with the

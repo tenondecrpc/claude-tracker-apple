@@ -287,38 +287,14 @@ private struct UsageRingGauge: View {
     let weeklyProgress: Double
 
     var body: some View {
-        let sessionColor = UtilizationSeverity(utilization: sessionProgress).usageColor(normal: ClaudeCodeTheme.Usage.session)
-        let weeklyColor = UtilizationSeverity(utilization: weeklyProgress).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
-
-        ZStack {
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrack, lineWidth: 14)
-
-            Circle()
-                .trim(from: 0, to: min(max(sessionProgress, 0), 1))
-                .stroke(
-                    sessionColor,
-                    style: StrokeStyle(lineWidth: 14, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 8)
-                .padding(22)
-
-            Circle()
-                .trim(from: 0, to: min(max(weeklyProgress, 0), 1))
-                .stroke(
-                    weeklyColor,
-                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .padding(22)
-
+        TempoUsageRing(
+            sessionProgress: sessionProgress,
+            weeklyProgress: weeklyProgress
+        ) {
             VStack(spacing: 2) {
                 Text("\(Int((sessionProgress * 100).rounded()))%")
                     .font(.title.bold().monospacedDigit())
-                    .foregroundStyle(sessionColor)
+                    .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
                 Text("Session")
                     .font(.caption)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)

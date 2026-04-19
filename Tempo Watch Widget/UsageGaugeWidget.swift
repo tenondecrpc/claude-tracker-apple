@@ -69,7 +69,7 @@ struct UsageGaugeWidgetView: View {
     }
 
     private var gaugeColor: Color {
-        UtilizationSeverity(utilization: entry.utilization).usageColor(normal: ClaudeCodeTheme.Usage.watchSession)
+        UtilizationSeverity(utilization: entry.utilization).usageColor(normal: ClaudeCodeTheme.Usage.session)
     }
 }
 

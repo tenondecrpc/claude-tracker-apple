@@ -27,43 +27,31 @@ struct UsageRingView: View {
     let sessionProgress: Double   // 0.0 to 1.0
     let weeklyProgress: Double    // 0.0 to 1.0
     var centerLabel: String? = nil
+    var centerSubtitle: String? = nil
 
     var body: some View {
-        let sessionColor = UtilizationSeverity(utilization: sessionProgress).usageColor(normal: ClaudeCodeTheme.Usage.session)
-        let weeklyColor = UtilizationSeverity(utilization: weeklyProgress).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
-
-        ZStack {
-            // Outer track (weekly)
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrack, lineWidth: 8)
-
-            // Outer fill (weekly)
-            Circle()
-                .trim(from: 0, to: min(max(weeklyProgress, 0), 1))
-                .stroke(weeklyColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-
-            // Inner track (session)
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 10)
-                .padding(18)
-
-            // Inner fill (session)
-            Circle()
-                .trim(from: 0, to: min(max(sessionProgress, 0), 1))
-                .stroke(sessionColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .padding(18)
-
-            Circle()
-                .fill(ClaudeCodeTheme.background)
-                .padding(36)
-
-            // Center label
-            if let label = centerLabel {
-                Text(label)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+        TempoUsageRing(
+            sessionProgress: sessionProgress,
+            weeklyProgress: weeklyProgress
+        ) {
+            if centerLabel != nil || centerSubtitle != nil {
+                GeometryReader { geo in
+                    let size = min(geo.size.width, geo.size.height)
+                    VStack(spacing: size * 0.01) {
+                        if let centerLabel {
+                            Text(centerLabel)
+                                .font(.system(size: size * 0.19, weight: .bold, design: .rounded))
+                                .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
+                        }
+                        if let centerSubtitle {
+                            Text(centerSubtitle)
+                                .font(.system(size: size * 0.08, weight: .medium, design: .rounded))
+                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        }
+                    }
+                    .frame(width: size, height: size)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }

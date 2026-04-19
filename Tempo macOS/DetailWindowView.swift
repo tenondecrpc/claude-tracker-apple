@@ -182,7 +182,7 @@ struct DetailWindowView: View {
 
     // Session card
     private func sessionCard(usage: UsageState, now: Date) -> some View {
-        let sessionColor = UtilizationSeverity(utilization: usage.utilization5h).usageColor(normal: ClaudeCodeTheme.Usage.session)
+        let sessionColor = UsageRingStyle.sessionColor(utilization: usage.utilization5h)
 
         return HStack(spacing: 0) {
             Rectangle()
@@ -190,9 +190,9 @@ struct DetailWindowView: View {
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    UsageRingView(
-                        sessionProgress: usage.utilization5h,
-                        weeklyProgress: 0
+                    TempoSingleRing(
+                        progress: usage.utilization5h,
+                        color: sessionColor
                     )
                     .frame(width: 64, height: 64)
                     Spacer()
@@ -221,7 +221,7 @@ struct DetailWindowView: View {
 
     // Weekly card
     private func weeklyCard(usage: UsageState) -> some View {
-        let weeklyColor = UtilizationSeverity(utilization: usage.utilization7d).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
+        let weeklyColor = UsageRingStyle.weeklyColor(utilization: usage.utilization7d)
 
         return HStack(spacing: 0) {
             Rectangle()
@@ -229,9 +229,9 @@ struct DetailWindowView: View {
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    UsageRingView(
-                        sessionProgress: 0,
-                        weeklyProgress: usage.utilization7d
+                    TempoSingleRing(
+                        progress: usage.utilization7d,
+                        color: weeklyColor
                     )
                     .frame(width: 64, height: 64)
                     Spacer()
