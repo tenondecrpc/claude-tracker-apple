@@ -33,32 +33,71 @@ final class MacAuthState {
     var isAwaitingCode = false
     var requiresExplicitSignIn = false
     var accountEmail: String?
+    var authSource: AuthSource = .none
+
+    enum AuthSource: Equatable {
+        case none
+        case cliSession
+        case webOAuth
+    }
 
     init() {
-        if let credentials = CredentialStore.load(), CredentialStore.isValid(credentials) {
+        if ClaudeCodeKeychainReader.hasValidSession() {
             isAuthenticated = true
+            authSource = .cliSession
+        } else if let credentials = CredentialStore.load(), CredentialStore.isValid(credentials) {
+            isAuthenticated = true
+            authSource = .webOAuth
         }
-        accountEmail = ClaudeCodeProfile.load()?.oauthAccount?.emailAddress
+        accountEmail = DetectedClaudeAccount.load()?.emailAddress
     }
 }
 
-// MARK: - ClaudeCodeProfile
+// MARK: - DetectedClaudeAccount
 
-private struct ClaudeCodeProfile: Decodable {
-    struct OAuthAccount: Decodable {
-        let emailAddress: String?
-        let displayName: String?
-    }
-    let oauthAccount: OAuthAccount?
+struct DetectedClaudeAccount {
+    let emailAddress: String?
+    let displayName: String?
+    var label: String? { emailAddress ?? displayName }
 
-    static func load() -> ClaudeCodeProfile? {
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/.claude.json")
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try? decoder.decode(ClaudeCodeProfile.self, from: data)
+    static func load() -> DetectedClaudeAccount? {
+        let homeURL = FileManager.default.homeDirectoryForCurrentUser
+        let fileURL = homeURL.appendingPathComponent(".claude.json")
+
+        func readAccount(from url: URL) -> DetectedClaudeAccount? {
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            struct Profile: Decodable {
+                struct OAuthAccount: Decodable {
+                    let emailAddress: String?
+                    let displayName: String?
+                }
+                let oauthAccount: OAuthAccount?
+            }
+            guard let profile = try? decoder.decode(Profile.self, from: data),
+                  let account = profile.oauthAccount
+            else { return nil }
+            let email = account.emailAddress.flatMap { $0.isEmpty ? nil : $0 }
+            let name = account.displayName.flatMap { $0.isEmpty ? nil : $0 }
+            guard email != nil || name != nil else { return nil }
+            return DetectedClaudeAccount(emailAddress: email, displayName: name)
+        }
+
+        if let account = readAccount(from: fileURL) {
+            return account
+        }
+
+        if let account = try? ClaudeLocalDBReader.withHomeDirectoryAccess({ homeDir in
+            readAccount(from: homeDir.appendingPathComponent(".claude.json"))
+        }) {
+            return account
+        }
+
+        return nil
     }
+
+    static var isActive: Bool { load() != nil }
 }
 
 // MARK: - MacOSAPIClient
@@ -158,6 +197,7 @@ final class MacOSAPIClient {
         )
         try CredentialStore.save(credentials)
         authState.isAuthenticated = true
+        authState.authSource = .webOAuth
         clearPendingOAuth()
     }
 
@@ -202,15 +242,25 @@ final class MacOSAPIClient {
 
     /// Checks for valid stored credentials and restores the session. Returns true if authenticated.
     func tryRestoreSession() async -> Bool {
+        // Primary: CLI keychain tokens
+        if ClaudeCodeKeychainReader.hasValidSession() {
+            authState.isAuthenticated = true
+            authState.authSource = .cliSession
+            return true
+        }
+
+        // Fallback: web OAuth credentials
         guard let credentials = CredentialStore.load() else { return false }
         if CredentialStore.isValid(credentials) {
             authState.isAuthenticated = true
+            authState.authSource = .webOAuth
             return true
         }
         // Token expired - try refresh
         do {
             _ = try await refreshAccessToken()
             authState.isAuthenticated = true
+            authState.authSource = .webOAuth
             return true
         } catch {
             return false
@@ -256,10 +306,54 @@ final class MacOSAPIClient {
     // MARK: - Authenticated Requests
 
     func authenticatedRequest(for url: URL) async throws -> Data {
-        guard let credentials = CredentialStore.load(), !credentials.accessToken.isEmpty else {
+        var accessToken: String?
+
+        // Primary: CLI keychain tokens
+        if let cliTokens = ClaudeCodeKeychainReader.loadTokens(),
+           !cliTokens.accessToken.isEmpty {
+            if let expiresAt = cliTokens.expiresAt {
+                let expiryDate = Date(timeIntervalSince1970: expiresAt / 1000.0)
+                if expiryDate <= Date().addingTimeInterval(60), let refreshToken = cliTokens.refreshToken {
+                    accessToken = try await refreshCLIToken(refreshToken)
+                } else {
+                    accessToken = cliTokens.accessToken
+                }
+            } else {
+                accessToken = cliTokens.accessToken
+            }
+        }
+
+        // Fallback: web OAuth credentials
+        if accessToken == nil || accessToken?.isEmpty == true {
+            if let credentials = CredentialStore.load(), !credentials.accessToken.isEmpty {
+                accessToken = credentials.accessToken
+
+                func makeRequest(token: String) async throws -> (Data, HTTPURLResponse) {
+                    var req = URLRequest(url: url)
+                    req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    req.setValue(API.betaHeader, forHTTPHeaderField: "anthropic-beta")
+                    let (data, response) = try await URLSession.shared.data(for: req)
+                    return (data, response as! HTTPURLResponse)
+                }
+
+                let (data, http) = try await makeRequest(token: accessToken!)
+                if http.statusCode == 401 {
+                    accessToken = try await refreshAccessToken()
+                    return try await makeRequest(token: accessToken!).0
+                }
+                switch http.statusCode {
+                case 200: return data
+                case 429:
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+                    throw MacAuthError.rateLimited(retryAfter: retryAfter)
+                default: throw MacAuthError.httpError(http.statusCode)
+                }
+            }
+        }
+
+        guard let token = accessToken, !token.isEmpty else {
             throw MacAuthError.noToken
         }
-        var accessToken = credentials.accessToken
 
         func makeRequest(token: String) async throws -> (Data, HTTPURLResponse) {
             var req = URLRequest(url: url)
@@ -269,11 +363,16 @@ final class MacOSAPIClient {
             return (data, response as! HTTPURLResponse)
         }
 
-        var (data, http) = try await makeRequest(token: accessToken)
+        let (data, http) = try await makeRequest(token: token)
 
         if http.statusCode == 401 {
-            accessToken = try await refreshAccessToken()
-            (data, http) = try await makeRequest(token: accessToken)
+            if let cliTokens = ClaudeCodeKeychainReader.loadTokens(),
+               let refreshToken = cliTokens.refreshToken {
+                accessToken = try await refreshCLIToken(refreshToken)
+            } else {
+                accessToken = try await refreshAccessToken()
+            }
+            return try await makeRequest(token: accessToken!).0
         }
 
         switch http.statusCode {
@@ -287,12 +386,31 @@ final class MacOSAPIClient {
         }
     }
 
+    private func refreshCLIToken(_ refreshToken: String) async throws -> String {
+        var request = URLRequest(url: URL(string: OAuth.tokenEndpoint)!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode([
+            "grant_type": "refresh_token",
+            "refresh_token": refreshToken,
+            "client_id": OAuth.clientID,
+            "scope": OAuth.scopes,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard statusCode == 200 else { throw MacAuthError.refreshFailed }
+        struct RefreshResponse: Decodable { let access_token: String; let expires_in: Int? }
+        let tokens = try JSONDecoder().decode(RefreshResponse.self, from: data)
+        return tokens.access_token
+    }
+
     // MARK: - Sign Out (Task 2.5)
 
     func signOut() {
         authState.isAuthenticated = false
         authState.isAwaitingCode = false
         authState.requiresExplicitSignIn = true
+        authState.authSource = .none
         onSignOut?()
     }
 }

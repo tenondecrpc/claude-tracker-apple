@@ -23,6 +23,7 @@ struct MacMenuView: View {
 struct NotSignedInMenuView: View {
     let coordinator: MacAppCoordinator
     @Environment(\.openWindow) private var openWindow
+    @State private var detectedAccount: DetectedClaudeAccount?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,20 +46,28 @@ struct NotSignedInMenuView: View {
                 }
                 .padding(.horizontal, 16)
 
-                Button {
-                    NSApp.keyWindow?.close()
-                    openWindow(id: "welcome")
-                } label: {
-                    Text("Sign In")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
+                VStack(spacing: 4) {
+                    Button {
+                        NSApp.keyWindow?.close()
+                        openWindow(id: "welcome")
+                    } label: {
+                        Text("Sign In")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .background(ClaudeCodeTheme.accent)
+                    .clipShape(.rect(cornerRadius: 10))
+
+                    if let label = detectedAccount?.label {
+                        Text("Detected: \(label)")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    }
                 }
-                .buttonStyle(.plain)
-                .background(ClaudeCodeTheme.accent)
-                .clipShape(.rect(cornerRadius: 10))
                 .padding(.horizontal, 16)
 
                 Button {
@@ -94,5 +103,8 @@ struct NotSignedInMenuView: View {
             .padding(.vertical, 10)
         }
         .background(ClaudeCodeTheme.background)
+        .onAppear {
+            detectedAccount = DetectedClaudeAccount.load()
+        }
     }
 }

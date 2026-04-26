@@ -10,6 +10,7 @@ struct WelcomeWindowView: View {
     @State private var isSubmitting = false
     @State private var signInError: String?
     @State private var isRestoringSession = false
+    @State private var detectedAccount: DetectedClaudeAccount?
 
     private var isSubmitDisabled: Bool {
         pastedCode.isEmpty || isSubmitting
@@ -53,11 +54,11 @@ struct WelcomeWindowView: View {
 
             Spacer()
 
-            HStack(spacing: 12) {
+            VStack(spacing: 6) {
                 Button {
                     Task {
-                        isRestoringSession = true
                         coordinator.authState.requiresExplicitSignIn = false
+                        isRestoringSession = true
                         let start = Date()
                         let restored = await coordinator.client.tryRestoreSession()
                         let elapsed = Date().timeIntervalSince(start)
@@ -94,9 +95,29 @@ struct WelcomeWindowView: View {
                 .clipShape(.rect(cornerRadius: 10))
                 .disabled(isRestoringSession)
 
+                if let label = detectedAccount?.label {
+                    if coordinator.authState.authSource == .cliSession {
+                        Text("Signed in via CLI: \(label)")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.success)
+                    } else {
+                        Text("Detected: \(label)")
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    }
+                }
             }
         }
         .padding(40)
+        .onAppear {
+            detectedAccount = DetectedClaudeAccount.load()
+            if ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil,
+               !ClaudeLocalDBReader.hasHomeBookmark() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    coordinator.localDB.requestHomeDirectoryAccess()
+                }
+            }
+        }
     }
 
     // MARK: - Code Entry View

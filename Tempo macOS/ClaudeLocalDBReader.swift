@@ -105,6 +105,7 @@ final class ClaudeLocalDBReader {
 
     private(set) var isAvailable = false
     private(set) var needsAccessGrant = false
+    private(set) var needsHomeAccessGrant = false
     private(set) var dailyActivity: [LocalDailyActivity] = []
     private(set) var dailyModelTokens: [LocalDailyModelTokens] = []
     private(set) var modelUsage: [String: LocalModelUsageItem] = [:]
@@ -114,17 +115,25 @@ final class ClaudeLocalDBReader {
     private(set) var totalSubagents: Int = 0
 
     nonisolated static let bookmarkKey = "claudeFolderBookmark"
+    nonisolated static let homeBookmarkKey = "homeFolderBookmark"
 
     enum AccessError: Error {
         case accessRequired
+        case homeAccessRequired
     }
 
     init() {
         Task { await load() }
+        updateHomeAccessState()
     }
 
     func reload() {
         Task { await load() }
+        updateHomeAccessState()
+    }
+
+    private func updateHomeAccessState() {
+        needsHomeAccessGrant = Self.isSandboxed && !Self.hasHomeBookmark()
     }
 
     // MARK: - Folder Access
@@ -192,6 +201,72 @@ final class ClaudeLocalDBReader {
         let claudeURL = scopedURL ?? FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude")
         return try body(claudeURL)
+    }
+
+    // MARK: - Home Directory Bookmark
+
+    nonisolated static func resolveHomeBookmarkURL() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: homeBookmarkKey) else { return nil }
+        var isStale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            options: .withSecurityScope,
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        ) else { return nil }
+        if isStale, let fresh = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) {
+            UserDefaults.standard.set(fresh, forKey: homeBookmarkKey)
+        }
+        return url
+    }
+
+    static func hasHomeBookmark() -> Bool {
+        resolveHomeBookmarkURL() != nil
+    }
+
+    nonisolated static func withHomeDirectoryAccess<T>(_ body: (URL) throws -> T) throws -> T {
+        let scopedURL = resolveHomeBookmarkURL()
+        let accessing = scopedURL?.startAccessingSecurityScopedResource() ?? false
+        defer {
+            if accessing {
+                scopedURL?.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        if isSandboxed && scopedURL == nil {
+            throw AccessError.homeAccessRequired
+        }
+
+        let homeURL = scopedURL ?? FileManager.default.homeDirectoryForCurrentUser
+        return try body(homeURL)
+    }
+
+    func requestHomeDirectoryAccess() {
+        let panel = NSOpenPanel()
+        panel.message = "Tempo needs access to your home directory to detect your Claude account."
+        panel.prompt = "Grant Access"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+
+        panel.begin { [weak self] response in
+            guard let self, response == .OK, let url = panel.url else { return }
+            if let data = try? url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            ) {
+                UserDefaults.standard.set(data, forKey: Self.homeBookmarkKey)
+                needsHomeAccessGrant = false
+            }
+            Task { await self.load() }
+        }
     }
 
     // MARK: - Computed: 7-day window
@@ -277,6 +352,7 @@ final class ClaudeLocalDBReader {
         totalSessions = 0
         totalMessages = 0
         totalSubagents = 0
+        needsHomeAccessGrant = Self.isSandboxed && !Self.hasHomeBookmark()
     }
 
     private nonisolated static func buildFallbackStats(

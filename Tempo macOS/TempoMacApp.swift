@@ -212,6 +212,7 @@ final class MacAppCoordinator {
 @main
 struct TempoMacApp: App {
     @State private var coordinator = MacAppCoordinator()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         MenuBarExtra {
@@ -235,6 +236,13 @@ struct TempoMacApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+        .onChange(of: coordinator.authState.requiresExplicitSignIn) { _, needsSignIn in
+            if needsSignIn {
+                NSApp.keyWindow?.close()
+                openWindow(id: "welcome")
+                coordinator.authState.requiresExplicitSignIn = false
+            }
+        }
 
         Window("Welcome", id: "welcome") {
             WelcomeWindowView(coordinator: coordinator)
