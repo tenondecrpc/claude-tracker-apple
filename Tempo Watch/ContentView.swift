@@ -16,6 +16,11 @@ struct ContentView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(sessionColor(utilization: store.usageState.utilization5h))
 
+                    // Metric label - clarifies which ring the % refers to
+                    Text("Session")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+
                     // Countdown - secondary context below percentage
                     Text(formatCountdown(to: store.usageState.resetAt5h))
                         .font(.system(.caption2, design: .rounded))
@@ -43,46 +48,21 @@ struct ContentView: View {
     }
 
     private func ringLayer(for store: TokenStore) -> some View {
-        ZStack {
-            // Track rings (background)
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrack, lineWidth: 7)
-                .padding(4)
-
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrackInner, lineWidth: 4)
-                .padding(16)
-
-            // Primary ring - 5h utilization
-            Circle()
-                .trim(from: 0, to: store.usageState.utilization5h)
-                .stroke(
-                    sessionColor(utilization: store.usageState.utilization5h),
-                    style: StrokeStyle(lineWidth: 7, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .padding(4)
-                .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization5h)
-
-            // Secondary ring - 7d utilization
-            Circle()
-                .trim(from: 0, to: store.usageState.utilization7d)
-                .stroke(
-                    weeklyColor(utilization: store.usageState.utilization7d),
-                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .padding(16)
-                .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization7d)
-        }
+        TempoUsageRing(
+            sessionProgress: store.usageState.utilization5h,
+            weeklyProgress: store.usageState.utilization7d
+        )
+        .padding(4)
+        .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization5h)
+        .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization7d)
     }
 
     private func sessionColor(utilization: Double) -> Color {
-        UtilizationSeverity(utilization: utilization).usageColor(normal: ClaudeCodeTheme.Usage.watchSession)
+        UsageRingStyle.sessionColor(utilization: utilization)
     }
 
     private func weeklyColor(utilization: Double) -> Color {
-        UtilizationSeverity(utilization: utilization).usageColor(normal: ClaudeCodeTheme.Usage.watchWeekly)
+        UsageRingStyle.weeklyColor(utilization: utilization)
     }
 
     private func formatCountdown(to date: Date) -> String {

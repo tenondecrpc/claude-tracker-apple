@@ -373,6 +373,15 @@ private struct TempoMacExtraUsageRow: View {
     let snapshot: WidgetUsageSnapshot
     let isCompact: Bool
 
+    private var extraUsageProgress: Double {
+        let rawValue = snapshot.extraUsageUtilizationPercent ?? 0
+        return rawValue > 1 ? rawValue / 100.0 : rawValue
+    }
+
+    private var extraColor: Color {
+        UtilizationSeverity(utilization: extraUsageProgress).usageColor(normal: ClaudeCodeTheme.info)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: isCompact ? 4 : 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -382,22 +391,17 @@ private struct TempoMacExtraUsageRow: View {
                 Spacer(minLength: 6)
                 Text(TempoWidgetFormatting.extraUsageSummaryString(snapshot, compact: false) ?? "")
                     .font((isCompact ? Font.system(size: 10) : .caption).monospacedDigit())
-                    .foregroundStyle(ClaudeCodeTheme.accentLight)
+                    .foregroundStyle(extraColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
 
             TempoMacBar(
                 progress: extraUsageProgress,
-                color: ClaudeCodeTheme.accentLight,
+                color: extraColor,
                 height: isCompact ? 7 : 8
             )
         }
-    }
-
-    private var extraUsageProgress: Double {
-        let rawValue = snapshot.extraUsageUtilizationPercent ?? 0
-        return rawValue > 1 ? rawValue / 100.0 : rawValue
     }
 }
 
@@ -474,32 +478,14 @@ private struct TempoMacDualRing: View {
     let weeklyProgress: Double
 
     var body: some View {
-        let weeklyColor = UtilizationSeverity(utilization: weeklyProgress).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
-        let sessionColor = UtilizationSeverity(utilization: sessionProgress).usageColor(normal: ClaudeCodeTheme.Usage.sessionEmphasis)
-
-        ZStack {
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrack.opacity(0.7), lineWidth: 13)
-
-            Circle()
-                .trim(from: 0, to: max(0, min(weeklyProgress, 1)))
-                .stroke(weeklyColor.opacity(0.9), style: StrokeStyle(lineWidth: 13, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-
-            Circle()
-                .stroke(ClaudeCodeTheme.ringTrackInner.opacity(0.9), lineWidth: 13)
-                .padding(22)
-
-            Circle()
-                .trim(from: 0, to: max(0, min(sessionProgress, 1)))
-                .stroke(sessionColor, style: StrokeStyle(lineWidth: 13, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .padding(22)
-
+        TempoUsageRing(
+            sessionProgress: sessionProgress,
+            weeklyProgress: weeklyProgress
+        ) {
             VStack(spacing: 1) {
                 Text(TempoWidgetFormatting.percentString(sessionProgress))
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(sessionColor)
+                    .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
                 Text("session")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)

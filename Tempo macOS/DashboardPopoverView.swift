@@ -88,7 +88,8 @@ struct DashboardPopoverView: View {
             UsageRingView(
                 sessionProgress: usage.utilization5h,
                 weeklyProgress: usage.utilization7d,
-                centerLabel: "\(Int(usage.utilization5h * 100))%"
+                centerLabel: "\(Int(usage.utilization5h * 100))%",
+                centerSubtitle: "Session"
             )
             .frame(width: 144, height: 144)
             .frame(maxWidth: .infinity)
