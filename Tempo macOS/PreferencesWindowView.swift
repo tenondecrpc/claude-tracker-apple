@@ -26,6 +26,10 @@ struct PreferencesWindowView: View {
             .onChange(of: hostingWindow, initial: true) { _, window in
                 activateWindowIfNeeded(window)
             }
+            .task {
+                // Check bookmark state so preferences can show correct access status
+                await coordinator.localDB.load()
+            }
             .frame(minWidth: 420, idealWidth: 460, maxWidth: 520, minHeight: 800)
         } else {
             preferencesContent

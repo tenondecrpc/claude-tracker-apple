@@ -1,6 +1,6 @@
 import Foundation
 import AppKit
-import Security
+import Security // Only used for one-time migration from old Keychain bookmark store
 
 // MARK: - Models
 
@@ -98,11 +98,20 @@ nonisolated private struct JNLContentBlock: Decodable {
     let type: String
 }
 
-// MARK: - BookmarkKeychainStore
+// MARK: - UserDefaultsBookmarkStore
 
-/// Stores security-scoped bookmarks in the macOS Keychain instead of UserDefaults.
-private enum BookmarkKeychainStore {
-    nonisolated private static let service = "com.tenondev.tempo.claude.bookmarks"
+/// Stores security-scoped bookmarks in UserDefaults.
+///
+/// Bookmarks are not secrets -- they are opaque blobs that encode a filesystem
+/// path and an access token bound to this app's bundle ID. Storing them in
+/// UserDefaults avoids an extra Keychain prompt on every reinstall or update
+/// while remaining protected by the app sandbox.
+///
+/// Tradeoff: Keychain would survive a full app deletion + reinstall, but
+/// bookmarks are tied to the bundle ID anyway, so a different app could not
+/// use them. UserDefaults is simpler, eliminates the second Keychain prompt,
+/// and is sufficient for this use case. See docs/DECISIONS.md for details.
+private enum UserDefaultsBookmarkStore {
 
     private struct CacheEntry {
         let data: Data?
@@ -124,135 +133,106 @@ private enum BookmarkKeychainStore {
 
     nonisolated private static let cacheStore = CacheStore()
 
-    nonisolated static func saveBookmark(data: Data, account: String) {
-        DevLog.trace("BookmarkTrace", "Saving bookmark account=\(account) bytes=\(data.count)")
-        let baseQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        let updateStatus = SecItemUpdate(
-            baseQuery as CFDictionary,
-            [kSecValueData as String: data] as CFDictionary
-        )
-        if updateStatus == errSecSuccess {
-            storeCachedBookmark(data, account: account)
-            DevLog.trace("BookmarkTrace", "Updated existing bookmark account=\(account)")
-            return
-        }
-        var addQuery = baseQuery
-        addQuery[kSecValueData as String] = data
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-        if addStatus == errSecSuccess || addStatus == errSecDuplicateItem {
-            storeCachedBookmark(data, account: account)
-        }
-        DevLog.trace("BookmarkTrace", "Added bookmark account=\(account) status=\(addStatus)")
+    nonisolated static func saveBookmark(data: Data, key: String) {
+        DevLog.trace("BookmarkTrace", "Saving bookmark key=\(key) bytes=\(data.count)")
+        UserDefaults.standard.set(data, forKey: key)
+        storeCachedBookmark(data, key: key)
+        DevLog.trace("BookmarkTrace", "Saved bookmark key=\(key)")
     }
 
-    nonisolated static func loadBookmark(account: String) -> Data? {
+    nonisolated static func loadBookmark(key: String) -> Data? {
         cacheStore.lock.lock()
-        if let entry = cacheStore.entries[account] {
+        if let entry = cacheStore.entries[key] {
             cacheStore.lock.unlock()
-            DevLog.trace("BookmarkTrace", "Bookmark load served from cache account=\(account) hasData=\(entry.data != nil)")
+            DevLog.trace("BookmarkTrace", "Bookmark load served from cache key=\(key) hasData=\(entry.data != nil)")
             return entry.data
         }
 
-        DevLog.trace("BookmarkTrace", "Loading bookmark account=\(account)")
+        DevLog.trace("BookmarkTrace", "Loading bookmark key=\(key)")
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            cacheStore.entries[key] = CacheEntry(data: nil)
+            cacheStore.lock.unlock()
+            DevLog.trace("BookmarkTrace", "Bookmark not found key=\(key)")
+            return nil
+        }
+
+        cacheStore.entries[key] = CacheEntry(data: data)
+        cacheStore.lock.unlock()
+        DevLog.trace("BookmarkTrace", "Loaded bookmark key=\(key) bytes=\(data.count)")
+        return data
+    }
+
+    nonisolated static func deleteBookmark(key: String) {
+        DevLog.trace("BookmarkTrace", "Deleting bookmark key=\(key)")
+        UserDefaults.standard.removeObject(forKey: key)
+        clearCachedBookmark(key: key)
+        DevLog.trace("BookmarkTrace", "Deleted bookmark key=\(key)")
+    }
+
+    /// Migrates a bookmark from the old Keychain store to UserDefaults if present.
+    nonisolated static func migrateFromKeychainIfNeeded(key: String, keychainAccount: String) {
+        DevLog.trace("BookmarkTrace", "Checking bookmark migration from Keychain key=\(key)")
+        guard loadBookmark(key: key) == nil else {
+            DevLog.trace("BookmarkTrace", "Skipping migration because UserDefaults item exists key=\(key)")
+            return
+        }
+
+        // Try to read from the old Keychain store
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrService as String: "com.tenondev.tempo.claude.bookmarks",
+            kSecAttrAccount as String: keychainAccount,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        switch status {
-        case errSecSuccess:
-            guard let data = result as? Data else {
-                cacheStore.entries[account] = CacheEntry(data: nil)
-                cacheStore.lock.unlock()
-                DevLog.trace("BookmarkTrace", "Bookmark load returned non-data result account=\(account)")
-                return nil
-            }
-            cacheStore.entries[account] = CacheEntry(data: data)
-            cacheStore.lock.unlock()
-            DevLog.trace("BookmarkTrace", "Loaded bookmark account=\(account) bytes=\(data.count)")
-            return data
-        case errSecItemNotFound:
-            cacheStore.entries[account] = CacheEntry(data: nil)
-            cacheStore.lock.unlock()
-            DevLog.trace("BookmarkTrace", "Bookmark not found account=\(account)")
-            return nil
-        case errSecUserCanceled, errSecAuthFailed:
-            cacheStore.entries[account] = CacheEntry(data: nil)
-            cacheStore.lock.unlock()
-            DevLog.trace("BookmarkTrace", "Bookmark load denied or canceled account=\(account) status=\(status)")
-            return nil
-        default:
-            cacheStore.entries[account] = CacheEntry(data: nil)
-            cacheStore.lock.unlock()
-            DevLog.trace("BookmarkTrace", "Bookmark load failed account=\(account) status=\(status)")
-            return nil
-        }
-    }
 
-    nonisolated static func deleteBookmark(account: String) {
-        DevLog.trace("BookmarkTrace", "Deleting bookmark account=\(account)")
-        let query: [String: Any] = [
+        guard status == errSecSuccess, let data = result as? Data else {
+            DevLog.trace("BookmarkTrace", "No Keychain bookmark to migrate key=\(key) status=\(status)")
+            return
+        }
+
+        saveBookmark(data: data, key: key)
+
+        // Remove from Keychain after successful migration
+        let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+            kSecAttrService as String: "com.tenondev.tempo.claude.bookmarks",
+            kSecAttrAccount as String: keychainAccount
         ]
-        let status = SecItemDelete(query as CFDictionary)
-        clearCachedBookmark(account: account)
-        DevLog.trace("BookmarkTrace", "Deleted bookmark account=\(account) status=\(status)")
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        DevLog.trace("BookmarkTrace", "Migrated bookmark from Keychain to UserDefaults key=\(key)")
     }
 
-    /// Migrates a bookmark from UserDefaults to Keychain if present.
-    nonisolated static func migrateIfNeeded(defaultsKey: String, account: String) {
-        DevLog.trace("BookmarkTrace", "Checking bookmark migration defaultsKey=\(defaultsKey) account=\(account)")
-        guard BookmarkKeychainStore.loadBookmark(account: account) == nil else {
-            DevLog.trace("BookmarkTrace", "Skipping bookmark migration because Keychain item exists account=\(account)")
-            return
-        }
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
-            DevLog.trace("BookmarkTrace", "Skipping bookmark migration because legacy defaults item is absent account=\(account)")
-            return
-        }
-        saveBookmark(data: data, account: account)
-        UserDefaults.standard.removeObject(forKey: defaultsKey)
-        DevLog.trace("BookmarkTrace", "Migrated bookmark from UserDefaults to Keychain account=\(account)")
-    }
-
-    nonisolated private static func storeCachedBookmark(_ data: Data?, account: String) {
+    nonisolated private static func storeCachedBookmark(_ data: Data?, key: String) {
         cacheStore.lock.lock()
-        cacheStore.entries[account] = CacheEntry(data: data)
-        cacheStore.resolvedURLs.removeValue(forKey: account)
+        cacheStore.entries[key] = CacheEntry(data: data)
+        cacheStore.resolvedURLs.removeValue(forKey: key)
         cacheStore.lock.unlock()
     }
 
-    nonisolated private static func clearCachedBookmark(account: String) {
+    nonisolated private static func clearCachedBookmark(key: String) {
         cacheStore.lock.lock()
-        cacheStore.entries.removeValue(forKey: account)
-        cacheStore.resolvedURLs.removeValue(forKey: account)
+        cacheStore.entries.removeValue(forKey: key)
+        cacheStore.resolvedURLs.removeValue(forKey: key)
         cacheStore.lock.unlock()
     }
 
-    nonisolated fileprivate static func cachedResolvedURL(for account: String) -> URL? {
+    nonisolated fileprivate static func cachedResolvedURL(for key: String) -> URL? {
         cacheStore.lock.lock()
         defer { cacheStore.lock.unlock() }
-        guard let entry = cacheStore.resolvedURLs[account],
+        guard let entry = cacheStore.resolvedURLs[key],
               Date().timeIntervalSince(entry.resolvedAt) < resolvedURLCacheTTL else {
             return nil
         }
         return entry.url
     }
 
-    nonisolated fileprivate static func storeCachedResolvedURL(_ url: URL, account: String) {
+    nonisolated fileprivate static func storeCachedResolvedURL(_ url: URL, key: String) {
         cacheStore.lock.lock()
-        cacheStore.resolvedURLs[account] = ResolvedURLCacheEntry(url: url, resolvedAt: Date())
+        cacheStore.resolvedURLs[key] = ResolvedURLCacheEntry(url: url, resolvedAt: Date())
         cacheStore.lock.unlock()
     }
 }
@@ -280,11 +260,9 @@ final class ClaudeLocalDBReader {
     }
 
     init() {
-        Task { await load() }
-    }
-
-    func reload() {
-        Task { await load() }
+        // Bookmark loading is deferred until first access is needed.
+        // This avoids a Keychain prompt at launch and unnecessary I/O.
+        // Call load() explicitly when local stats are required.
     }
 
     // MARK: - Folder Access
@@ -308,7 +286,7 @@ final class ClaudeLocalDBReader {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             ) {
-                BookmarkKeychainStore.saveBookmark(data: data, account: "claudeFolder")
+                UserDefaultsBookmarkStore.saveBookmark(data: data, key: Self.bookmarkKey)
             }
             needsAccessGrant = false
             Task { await self.load() }
@@ -318,14 +296,14 @@ final class ClaudeLocalDBReader {
     // MARK: - Bookmark Resolution
 
     nonisolated static func resolveBookmarkedClaudeURL() -> URL? {
-        if let cached = BookmarkKeychainStore.cachedResolvedURL(for: "claudeFolder") {
+        if let cached = UserDefaultsBookmarkStore.cachedResolvedURL(for: bookmarkKey) {
             DevLog.trace("BookmarkTrace", "Resolved Claude folder bookmark served from cache")
             return cached
         }
 
         DevLog.trace("BookmarkTrace", "Resolving Claude folder bookmark")
-        BookmarkKeychainStore.migrateIfNeeded(defaultsKey: bookmarkKey, account: "claudeFolder")
-        guard let data = BookmarkKeychainStore.loadBookmark(account: "claudeFolder") else { return nil }
+        UserDefaultsBookmarkStore.migrateFromKeychainIfNeeded(key: bookmarkKey, keychainAccount: "claudeFolder")
+        guard let data = UserDefaultsBookmarkStore.loadBookmark(key: bookmarkKey) else { return nil }
         var isStale = false
         guard let url = try? URL(
             resolvingBookmarkData: data,
@@ -342,9 +320,9 @@ final class ClaudeLocalDBReader {
             relativeTo: nil
         ) {
             DevLog.trace("BookmarkTrace", "Claude folder bookmark is stale; saving refreshed bookmark")
-            BookmarkKeychainStore.saveBookmark(data: fresh, account: "claudeFolder")
+            UserDefaultsBookmarkStore.saveBookmark(data: fresh, key: bookmarkKey)
         }
-        BookmarkKeychainStore.storeCachedResolvedURL(url, account: "claudeFolder")
+        UserDefaultsBookmarkStore.storeCachedResolvedURL(url, key: bookmarkKey)
         DevLog.trace("BookmarkTrace", "Resolved Claude folder bookmark isStale=\(isStale)")
         return url
     }
@@ -394,7 +372,10 @@ final class ClaudeLocalDBReader {
 
     // MARK: - Private
 
-    private func load() async {
+    /// Loads local Claude stats from the bookmarked folder.
+    /// Call this when the user opens the stats window or when local data
+    /// is needed. Safe to call multiple times -- subsequent calls refresh data.
+    func load() async {
         do {
             let loaded: LoadedClaudeStats = try await Task.detached(priority: .userInitiated) {
                 try Self.withClaudeFolderAccess { claudeURL in

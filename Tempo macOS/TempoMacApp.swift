@@ -84,12 +84,27 @@ final class MacAppCoordinator {
         sessionEventWriter.start()
         seedInitialWidgetSnapshotIfNeeded()
 
-        guard !authState.requiresExplicitSignIn else { return }
-        let restored = await client.tryRestoreSession()
-        if restored {
-            poller.resetAuthenticationBackoff()
-            poller.start()
-            updateServiceStatusMonitoring()
+        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasCompletedFirstLaunch")
+
+        if isFirstLaunch {
+            // First launch: do NOT touch Keychain. The menu bar popover will
+            // show the "Not Signed In" view with a "Sign In" button. The
+            // Welcome window opens only when the user clicks that button.
+            // Do nothing here -- the popover handles the unauthenticated state.
+        } else {
+            // Returning user: try to restore session from Keychain.
+            // Since the user already granted "Always Allow", this should
+            // succeed silently without any prompts.
+            let restored = await client.tryRestoreSession()
+            if restored {
+                poller.resetAuthenticationBackoff()
+                poller.start()
+                updateServiceStatusMonitoring()
+            }
+            // If restore failed (credentials expired or removed), do NOT open
+            // the Welcome window automatically. The menu bar popover will show
+            // the "Not Signed In" view and the user can click "Sign In" to
+            // open the Welcome window explicitly.
         }
     }
 
@@ -249,7 +264,7 @@ struct TempoMacApp: App {
 
         Window("Welcome", id: "welcome") {
             WelcomeWindowView(coordinator: coordinator)
-                .frame(minWidth: 580, minHeight: 480)
+                .frame(minWidth: 580, idealHeight: 680)
                 .applyClaudeAppearance(coordinator.settings.appearanceMode)
                 .syncWindowAppearance(coordinator.settings.appearanceMode)
         }

@@ -73,6 +73,10 @@ struct DetailWindowView: View {
         .onChange(of: hostingWindow, initial: true) { _, window in
             activateWindowIfNeeded(window)
         }
+        .task {
+            // Load local stats on demand when the user opens the stats window
+            await localDB.load()
+        }
         .frame(minWidth: 900, minHeight: 780)
         .alert("Unable to Share Chart", isPresented: $showShareError) {
             Button("OK", role: .cancel) {}

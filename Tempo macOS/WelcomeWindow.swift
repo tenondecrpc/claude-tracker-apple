@@ -36,8 +36,8 @@ struct WelcomeWindowView: View {
     // MARK: - Welcome View
 
     private var welcomeView: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 10) {
+        VStack(spacing: 20) {
+            VStack(spacing: 8) {
                 Text("Welcome to Tempo for Claude")
                     .font(.largeTitle.bold())
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
@@ -54,7 +54,27 @@ struct WelcomeWindowView: View {
 
             Spacer()
 
-            VStack(spacing: 6) {
+            VStack(spacing: 12) {
+                // Keychain permission explanation
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield")
+                            .foregroundStyle(ClaudeCodeTheme.accent)
+                        Text("Authentication")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    }
+
+                    Text("Tempo needs access to your macOS Keychain to securely store and retrieve your Claude authentication tokens. Your credentials never leave your device and are protected by the system Keychain.")
+                        .font(.caption)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ClaudeCodeTheme.surface)
+                .clipShape(.rect(cornerRadius: 10))
+
                 Button {
                     Task {
                         coordinator.authState.requiresExplicitSignIn = false
@@ -67,6 +87,9 @@ struct WelcomeWindowView: View {
                         }
                         isRestoringSession = false
                         if restored {
+                            // Mark first launch as complete so future launches
+                            // auto-restore from Keychain without showing this window.
+                            UserDefaults.standard.set(true, forKey: "hasCompletedFirstLaunch")
                             coordinator.onAuthenticated()
                             dismissWindow(id: "welcome")
                         } else {

@@ -42,13 +42,10 @@ final class MacAuthState {
     }
 
     init() {
-        if let credentials = CredentialStore.load(), CredentialStore.isValid(credentials) {
-            isAuthenticated = true
-            authSource = .webOAuth
-        } else if ClaudeCodeKeychainReader.hasValidSession() {
-            isAuthenticated = true
-            authSource = .cliSession
-        }
+        // Do NOT check Keychain here -- this runs during app init and would
+        // trigger Keychain prompts before the UI is ready. Authentication
+        // state is resolved only when the user explicitly signs in via the
+        // Welcome window.
         accountEmail = DetectedClaudeAccount.load()?.emailAddress
     }
 }
