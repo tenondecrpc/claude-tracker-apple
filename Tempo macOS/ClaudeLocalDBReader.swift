@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import Security // Only used for one-time migration from old Keychain bookmark store
 
 // MARK: - Models
 
@@ -169,43 +168,6 @@ private enum UserDefaultsBookmarkStore {
         DevLog.trace("BookmarkTrace", "Deleted bookmark key=\(key)")
     }
 
-    /// Migrates a bookmark from the old Keychain store to UserDefaults if present.
-    nonisolated static func migrateFromKeychainIfNeeded(key: String, keychainAccount: String) {
-        DevLog.trace("BookmarkTrace", "Checking bookmark migration from Keychain key=\(key)")
-        guard loadBookmark(key: key) == nil else {
-            DevLog.trace("BookmarkTrace", "Skipping migration because UserDefaults item exists key=\(key)")
-            return
-        }
-
-        // Try to read from the old Keychain store
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.tenondev.tempo.claude.bookmarks",
-            kSecAttrAccount as String: keychainAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess, let data = result as? Data else {
-            DevLog.trace("BookmarkTrace", "No Keychain bookmark to migrate key=\(key) status=\(status)")
-            return
-        }
-
-        saveBookmark(data: data, key: key)
-
-        // Remove from Keychain after successful migration
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.tenondev.tempo.claude.bookmarks",
-            kSecAttrAccount as String: keychainAccount
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        DevLog.trace("BookmarkTrace", "Migrated bookmark from Keychain to UserDefaults key=\(key)")
-    }
-
     nonisolated private static func storeCachedBookmark(_ data: Data?, key: String) {
         cacheStore.lock.lock()
         cacheStore.entries[key] = CacheEntry(data: data)
@@ -302,7 +264,6 @@ final class ClaudeLocalDBReader {
         }
 
         DevLog.trace("BookmarkTrace", "Resolving Claude folder bookmark")
-        UserDefaultsBookmarkStore.migrateFromKeychainIfNeeded(key: bookmarkKey, keychainAccount: "claudeFolder")
         guard let data = UserDefaultsBookmarkStore.loadBookmark(key: bookmarkKey) else { return nil }
         var isStale = false
         guard let url = try? URL(

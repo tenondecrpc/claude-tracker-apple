@@ -6,11 +6,11 @@ Record of significant technical decisions and their tradeoffs.
 
 ### Context
 
-The macOS app needs to store a security-scoped bookmark for the `~/.claude/` folder so the sandboxed app can read local session data. Previously, this bookmark was stored in the macOS Keychain (`com.tenondev.tempo.claude.bookmarks`).
+The macOS app needs to store a security-scoped bookmark for the `~/.claude/` folder so the sandboxed app can read local session data. Originally, this bookmark was stored in the macOS Keychain under the service `com.tenondev.tempo.claude.bookmarks`. **That service is now fully retired and unused** - bookmarks live only in `UserDefaults`.
 
 ### Problem
 
-Storing the bookmark in the Keychain caused a Keychain access prompt every time the app was reinstalled or updated, even though the bookmark data itself was not a secret. Combined with the OAuth credential Keychain prompt, users saw two consecutive Keychain dialogs on first launch after an update.
+Storing the bookmark in the Keychain caused a Keychain access prompt every time the app was reinstalled or updated, even though the bookmark data itself was not a secret. Combined with the prompt for reading the Claude Code CLI keychain item, users saw two consecutive Keychain dialogs on first launch after an update.
 
 ### Decision
 
@@ -31,7 +31,7 @@ Move the security-scoped bookmark storage from Keychain to `UserDefaults`.
 
 Security-scoped bookmarks are **not secrets**. They are opaque data blobs that encode a filesystem path and an access token bound to the app's bundle ID. Key benefits of this decision:
 
-1. **No extra Keychain prompt**: Eliminates the second Keychain dialog on reinstall/update. Only the OAuth credential prompt remains (which is legitimate, as it contains actual tokens).
+1. **No extra Keychain prompt**: Eliminates the second Keychain dialog on reinstall/update. The only remaining prompt is for the **Claude Code CLI keychain item** (`Claude Code-credentials`, owned by the `claude` CLI, not by Tempo). Tempo's own OAuth credentials (`com.tenondev.tempo.claude.oauth`) never trigger a prompt because the app writes to its own bundle-scoped keychain entry.
 2. **Sandbox protection is sufficient**: `UserDefaults` for a sandboxed app is already protected by the system. Other apps cannot read it.
 3. **Bundle ID binding**: Even if someone extracted the bookmark data, it would only work for this specific app's bundle ID.
 4. **Simpler code**: `UserDefaults` API is simpler and less error-prone than `SecItem*` calls.
@@ -41,9 +41,9 @@ The one downside is that bookmarks do not survive a full app deletion + reinstal
 - This is a rare scenario (most users update, not delete + reinstall)
 - The migration code handles the transition from the old Keychain store automatically
 
-### Migration
+### Migration (removed)
 
-The code includes a one-time migration (`UserDefaultsBookmarkStore.migrateFromKeychainIfNeeded`) that reads any existing bookmark from the old Keychain store, saves it to `UserDefaults`, and removes the Keychain entry. This ensures existing users do not lose their bookmark after updating.
+A one-shot migration helper (`UserDefaultsBookmarkStore.migrateFromKeychainIfNeeded`) used to copy any leftover bookmark from the old Keychain service `com.tenondev.tempo.claude.bookmarks` into `UserDefaults` and delete the Keychain entry. It was removed on 2026-05-05: the helper ran on every bookmark resolution, did a `SecItemCopyMatching` that returned `errSecItemNotFound` for all current installs, and was no longer expected to find anything. Any user still on a pre-2026-05-03 build will be re-prompted via the "Grant Access" flow on first need; this is acceptable given the size of the affected cohort.
 
 ### Deferred Loading
 
