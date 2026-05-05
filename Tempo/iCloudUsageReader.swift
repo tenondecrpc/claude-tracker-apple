@@ -18,6 +18,7 @@ final class iCloudUsageReader: NSObject {
     var historySyncStatus: SyncStatus = .waiting
     var lastReceivedAt: Date?
     var lastHistoryReceivedAt: Date?
+    var hasCompletedInitialGather: Bool = false
     var latestUsage: UsageState?
     var latestSession: SessionInfo?
     var historySnapshots: [UsageHistorySnapshot] = []
@@ -52,19 +53,35 @@ final class iCloudUsageReader: NSObject {
         lastHistoryReceivedAt = nil
         syncStatus = .waiting
         historySyncStatus = .waiting
+        hasCompletedInitialGather = true
         let message = Self.unavailableMessage
         usageReadError = message
         historyReadError = message
         DevLog.trace("AlertTrace", "iCloudUsageReader start aborted on simulator message=\(message)")
         return
         #else
+        // Apple docs require url(forUbiquityContainerIdentifier:) to run off the main
+        // thread. Resolving it synchronously on launch can hang the first SwiftUI frame
+        // (especially on a fresh install or with no iCloud account configured).
+        DevLog.trace("AlertTrace", "iCloudUsageReader resolving ubiquity container off main thread")
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let documentsScope = Self.iCloudDocumentsScope()
+            await self?.completeStart(documentsScope: documentsScope)
+        }
+        #endif
+    }
+
+    #if !targetEnvironment(simulator)
+    private func completeStart(documentsScope: URL?) {
+        // Another start() may have been called while the container URL was resolving.
+        if query != nil { return }
+
         let q = NSMetadataQuery()
         q.predicate = NSPredicate(
             format: "%K IN %@",
             NSMetadataItemFSNameKey,
             ["usage.json", "usage-history.json", "latest.json", AlertPreferencesSync.fileName, AppearanceModeSync.fileName]
         )
-        let documentsScope = Self.iCloudDocumentsScope()
         q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
         if let documentsScope {
             usageReadError = nil
@@ -97,8 +114,8 @@ final class iCloudUsageReader: NSObject {
         DevLog.trace("AlertTrace", "iCloudUsageReader query start requested didStart=\(didStart)")
         query = q
         bootstrapReadFromKnownPaths(documentsScope: documentsScope)
-        #endif
     }
+    #endif
 
     func stop() {
         if let q = query {
@@ -129,7 +146,7 @@ final class iCloudUsageReader: NSObject {
         #endif
     }
 
-    private static func iCloudDocumentsScope() -> URL? {
+    nonisolated private static func iCloudDocumentsScope() -> URL? {
         #if targetEnvironment(simulator)
         // Avoid simulator-only CoreServices CRIT logs for container URL lookups.
         return nil
@@ -147,36 +164,41 @@ final class iCloudUsageReader: NSObject {
         DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap trackerDirectory=\(trackerDirectory.path)")
 
         let usageURL = trackerDirectory.appendingPathComponent("usage.json")
-        if FileManager.default.fileExists(atPath: usageURL.path) {
-            Self.debugPrint("iCloudUsageReader bootstrap found usage.json")
-            DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found usage file path=\(usageURL.path)")
-            readUsageFile(at: usageURL)
-        }
-
         let historyURL = trackerDirectory.appendingPathComponent("usage-history.json")
-        if FileManager.default.fileExists(atPath: historyURL.path) {
-            Self.debugPrint("iCloudUsageReader bootstrap found usage-history.json")
-            DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found history file path=\(historyURL.path)")
-            readHistoryFile(at: historyURL)
-        }
-
         let sessionURL = trackerDirectory.appendingPathComponent("latest.json")
-        if FileManager.default.fileExists(atPath: sessionURL.path) {
-            Self.debugPrint("iCloudUsageReader bootstrap found latest.json")
-            DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found session file path=\(sessionURL.path)")
-            readSessionFile(at: sessionURL)
-        }
-
         let alertPreferencesURL = trackerDirectory.appendingPathComponent(AlertPreferencesSync.fileName)
-        if FileManager.default.fileExists(atPath: alertPreferencesURL.path) {
-            Self.debugPrint("iCloudUsageReader bootstrap found alert-preferences.json")
-            DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found alert preferences file path=\(alertPreferencesURL.path)")
-            readAlertPreferencesFile(at: alertPreferencesURL)
-        }
-
         let appearanceModeURL = trackerDirectory.appendingPathComponent(AppearanceModeSync.fileName)
-        if FileManager.default.fileExists(atPath: appearanceModeURL.path) {
-            readAppearanceModeFile(at: appearanceModeURL)
+
+        // FileManager checks + decoding hop off main; results are dispatched back to
+        // the @MainActor for state mutation.
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            let fm = FileManager.default
+            let foundUsage = fm.fileExists(atPath: usageURL.path)
+            let foundHistory = fm.fileExists(atPath: historyURL.path)
+            let foundSession = fm.fileExists(atPath: sessionURL.path)
+            let foundAlertPrefs = fm.fileExists(atPath: alertPreferencesURL.path)
+            let foundAppearance = fm.fileExists(atPath: appearanceModeURL.path)
+
+            if foundUsage {
+                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found usage file path=\(usageURL.path)")
+                await self.readUsageFile(at: usageURL)
+            }
+            if foundHistory {
+                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found history file path=\(historyURL.path)")
+                await self.readHistoryFile(at: historyURL)
+            }
+            if foundSession {
+                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found session file path=\(sessionURL.path)")
+                await self.readSessionFile(at: sessionURL)
+            }
+            if foundAlertPrefs {
+                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found alert preferences file path=\(alertPreferencesURL.path)")
+                await self.readAlertPreferencesFile(at: alertPreferencesURL)
+            }
+            if foundAppearance {
+                await self.readAppearanceModeFile(at: appearanceModeURL)
+            }
         }
     }
 
@@ -185,6 +207,7 @@ final class iCloudUsageReader: NSObject {
     @objc private func queryDidFinishGathering(_ notification: Notification) {
         Self.debugPrint("iCloudUsageReader didFinishGathering resultCount=\(query?.resultCount ?? -1)")
         DevLog.trace("AlertTrace", "iCloudUsageReader queryDidFinishGathering resultCount=\(query?.resultCount ?? -1)")
+        hasCompletedInitialGather = true
         processQueryResults()
     }
 
@@ -244,161 +267,181 @@ final class iCloudUsageReader: NSObject {
             "iCloudUsageReader ensureDownloaded path=\(url.path) status=\(downloadStatus ?? "nil")"
         )
 
-        let isLocalFilePresent = FileManager.default.fileExists(atPath: url.path)
-        Self.debugPrint(
-            "iCloudUsageReader ensureDownloaded path=\(url.lastPathComponent) status=\(downloadStatus ?? "nil") localExists=\(isLocalFilePresent)"
-        )
-
-        if downloadStatus == NSMetadataUbiquitousItemDownloadingStatusCurrent || isLocalFilePresent {
+        if downloadStatus == NSMetadataUbiquitousItemDownloadingStatusCurrent {
             return true
         }
 
-        if downloadStatus != NSMetadataUbiquitousItemDownloadingStatusCurrent {
-            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
-            Self.debugPrint("iCloudUsageReader requested download for \(url.lastPathComponent)")
-            DevLog.trace("AlertTrace", "iCloudUsageReader requested ubiquitous download path=\(url.path)")
-            return false
+        // FileManager I/O off the main thread (we're @MainActor here). The metadata query
+        // posts notifications on the main thread, so we can't afford to block it on disk.
+        Task.detached(priority: .userInitiated) {
+            let isLocalFilePresent = FileManager.default.fileExists(atPath: url.path)
+            if !isLocalFilePresent && downloadStatus != NSMetadataUbiquitousItemDownloadingStatusCurrent {
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+                DevLog.trace("AlertTrace", "iCloudUsageReader requested ubiquitous download path=\(url.path)")
+            }
         }
+        // Returning true keeps decode attempts opportunistic; coordinatedRead handles
+        // the case where the file isn't yet present.
         return true
     }
 
     // MARK: - File Read
 
     private func readUsageFile(at url: URL) {
-        Task { [weak self] in
-            let result: Result<UsageState, Error> = Self.decodeFile(at: url, as: UsageState.self)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applyUsageData(dataResult, url: url)
+        }
+    }
 
-            guard let self else { return }
-            switch result {
-            case .success(let state):
-                self.latestUsage = state
-                self.lastReceivedAt = Date()
-                self.usageReadError = nil
-                self.syncStatus = .syncing
-                Self.debugPrint("iCloudUsageReader decoded usage.json utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)")
+    private func applyUsageData(_ result: Result<Data, Error>, url: URL) {
+        switch result {
+        case .success(let data):
+            do {
+                let state = try Self.jsonDecoder().decode(UsageState.self, from: data)
+                latestUsage = state
+                lastReceivedAt = Date()
+                usageReadError = nil
+                syncStatus = .syncing
                 DevLog.trace(
                     "AlertTrace",
                     "iCloudUsageReader decoded usage file path=\(url.path) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)"
                 )
-                self.onUsageState?(state)
-            case .failure(let error):
-                self.usageReadError = error.localizedDescription
-                Self.debugPrint("iCloudUsageReader failed usage.json decode error=\(error.localizedDescription)")
+                onUsageState?(state)
+            } catch {
+                usageReadError = error.localizedDescription
                 DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode usage file path=\(url.path) error=\(error.localizedDescription)")
-                self.refreshStaleness()
+                refreshStaleness()
             }
+        case .failure(let error):
+            usageReadError = error.localizedDescription
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read usage file path=\(url.path) error=\(error.localizedDescription)")
+            refreshStaleness()
         }
     }
 
     private func readHistoryFile(at url: URL) {
-        Task { [weak self] in
-            let result: Result<[UsageHistorySnapshot], Error> = Self.decodeFile(at: url, as: [UsageHistorySnapshot].self)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applyHistoryData(dataResult, url: url)
+        }
+    }
 
-            guard let self else { return }
-            switch result {
-            case .success(let snapshots):
-                self.historySnapshots = snapshots.sorted { $0.date < $1.date }
-                self.lastHistoryReceivedAt = Date()
-                self.historyReadError = nil
-                self.historySyncStatus = .syncing
-                Self.debugPrint("iCloudUsageReader decoded usage-history.json count=\(snapshots.count)")
+    private func applyHistoryData(_ result: Result<Data, Error>, url: URL) {
+        switch result {
+        case .success(let data):
+            do {
+                let snapshots = try Self.jsonDecoder().decode([UsageHistorySnapshot].self, from: data)
+                historySnapshots = snapshots.sorted { $0.date < $1.date }
+                lastHistoryReceivedAt = Date()
+                historyReadError = nil
+                historySyncStatus = .syncing
                 DevLog.trace(
                     "AlertTrace",
                     "iCloudUsageReader decoded history file path=\(url.path) snapshotCount=\(snapshots.count)"
                 )
-            case .failure(let error):
-                self.historyReadError = error.localizedDescription
-                Self.debugPrint("iCloudUsageReader failed usage-history.json decode error=\(error.localizedDescription)")
+            } catch {
+                historyReadError = error.localizedDescription
                 DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode history file path=\(url.path) error=\(error.localizedDescription)")
-                self.refreshStaleness()
+                refreshStaleness()
             }
+        case .failure(let error):
+            historyReadError = error.localizedDescription
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read history file path=\(url.path) error=\(error.localizedDescription)")
+            refreshStaleness()
         }
     }
 
     private func readSessionFile(at url: URL) {
-        Task { [weak self] in
-            let result: Result<SessionInfo, Error> = Self.decodeFile(at: url, as: SessionInfo.self)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applySessionData(dataResult, url: url)
+        }
+    }
 
-            guard let self else { return }
-            switch result {
-            case .success(let session):
-                if self.latestSession?.sessionId == session.sessionId {
-                    Self.debugPrint("iCloudUsageReader ignored duplicate latest.json session id=\(session.sessionId)")
+    private func applySessionData(_ result: Result<Data, Error>, url: URL) {
+        switch result {
+        case .success(let data):
+            do {
+                let session = try Self.jsonDecoder().decode(SessionInfo.self, from: data)
+                if latestSession?.sessionId == session.sessionId {
                     DevLog.trace("AlertTrace", "iCloudUsageReader ignored duplicate latest.json session id=\(session.sessionId)")
                     return
                 }
-                self.latestSession = session
-                Self.debugPrint(
-                    "iCloudUsageReader decoded latest.json session id=\(session.sessionId) duration=\(session.durationSeconds)s tokens=\(session.inputTokens + session.outputTokens)"
-                )
+                latestSession = session
                 DevLog.trace(
                     "AlertTrace",
                     "iCloudUsageReader decoded session file path=\(url.path) id=\(session.sessionId) timestamp=\(session.timestamp)"
                 )
-                self.onSessionInfo?(session)
-            case .failure(let error):
-                Self.debugPrint("iCloudUsageReader failed latest.json decode error=\(error.localizedDescription)")
+                onSessionInfo?(session)
+            } catch {
                 DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode session file path=\(url.path) error=\(error.localizedDescription)")
             }
+        case .failure(let error):
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read session file path=\(url.path) error=\(error.localizedDescription)")
         }
     }
 
     private func readAlertPreferencesFile(at url: URL) {
-        Task { [weak self] in
-            let result: Result<SessionAlertPreferences, Error> = Self.decodeFile(at: url, as: SessionAlertPreferences.self)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applyAlertPreferencesData(dataResult, url: url)
+        }
+    }
 
-            guard let self else { return }
-            switch result {
-            case .success(let preferences):
-                guard self.latestAlertPreferences != preferences else {
-                    Self.debugPrint("iCloudUsageReader ignored duplicate alert-preferences.json")
+    private func applyAlertPreferencesData(_ result: Result<Data, Error>, url: URL) {
+        switch result {
+        case .success(let data):
+            do {
+                let preferences = try Self.jsonDecoder().decode(SessionAlertPreferences.self, from: data)
+                guard latestAlertPreferences != preferences else {
                     DevLog.trace("AlertTrace", "iCloudUsageReader ignored duplicate alert preferences path=\(url.path)")
                     return
                 }
-                self.latestAlertPreferences = preferences
-                Self.debugPrint(
-                    "iCloudUsageReader decoded alert-preferences.json iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
-                )
+                latestAlertPreferences = preferences
                 DevLog.trace(
                     "AlertTrace",
                     "iCloudUsageReader decoded alert preferences path=\(url.path) iPhone=\(preferences.iPhoneAlertsEnabled) watch=\(preferences.watchAlertsEnabled)"
                 )
-                self.onAlertPreferences?(preferences)
-            case .failure(let error):
-                Self.debugPrint("iCloudUsageReader failed alert-preferences.json decode error=\(error.localizedDescription)")
+                onAlertPreferences?(preferences)
+            } catch {
                 DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode alert preferences path=\(url.path) error=\(error.localizedDescription)")
             }
+        case .failure(let error):
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read alert preferences path=\(url.path) error=\(error.localizedDescription)")
         }
     }
 
     private func readAppearanceModeFile(at url: URL) {
-        Task { [weak self] in
-            let result: Result<AppearanceMode, Error> = Self.decodeFile(at: url, as: AppearanceMode.self)
-
-            guard let self else { return }
-            switch result {
-            case .success(let appearanceMode):
-                guard self.latestAppearanceMode != appearanceMode else { return }
-                self.latestAppearanceMode = appearanceMode
-                self.onAppearanceMode?(appearanceMode)
-            case .failure:
-                return
-            }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applyAppearanceModeData(dataResult)
         }
     }
 
-    private static func decodeFile<T: Decodable>(at url: URL, as type: T.Type) -> Result<T, Error> {
+    private func applyAppearanceModeData(_ result: Result<Data, Error>) {
+        guard case .success(let data) = result else { return }
+        guard let appearanceMode = try? Self.jsonDecoder().decode(AppearanceMode.self, from: data) else { return }
+        guard latestAppearanceMode != appearanceMode else { return }
+        latestAppearanceMode = appearanceMode
+        onAppearanceMode?(appearanceMode)
+    }
+
+    nonisolated private static func jsonDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
+    nonisolated private static func coordinatedReadResult(at url: URL) -> Result<Data, Error> {
         do {
-            let data = try coordinatedRead(at: url)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            return .success(try decoder.decode(type, from: data))
+            return .success(try coordinatedRead(at: url))
         } catch {
             return .failure(error)
         }
     }
 
-    private static func coordinatedRead(at url: URL) throws -> Data {
+    nonisolated private static func coordinatedRead(at url: URL) throws -> Data {
         var coordinationError: NSError?
         var readError: Error?
         var payload: Data?

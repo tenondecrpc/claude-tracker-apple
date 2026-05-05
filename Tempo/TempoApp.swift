@@ -10,6 +10,7 @@ final class AppCoordinator {
     let relay: WatchRelayManager
     let phoneAlertManager: PhoneAlertManager
     private var hasStartedPhoneAlerts = false
+    private var hasBootstrapped = false
 
     init() {
         let iCloudReader = iCloudUsageReader()
@@ -109,10 +110,19 @@ final class AppCoordinator {
                 try AlertPreferencesSync.write(preferences)
             } catch {}
         }
+        DevLog.trace("AlertTrace", "TempoApp coordinator wired callbacks; waiting for bootstrap")
+    }
+
+    /// Called after the boot view has had a chance to render.
+    /// Splits the heavy iCloud + WatchConnectivity setup off the synchronous
+    /// init path so the empty/loading state always renders immediately.
+    func bootstrap() {
+        guard !hasBootstrapped else { return }
+        hasBootstrapped = true
         relay.activate()
         DevLog.trace("AlertTrace", "TempoApp requested WatchRelay activation")
         iCloudReader.start()
-        DevLog.trace("AlertTrace", "TempoApp started iCloudUsageReader from coordinator init")
+        DevLog.trace("AlertTrace", "TempoApp started iCloudUsageReader from bootstrap")
     }
 
     // MARK: - Lifecycle
@@ -145,29 +155,81 @@ final class AppCoordinator {
 
 @main
 struct TempoApp: App {
-    @State private var coordinator = AppCoordinator()
+    @State private var coordinator: AppCoordinator?
+    @State private var hasRequestedCoordinatorStart = false
     @State private var widgetRoute: TempoWidgetRoute?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            ContentView(store: coordinator.store, widgetRoute: widgetRoute)
-                .applyClaudeAppearance(coordinator.store.appearanceMode)
-                .task {
-                    DevLog.trace("AlertTrace", "TempoApp ContentView task scenePhase=\(String(describing: scenePhase))")
-                    if scenePhase == .active {
-                        coordinator.onBecomeActive()
-                    }
-                }
+            rootView
                 .onChange(of: scenePhase) { _, phase in
                     DevLog.trace("AlertTrace", "TempoApp scenePhase changed to \(String(describing: phase))")
                     if phase == .active {
-                        coordinator.onBecomeActive()
+                        coordinator?.onBecomeActive()
                     }
                 }
                 .onOpenURL { url in
                     widgetRoute = TempoWidgetRoute(url: url)
                 }
+        }
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        if let coordinator {
+            ContentView(store: coordinator.store, widgetRoute: widgetRoute)
+                .applyClaudeAppearance(coordinator.store.appearanceMode)
+        } else {
+            BootView {
+                Task { @MainActor in
+                    await startCoordinatorAfterBootFrame()
+                }
+            }
+                .applyClaudeAppearance(.dark)
+        }
+    }
+
+    @MainActor
+    private func startCoordinatorAfterBootFrame() async {
+        guard !hasRequestedCoordinatorStart else { return }
+        hasRequestedCoordinatorStart = true
+
+        // Let BootView commit before AppCoordinator wires iCloud and WatchConnectivity.
+        await Task.yield()
+
+        DevLog.trace("AlertTrace", "TempoApp constructing AppCoordinator from BootView task")
+        let newCoordinator = AppCoordinator()
+        coordinator = newCoordinator
+        DevLog.trace("AlertTrace", "TempoApp BootView task scenePhase=\(String(describing: scenePhase))")
+        newCoordinator.bootstrap()
+        if scenePhase == .active {
+            newCoordinator.onBecomeActive()
+        }
+    }
+}
+
+private struct BootView: View {
+    let onReadyToBootstrap: () -> Void
+
+    var body: some View {
+        ZStack {
+            ClaudeCodeTheme.background
+                .ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image("LaunchLogo", label: Text("Tempo"))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 84, height: 84)
+                    .clipShape(.rect(cornerRadius: 18))
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(ClaudeCodeTheme.accent)
+            }
+        }
+        .onAppear {
+            DevLog.trace("AlertTrace", "TempoApp BootView appeared")
+            onReadyToBootstrap()
         }
     }
 }

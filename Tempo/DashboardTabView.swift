@@ -12,10 +12,16 @@ struct DashboardTabView: View {
                     watchInstallBanner
                 }
 
+                if store.isDemoMode {
+                    demoBanner
+                }
+
                 if let usage = store.usage {
                     TimelineView(.periodic(from: .now, by: 30)) { context in
                         dashboardContent(usage: usage, now: context.date)
                     }
+                } else if store.isInitialSyncInProgress {
+                    loadingCard
                 } else {
                     waitingCard
                 }
@@ -158,6 +164,30 @@ struct DashboardTabView: View {
         }
     }
 
+    private var demoBanner: some View {
+        card {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(ClaudeCodeTheme.warning)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Demo Mode")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    Text("Showing sample data. Connect a Mac to see your real usage.")
+                        .font(.caption)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                }
+                Spacer()
+                Button("Exit") {
+                    store.exitDemoMode()
+                }
+                .buttonStyle(.plain)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ClaudeCodeTheme.accent)
+            }
+        }
+    }
+
     private var watchInstallBanner: some View {
         card {
             HStack(alignment: .top, spacing: 10) {
@@ -175,6 +205,26 @@ struct DashboardTabView: View {
         }
     }
 
+    private var loadingCard: some View {
+        card {
+            VStack(spacing: 14) {
+                Image("LaunchLogo", label: Text("Tempo"))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .clipShape(.rect(cornerRadius: 16))
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(ClaudeCodeTheme.accent)
+                Text("Syncing from iCloud…")
+                    .font(.subheadline)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 32)
+        }
+    }
+
     private var waitingCard: some View {
         card {
             VStack(spacing: 14) {
@@ -188,6 +238,21 @@ struct DashboardTabView: View {
                     .font(.subheadline)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .multilineTextAlignment(.center)
+
+                Button {
+                    store.enterDemoMode()
+                } label: {
+                    Text("Try Demo")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(ClaudeCodeTheme.textSecondary.opacity(0.12))
+                .clipShape(.rect(cornerRadius: 10))
+                .padding(.top, 4)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)

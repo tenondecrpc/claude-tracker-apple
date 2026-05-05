@@ -10,7 +10,6 @@ struct ContentView: View {
     let store: IOSAppStore
     let widgetRoute: TempoWidgetRoute?
     @State private var selectedTab: IOSTab = .dashboard
-    @State private var showsLaunchOverlay = true
 
     var body: some View {
         ZStack {
@@ -28,18 +27,6 @@ struct ContentView: View {
                     SettingsTabView(store: store)
                 }
             }
-
-            if showsLaunchOverlay {
-                launchOverlay
-                    .transition(.opacity)
-            }
-        }
-        .task {
-            guard showsLaunchOverlay else { return }
-            try? await Task.sleep(for: .milliseconds(450))
-            withAnimation(.easeOut(duration: 0.2)) {
-                showsLaunchOverlay = false
-            }
         }
         .tint(ClaudeCodeTheme.accent)
         .onChange(of: widgetRoute, initial: true) { _, route in
@@ -47,20 +34,6 @@ struct ContentView: View {
             switch route {
             case .dashboard, .stats:
                 selectedTab = .dashboard
-            }
-        }
-    }
-
-    private var launchOverlay: some View {
-        ZStack {
-            ClaudeCodeTheme.background
-                .ignoresSafeArea()
-            VStack(spacing: 10) {
-                ProgressView()
-                    .tint(ClaudeCodeTheme.accent)
-                Text("Loading dashboard...")
-                    .font(.footnote)
-                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
         }
     }

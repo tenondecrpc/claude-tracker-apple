@@ -41,11 +41,17 @@ final class IOSAppStore {
         }
     }
 
-    var usage: UsageState? { iCloudReader.latestUsage }
-    var historySnapshots: [UsageHistorySnapshot] { iCloudReader.historySnapshots }
+    private(set) var isDemoMode = false
+    private var demoUsage: UsageState?
+    private var demoHistory: [UsageHistorySnapshot] = []
+
+    var usage: UsageState? { isDemoMode ? demoUsage : iCloudReader.latestUsage }
+    var historySnapshots: [UsageHistorySnapshot] {
+        isDemoMode ? demoHistory : iCloudReader.historySnapshots
+    }
     var filteredHistorySnapshots: [UsageHistorySnapshot] {
         UsageHistoryTransformer.filteredSnapshots(
-            iCloudReader.historySnapshots,
+            historySnapshots,
             range: historyRange
         )
     }
@@ -80,6 +86,12 @@ final class IOSAppStore {
     func updateWatchState(isPaired: Bool, isInstalled: Bool) {
         isWatchPaired = isPaired
         isWatchAppInstalled = isInstalled
+    }
+
+    var isInitialSyncInProgress: Bool {
+        if isDemoMode { return false }
+        return !iCloudReader.hasCompletedInitialGather
+            && iCloudReader.usageReadError == nil
     }
 
     var isHistoryStaleWhileUsageFresh: Bool {
@@ -161,6 +173,49 @@ final class IOSAppStore {
 
     func refreshStaleness() {
         iCloudReader.refreshStaleness()
+    }
+
+    // MARK: - Demo Mode
+
+    /// Loads mock data so reviewers (and users without an iCloud-connected Mac)
+    /// can preview the dashboard. Demo data is in-memory only and never written
+    /// to iCloud, widgets, or the watch.
+    func enterDemoMode() {
+        isDemoMode = true
+        demoUsage = UsageState(
+            utilization5h: 0.68,
+            utilization7d: 0.42,
+            resetAt5h: Date().addingTimeInterval(2 * 3600),
+            resetAt7d: Date().addingTimeInterval(5 * 24 * 3600),
+            isMocked: true,
+            extraUsage: nil,
+            isDoubleLimitPromoActive: false
+        )
+        demoHistory = Self.makeDemoHistory()
+    }
+
+    func exitDemoMode() {
+        isDemoMode = false
+        demoUsage = nil
+        demoHistory = []
+    }
+
+    private static func makeDemoHistory() -> [UsageHistorySnapshot] {
+        let now = Date()
+        // 7 days of points spaced ~2h apart, with a believable usage curve.
+        let count = 7 * 12
+        return (0..<count).map { i in
+            let offsetSeconds = Double(count - i) * (2 * 3600)
+            let date = now.addingTimeInterval(-offsetSeconds)
+            let progress = Double(i) / Double(count)
+            let session = max(0.05, min(0.95, 0.2 + 0.7 * progress + 0.1 * sin(Double(i) * 0.7)))
+            let weekly = max(0.05, min(0.9, 0.1 + 0.5 * progress))
+            return UsageHistorySnapshot(
+                date: date,
+                utilization5h: session,
+                utilization7d: weekly
+            )
+        }
     }
 
     func applySyncedAlertPreferences(_ preferences: SessionAlertPreferences) {
