@@ -175,13 +175,27 @@ struct ActivityTabView: View {
 
     private var emptyStateCard: some View {
         card {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Label("No activity history yet", systemImage: "tray")
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
                     .font(.headline)
                 Text("Keep Tempo running on Mac. History will appear after iCloud sync writes usage snapshots.")
                     .font(.subheadline)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
+
+                Button {
+                    store.enterDemoMode()
+                } label: {
+                    Text("Try Demo")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .background(ClaudeCodeTheme.textSecondary.opacity(0.12))
+                .clipShape(.rect(cornerRadius: 10))
             }
         }
     }
