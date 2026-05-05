@@ -61,23 +61,30 @@ struct UsageHistorySnapshot: Codable, Identifiable, Hashable {
 }
 
 enum UsageHistoryRange: String, CaseIterable, Codable {
+    case last5Hours
     case last24Hours
     case last7Days
-    case last30Days
 
     var displayName: String {
         switch self {
+        case .last5Hours: return "5H"
         case .last24Hours: return "24H"
         case .last7Days: return "7D"
-        case .last30Days: return "30D"
         }
     }
 
     var duration: TimeInterval {
         switch self {
+        case .last5Hours: return 5 * 3600
         case .last24Hours: return 24 * 3600
         case .last7Days: return 7 * 24 * 3600
-        case .last30Days: return 30 * 24 * 3600
+        }
+    }
+
+    var isHourBased: Bool {
+        switch self {
+        case .last5Hours, .last24Hours: return true
+        case .last7Days: return false
         }
     }
 }
