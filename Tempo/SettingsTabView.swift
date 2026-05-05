@@ -7,7 +7,6 @@ struct SettingsTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
-                preferencesCard
                 diagnosticsCard
                 helpCard
             }
@@ -24,19 +23,6 @@ struct SettingsTabView: View {
             Text("Display preferences and iCloud sync diagnostics")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
-        }
-    }
-
-    private var preferencesCard: some View {
-        card(title: "Display") {
-            Toggle("Use 24-hour time", isOn: $store.use24HourTime)
-                .tint(ClaudeCodeTheme.accent)
-            Divider().overlay(ClaudeCodeTheme.progressTrack)
-            Toggle("Show 5-hour series in Activity", isOn: $store.showSessionSeries)
-                .tint(ClaudeCodeTheme.accent)
-            Divider().overlay(ClaudeCodeTheme.progressTrack)
-            Toggle("Show 7-day series in Activity", isOn: $store.showWeeklySeries)
-                .tint(ClaudeCodeTheme.info)
         }
     }
 

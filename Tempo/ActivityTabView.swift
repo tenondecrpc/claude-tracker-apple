@@ -68,11 +68,13 @@ struct ActivityTabView: View {
                 }
                 .pickerStyle(.segmented)
 
-                HStack(spacing: 12) {
-                    Toggle("5H Session", isOn: $store.showSessionSeries)
+                VStack(spacing: 12) {
+                    Toggle("Session", isOn: $store.showSessionSeries)
                         .tint(ClaudeCodeTheme.info)
-                    Toggle("7D Weekly", isOn: $store.showWeeklySeries)
+                    Toggle("Weekly", isOn: $store.showWeeklySeries)
                         .tint(ClaudeCodeTheme.error)
+                    Toggle("24-hour time", isOn: $store.use24HourTime)
+                        .tint(ClaudeCodeTheme.accent)
                 }
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
@@ -83,29 +85,49 @@ struct ActivityTabView: View {
     private var chartCard: some View {
         card {
             Chart {
-                if store.showSessionSeries {
+                if store.showWeeklySeries {
                     ForEach(chartSnapshots) { snapshot in
-                        LineMark(
+                        AreaMark(
                             x: .value("Time", snapshot.date),
-                            y: .value("5H Session", UsageHistoryTransformer.boundedPercent(snapshot.utilization5h)),
-                            series: .value("Metric", "5H Session")
+                            yStart: .value("Weekly Min", 0),
+                            yEnd: .value("Weekly Max", UsageHistoryTransformer.boundedPercent(snapshot.utilization7d))
                         )
-                        .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5))
-                        .foregroundStyle(by: .value("Metric", "5H Session"))
+                        .interpolationMethod(.linear)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    ClaudeCodeTheme.error.opacity(0.16),
+                                    ClaudeCodeTheme.error.opacity(0.02)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                     }
                 }
 
-                if store.showWeeklySeries {
-                    ForEach(chartSnapshots) { snapshot in
-                        LineMark(
-                            x: .value("Time", snapshot.date),
-                            y: .value("7D Weekly", UsageHistoryTransformer.boundedPercent(snapshot.utilization7d)),
-                            series: .value("Metric", "7D Weekly")
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5))
-                        .foregroundStyle(by: .value("Metric", "7D Weekly"))
+                if store.showSessionSeries {
+                    ForEach(Array(sessionSegments.enumerated()), id: \.offset) { index, segment in
+                        let seriesKey = "session-area-\(index)"
+                        ForEach(segment) { snapshot in
+                            AreaMark(
+                                x: .value("Time", snapshot.date),
+                                yStart: .value("Session Min", 0),
+                                yEnd: .value("Session Max", UsageHistoryTransformer.boundedPercent(snapshot.utilization5h)),
+                                series: .value("Series", seriesKey)
+                            )
+                            .interpolationMethod(.linear)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [
+                                        ClaudeCodeTheme.info.opacity(0.34),
+                                        ClaudeCodeTheme.info.opacity(0.08)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        }
                     }
                 }
 
@@ -113,26 +135,83 @@ struct ActivityTabView: View {
                     .foregroundStyle(ClaudeCodeTheme.error.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
-                RuleMark(y: .value("Max", 100))
-                    .foregroundStyle(ClaudeCodeTheme.border.opacity(0.7))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                if store.historyRange.isHourBased {
+                    RuleMark(x: .value("Now", Date()))
+                        .foregroundStyle(ClaudeCodeTheme.info.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                }
+
+                if store.showWeeklySeries {
+                    ForEach(chartSnapshots) { snapshot in
+                        LineMark(
+                            x: .value("Time", snapshot.date),
+                            y: .value("Weekly", UsageHistoryTransformer.boundedPercent(snapshot.utilization7d)),
+                            series: .value("Metric", "Weekly")
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5))
+                        .foregroundStyle(by: .value("Metric", "Weekly"))
+                    }
+                }
+
+                if store.showSessionSeries {
+                    ForEach(Array(sessionSegments.enumerated()), id: \.offset) { index, segment in
+                        let seriesKey = "session-line-\(index)"
+                        ForEach(segment) { snapshot in
+                            LineMark(
+                                x: .value("Time", snapshot.date),
+                                y: .value("Session", UsageHistoryTransformer.boundedPercent(snapshot.utilization5h)),
+                                series: .value("Series", seriesKey)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
+                            .foregroundStyle(by: .value("Metric", "Session"))
+                        }
+                    }
+                }
             }
             .frame(height: 250)
             .chartYScale(domain: 0...105)
             .chartXScale(domain: chartXDomain)
             .chartForegroundStyleScale([
-                "5H Session": ClaudeCodeTheme.info,
-                "7D Weekly": ClaudeCodeTheme.error
+                "Session": ClaudeCodeTheme.info,
+                "Weekly": ClaudeCodeTheme.error
             ])
             .chartXAxis {
-                AxisMarks(preset: .aligned, values: chartXAxisValues) { value in
-                    AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
-                    AxisTick().foregroundStyle(ClaudeCodeTheme.border)
-                    AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 12)) {
-                        if let date = value.as(Date.self) {
-                            Text(chartXAxisLabel(for: date))
-                                .font(.caption2)
-                                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                if store.historyRange == .last5Hours {
+                    AxisMarks(values: .stride(by: .hour)) { value in
+                        AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
+                        AxisTick().foregroundStyle(ClaudeCodeTheme.border)
+                        AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 12)) {
+                            if let date = value.as(Date.self) {
+                                Text(chartXAxisLabel(for: date))
+                                    .font(.caption2)
+                                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                            }
+                        }
+                    }
+                } else if store.historyRange == .last24Hours {
+                    AxisMarks(values: .stride(by: .hour, count: 6)) { value in
+                        AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
+                        AxisTick().foregroundStyle(ClaudeCodeTheme.border)
+                        AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 12)) {
+                            if let date = value.as(Date.self) {
+                                Text(chartXAxisLabel(for: date))
+                                    .font(.caption2)
+                                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                            }
+                        }
+                    }
+                } else {
+                    AxisMarks(values: .stride(by: .day)) { value in
+                        AxisGridLine().foregroundStyle(ClaudeCodeTheme.progressTrack)
+                        AxisTick().foregroundStyle(ClaudeCodeTheme.border)
+                        AxisValueLabel(collisionResolution: .greedy(minimumSpacing: 12)) {
+                            if let date = value.as(Date.self) {
+                                Text(chartXAxisLabel(for: date))
+                                    .font(.caption2)
+                                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                            }
                         }
                     }
                 }
@@ -166,8 +245,8 @@ struct ActivityTabView: View {
 
         return card {
             HStack(spacing: 12) {
-                statPill(title: "Avg 5H", value: "\(Int(avg5h.rounded()))%", color: ClaudeCodeTheme.info)
-                statPill(title: "Avg 7D", value: "\(Int(avg7d.rounded()))%", color: ClaudeCodeTheme.error)
+                statPill(title: "Avg Session", value: "\(Int(avg5h.rounded()))%", color: ClaudeCodeTheme.info)
+                statPill(title: "Avg Weekly", value: "\(Int(avg7d.rounded()))%", color: ClaudeCodeTheme.error)
                 statPill(title: "Points", value: "\(filtered.count)", color: ClaudeCodeTheme.highlight)
             }
         }
@@ -249,63 +328,46 @@ struct ActivityTabView: View {
         store.filteredHistorySnapshots.sorted { $0.date < $1.date }
     }
 
-    private var chartXDomain: ClosedRange<Date> {
-        guard let first = chartSnapshots.first?.date, let last = chartSnapshots.last?.date else {
-            let now = Date()
-            return now.addingTimeInterval(-3600)...now
-        }
-        guard first < last else {
-            return first.addingTimeInterval(-1800)...first.addingTimeInterval(1800)
-        }
-        let span = last.timeIntervalSince(first)
-        let padding = max(span * 0.06, 15 * 60)
-        return first.addingTimeInterval(-padding)...last.addingTimeInterval(padding)
+    private var sessionSegments: [[UsageHistorySnapshot]] {
+        Self.splitOnReset(chartSnapshots, value: \.utilization5h)
     }
 
-    private var chartXAxisValues: [Date] {
-        let dates = chartSnapshots.map(\.date)
-        guard !dates.isEmpty else { return [] }
-
-        let targetCount: Int
-        switch store.historyRange {
-        case .last24Hours:
-            targetCount = 4
-        case .last7Days:
-            targetCount = 4
-        case .last30Days:
-            targetCount = 5
-        }
-
-        guard dates.count > targetCount else {
-            return dates
-        }
-
-        var selected: [Date] = []
-        var seenTimestamps = Set<Double>()
-
-        for step in 0..<targetCount {
-            let progress = Double(step) / Double(targetCount - 1)
-            let index = Int(round(progress * Double(dates.count - 1)))
-            let date = dates[index]
-            let key = date.timeIntervalSinceReferenceDate
-            if seenTimestamps.insert(key).inserted {
-                selected.append(date)
+    private static func splitOnReset(
+        _ snapshots: [UsageHistorySnapshot],
+        value: KeyPath<UsageHistorySnapshot, Double>,
+        resetDropThreshold: Double = 0.25
+    ) -> [[UsageHistorySnapshot]] {
+        guard !snapshots.isEmpty else { return [] }
+        var segments: [[UsageHistorySnapshot]] = []
+        var current: [UsageHistorySnapshot] = [snapshots[0]]
+        for snapshot in snapshots.dropFirst() {
+            if let last = current.last,
+               last[keyPath: value] - snapshot[keyPath: value] > resetDropThreshold {
+                segments.append(current)
+                current = [snapshot]
+            } else {
+                current.append(snapshot)
             }
         }
+        if !current.isEmpty { segments.append(current) }
+        return segments
+    }
 
-        return selected.isEmpty ? dates : selected
+    private var chartXDomain: ClosedRange<Date> {
+        let now = Date()
+        return now.addingTimeInterval(-store.historyRange.duration)...now
     }
 
     private func chartXAxisLabel(for date: Date) -> String {
         switch store.historyRange {
-        case .last24Hours:
+        case .last5Hours, .last24Hours:
             let formatter = DateFormatter()
             formatter.locale = store.use24HourTime
                 ? Locale(identifier: "en_GB_POSIX")
                 : Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = store.use24HourTime ? "HH" : "ha"
             return formatter.string(from: date).lowercased()
-        case .last7Days, .last30Days:
+        case .last7Days:
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "d MMM"
