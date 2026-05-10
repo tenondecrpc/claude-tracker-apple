@@ -53,7 +53,7 @@ Alongside this change, bookmark loading was moved from `init()` to on-demand. `C
 
 ### Context
 
-The macOS app needs to access the Keychain to read OAuth credentials (either Tempo's own OAuth tokens or Claude Code CLI tokens). Previously, this access happened during `MacAuthState.init()` and `onLaunch()`, which triggered Keychain prompts before the app's UI was visible.
+The macOS app needs to access the Keychain to read OAuth credentials. Tempo owns its own OAuth Keychain slots, while Claude Code owns the separate CLI slot (`Claude Code-credentials`). Previously, the app could read the CLI slot during restore, which triggered Keychain prompts before the user had explicitly chosen that login path.
 
 ### Problem
 
@@ -61,28 +61,26 @@ On first launch, the Keychain prompt appeared before the Welcome window was show
 
 ### Decision
 
-Defer all Keychain access until the user explicitly initiates sign-in via the Welcome window.
+Restore only Tempo-owned OAuth credentials automatically. Read the Claude Code CLI Keychain slot only from the explicit "Use existing Claude Code CLI session" action.
 
 ### Implementation
 
 - **`MacAuthState.init()`**: No longer checks Keychain. Starts in an unauthenticated state.
-- **`onLaunch()`**: Uses a `UserDefaults` flag (`hasCompletedFirstLaunch`) to distinguish first launch from subsequent launches:
-  - **First launch**: Shows the Welcome window without touching Keychain. The user reads the explanation and clicks "Sign in with Claude Code", which is when `tryRestoreSession()` is called and the Keychain prompt appears.
-  - **Subsequent launches**: Calls `tryRestoreSession()` immediately. Since the user already granted "Always Allow" on first launch, this succeeds silently without any prompts. If credentials are expired or missing, falls back to showing the Welcome window.
-- **Welcome window**: Includes an explanation card describing what the Keychain permission is for before the sign-in button.
-- **After successful sign-in**: Sets `hasCompletedFirstLaunch = true` so future launches auto-restore.
+- **`onLaunch()`**: Calls `tryRestoreSession()` for Tempo OAuth only. It must not read the Claude Code CLI Keychain slot and must not show a system Keychain prompt.
+- **Welcome window**: OAuth sign-in writes Tempo tokens to Tempo's own Keychain slot after the browser flow. The CLI fallback is a separate secondary action that calls `tryRestoreSession(includeCLIFallback: true)`.
+- **CLI Keychain reads**: `ClaudeCodeKeychainReader` caches successful CLI reads in memory and uses `kSecUseAuthenticationUIFail` for non-interactive reads, so background work cannot display a Keychain prompt.
 
 ### Tradeoff Analysis
 
 | Aspect | Before | After |
 |---|---|---|
-| First launch UX | Keychain prompt before UI | Welcome window with explanation, then prompt on button click |
-| Subsequent launches | Keychain access at init | Keychain access at launch (silent, no prompt) |
-| Auto-login on return | Yes | Yes (same behavior) |
+| First launch UX | Keychain prompt before UI | No CLI Keychain prompt unless user chooses CLI fallback |
+| Subsequent launches | Keychain access at init | Tempo OAuth restore only; CLI restore stays explicit |
+| Auto-login on return | Yes | Tempo OAuth only |
 | User context for permission | None | Clear explanation before prompt |
 
 ### Rationale
 
 1. **User trust**: Explaining why the app needs Keychain access before the system prompt appears builds trust and reduces confusion.
-2. **No regression for returning users**: Since "Always Allow" was already granted, subsequent launches still auto-login silently.
+2. **No surprise prompts for returning users**: Subsequent launches restore Tempo OAuth silently and leave CLI Keychain access behind the explicit CLI fallback.
 3. **Consistent with platform conventions**: Many apps defer permission requests until the feature is first used, providing context at the moment of need.

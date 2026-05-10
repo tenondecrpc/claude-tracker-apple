@@ -50,6 +50,64 @@ Not allowed:
 - Delete Claude Code's Keychain item.
 - Treat local Claude Code session data as the source for account utilization.
 
+## Identity Convergence Across CLI and OAuth
+
+The same person using Claude Code CLI today and completing Tempo OAuth tomorrow under the same Anthropic email MUST be recognized as a single account by Tempo. Tempo does not create a second row in `AccountRegistry`, a second per-account iCloud directory, or a second Keychain credential slot for that user.
+
+### How convergence works
+
+Both the explicit CLI sign-in path and the Tempo OAuth exchange path build the `accountId` the same way:
+
+1. Load `~/.claude.json` via `DetectedClaudeAccount.load()`.
+2. Read `oauthAccount.emailAddress`.
+3. Canonicalize through `AccountIdentifier.canonicalize(email:)` (NFC + trim + lowercase).
+4. Use the canonical string as `accountId`.
+
+Because both paths key off the same canonical email, the derived `accountId` is byte-identical. `AccountRegistry.add` is idempotent and updates the existing row in place when the `accountId` already exists, so the second path never creates a duplicate.
+
+The per-account iCloud directory (`Tempo/accounts/<accountId>/`), the Keychain credential slot (`kSecAttrAccount = <accountId>`), and the widget snapshot all key off the same `accountId`, so identity convergence holds end to end.
+
+### Sandbox requirement
+
+Reading `~/.claude.json` from an App-Sandboxed build requires a narrow temporary-exception entitlement:
+
+```xml
+<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+<array>
+    <string>/.claude.json</string>
+</array>
+```
+
+This entitlement lives in `Tempo macOS/Tempo macOS.entitlements`. It is read-only and scoped to that exact file. Removing or misnaming it causes `DetectedClaudeAccount.load()` to silently return `nil`, which breaks identity convergence for explicit CLI sign-in: the CLI path falls back to a synthetic `cli-local-<hash>` id instead of the canonical email-derived id.
+
+### Fallback: synthetic `cli-local-<hash>` id
+
+When `~/.claude.json` cannot be read (entitlement missing, file absent, or the `oauthAccount` block does not expose an email), the explicit CLI path in `MacOSAPIClient.tryRestoreSession(includeCLIFallback: true)` falls back to `AccountIdentifier.cliFallbackAccountId(from:)`, which hashes the refresh token into a deterministic id of the form `cli-local-<8 hex>`. The app remains usable on that synthetic id, but identity convergence is deferred until the canonical email becomes readable.
+
+### Migration of a synthetic id to the canonical id
+
+As soon as the canonical email becomes readable (for example, after the sandbox entitlement is restored, or after the user completes Tempo OAuth), the code migrates any outstanding `cli-local-<hash>` row to the canonical id:
+
+- `MacOSAPIClient.tryRestoreSession(includeCLIFallback: true)` CLI branch: when it resolves a canonical email-backed id, it scans `AccountRegistry` for any `cli-local-<hash>` row and removes it via `AccountRemovalService`. The canonical row is then added in the usual way.
+- `MacOSAPIClient.submitOAuthCode(_:)` exchange path: on successful OAuth, the newly-built `Account` uses the canonical id from `makeAccount(from:)`. The same `cli-local-<hash>` sweep runs so CLI-first / OAuth-later flows converge on a single registry row.
+
+`AccountRemovalService.removeAccount(accountId:)` handles the full teardown of the synthetic row: Keychain credential slot (if one was ever written, which it typically was not for a CLI-only row), per-account iCloud directory, registry entry, and `accounts/index.json` mirror. The migration is idempotent: calling it with no synthetic rows present is a no-op.
+
+### User-visible effect
+
+- Choose the explicit CLI fallback while CLI credentials exist and the `~/.claude.json` entitlement is working: the app registers `tenondecrpc@gmail.com` (for example) as the `accountId`. Usage polling, iCloud writes, and widget snapshots all key off that canonical id.
+- Later complete Tempo OAuth under the same email: the OAuth path derives the same canonical `accountId`, so `registry.add` updates the existing row in place. The iCloud directory, widget snapshot, and usage history persist across the transition.
+- Start with CLI credentials while the `~/.claude.json` entitlement is missing (regression scenario): the app registers `cli-local-abcd1234`. When the entitlement is restored or the user completes Tempo OAuth under the canonical email, the code migrates the `cli-local-abcd1234` row out and replaces it with the canonical id. The migration is recorded in the `AuthTrace` DevLog stream:
+  ```
+  Migrating synthetic CLI account to canonical email-backed id oldAccountId=cli-local-abcd1234 newAccountId=tenondecrpc@gmail.com
+  ```
+
+### Guardrails
+
+- Neither the explicit CLI sign-in path nor the OAuth exchange ever writes to the CLI's own Keychain item or to `~/.claude.json`. Those remain owned by the Claude Code CLI.
+- The synthetic `cli-local-<hash>` id is stable across relaunches for the same CLI session because it hashes the CLI refresh token. This keeps the user on a single synthetic row until the canonical email becomes readable, rather than creating a new synthetic row on every launch.
+- The `AccountRemovalService` path is best-effort for iCloud: on a fresh install where the synthetic row never produced an iCloud directory, the directory-delete step is a silent no-op, which is correct.
+
 ## Sign-Out
 
 Tempo sign-out deletes only Tempo OAuth credentials and clears Tempo's local polling state, including persisted rate-limit backoff. It does not change the Claude Code terminal session.

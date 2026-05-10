@@ -2,8 +2,29 @@ import Foundation
 
 // MARK: - iCloudUsageReader
 
-/// Watches shared Tempo iCloud documents used by the iPhone companion.
-/// Decoded usage state drives dashboard/watch relay; history drives activity charts.
+/// Watches the shared Tempo iCloud documents used by the iPhone companion.
+///
+/// The reader observes the per-account tree under `Tempo/accounts/` and
+/// maintains an in-memory `[accountId: ...]` map for usage, history, and
+/// latest session per account. See
+/// `openspec/changes/multi-account-support/design.md` for the on-disk
+/// layout.
+///
+/// Account discovery is driven by `Tempo/accounts/index.json`. Per-account
+/// payloads live at:
+/// - `Tempo/accounts/<percentEncodedAccountId>/usage.json`
+/// - `Tempo/accounts/<percentEncodedAccountId>/usage-history.json`
+/// - `Tempo/accounts/<percentEncodedAccountId>/latest.json`
+/// - `Tempo/accounts/<percentEncodedAccountId>/account.json`
+///
+/// Alert preferences (`alert-preferences.json`) and the appearance mode
+/// file remain global at the `Tempo/` root and are intentionally not
+/// partitioned per account.
+///
+/// The reader intentionally does NOT read the legacy flat paths
+/// (`Tempo/usage.json`, `Tempo/usage-history.json`, `Tempo/latest.json`).
+/// They may linger in dev iCloud containers from prior builds; developers
+/// clean those up manually.
 @Observable
 @MainActor
 final class iCloudUsageReader: NSObject {
@@ -14,21 +35,53 @@ final class iCloudUsageReader: NSObject {
         case stale(since: Date)
     }
 
+    // MARK: - Per-account state
+
+    /// Latest decoded `UsageState` keyed by canonical accountId.
+    var usageByAccount: [String: UsageState] = [:]
+    /// Latest decoded history snapshots keyed by canonical accountId; each
+    /// array is kept sorted ascending by `date`.
+    var historyByAccount: [String: [UsageHistorySnapshot]] = [:]
+    /// Latest decoded session info keyed by canonical accountId.
+    var sessionByAccount: [String: SessionInfo] = [:]
+    /// Last time any per-account `usage.json` was successfully applied,
+    /// keyed by accountId.
+    var usageUpdatedAtByAccount: [String: Date] = [:]
+    /// Last time any per-account `usage-history.json` was successfully
+    /// applied, keyed by accountId.
+    var historyUpdatedAtByAccount: [String: Date] = [:]
+    /// Ordered list of account ids parsed from `accounts/index.json`.
+    /// Ordering mirrors the macOS `AccountRegistry` order so consumers can
+    /// use position 0 as a sensible default.
+    var knownAccountIds: [String] = []
+
+    // MARK: - App-wide sync status
+
+    /// Most recent "any account" usage decode time. Drives the overall
+    /// usage sync indicator for the dashboard shell.
+    var lastReceivedAt: Date?
+    /// Most recent "any account" history decode time.
+    var lastHistoryReceivedAt: Date?
     var syncStatus: SyncStatus = .waiting
     var historySyncStatus: SyncStatus = .waiting
-    var lastReceivedAt: Date?
-    var lastHistoryReceivedAt: Date?
     var hasCompletedInitialGather: Bool = false
-    var latestUsage: UsageState?
-    var latestSession: SessionInfo?
-    var historySnapshots: [UsageHistorySnapshot] = []
     var usageReadError: String?
     var historyReadError: String?
+
+    // MARK: - Callbacks
+    //
+    // The payload types carry `accountId` on them, so callback signatures
+    // stay simple. Downstream code routes per accountId by reading
+    // `state.accountId` / `session.accountId`.
 
     var onUsageState: ((UsageState) -> Void)?
     var onSessionInfo: ((SessionInfo) -> Void)?
     var onAlertPreferences: ((SessionAlertPreferences) -> Void)?
     var onAppearanceMode: ((AppearanceMode) -> Void)?
+    /// Fires whenever `accounts/index.json` parses successfully, with the
+    /// canonical accountId list in registry order. Callers typically use
+    /// this to reconcile a persisted "active account" selection (task 5.3).
+    var onAccountsIndexUpdated: (([String]) -> Void)?
 
     private var query: NSMetadataQuery?
     private var latestAlertPreferences: SessionAlertPreferences?
@@ -46,9 +99,12 @@ final class iCloudUsageReader: NSObject {
         #if targetEnvironment(simulator)
         // Simulator cannot reliably access ubiquity containers; avoid metadata query setup
         // because it triggers CoreServices CRIT container URL logs.
-        latestUsage = nil
-        latestSession = nil
-        historySnapshots = []
+        usageByAccount = [:]
+        historyByAccount = [:]
+        sessionByAccount = [:]
+        usageUpdatedAtByAccount = [:]
+        historyUpdatedAtByAccount = [:]
+        knownAccountIds = []
         lastReceivedAt = nil
         lastHistoryReceivedAt = nil
         syncStatus = .waiting
@@ -77,10 +133,23 @@ final class iCloudUsageReader: NSObject {
         if query != nil { return }
 
         let q = NSMetadataQuery()
+        // Filename-based predicate. All per-account payloads have stable
+        // filenames and live under `Tempo/accounts/...`, while the two
+        // global files live at `Tempo/`. NSMetadataQuery filters by
+        // filename cheaply and handles deep directory hierarchies, so the
+        // predicate doesn't need a path component.
         q.predicate = NSPredicate(
             format: "%K IN %@",
             NSMetadataItemFSNameKey,
-            ["usage.json", "usage-history.json", "latest.json", AlertPreferencesSync.fileName, AppearanceModeSync.fileName]
+            [
+                "usage.json",
+                "usage-history.json",
+                "latest.json",
+                "account.json",
+                "index.json",
+                AlertPreferencesSync.fileName,
+                AppearanceModeSync.fileName
+            ]
         )
         q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
         if let documentsScope {
@@ -132,7 +201,7 @@ final class iCloudUsageReader: NSObject {
         query = nil
     }
 
-    /// Restart the query to pick up iCloud changes that occurred while backgrounded (Task 5.3).
+    /// Restart the query to pick up iCloud changes that occurred while backgrounded.
     func restart() {
         DevLog.trace("AlertTrace", "iCloudUsageReader restart requested")
         start()
@@ -160,46 +229,107 @@ final class iCloudUsageReader: NSObject {
     private func bootstrapReadFromKnownPaths(documentsScope: URL?) {
         guard let documentsScope else { return }
         let trackerDirectory = documentsScope.appendingPathComponent("Tempo", isDirectory: true)
-        Self.debugPrint("iCloudUsageReader bootstrap trackerDirectory=\(trackerDirectory.path)")
-        DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap trackerDirectory=\(trackerDirectory.path)")
-
-        let usageURL = trackerDirectory.appendingPathComponent("usage.json")
-        let historyURL = trackerDirectory.appendingPathComponent("usage-history.json")
-        let sessionURL = trackerDirectory.appendingPathComponent("latest.json")
+        let accountsDirectory = trackerDirectory.appendingPathComponent("accounts", isDirectory: true)
+        let indexURL = accountsDirectory.appendingPathComponent("index.json", isDirectory: false)
         let alertPreferencesURL = trackerDirectory.appendingPathComponent(AlertPreferencesSync.fileName)
         let appearanceModeURL = trackerDirectory.appendingPathComponent(AppearanceModeSync.fileName)
+
+        Self.debugPrint("iCloudUsageReader bootstrap trackerDirectory=\(trackerDirectory.path)")
+        DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap trackerDirectory=\(trackerDirectory.path)")
 
         // FileManager checks + decoding hop off main; results are dispatched back to
         // the @MainActor for state mutation.
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             let fm = FileManager.default
-            let foundUsage = fm.fileExists(atPath: usageURL.path)
-            let foundHistory = fm.fileExists(atPath: historyURL.path)
-            let foundSession = fm.fileExists(atPath: sessionURL.path)
-            let foundAlertPrefs = fm.fileExists(atPath: alertPreferencesURL.path)
-            let foundAppearance = fm.fileExists(atPath: appearanceModeURL.path)
 
-            if foundUsage {
-                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found usage file path=\(usageURL.path)")
-                await self.readUsageFile(at: usageURL)
-            }
-            if foundHistory {
-                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found history file path=\(historyURL.path)")
-                await self.readHistoryFile(at: historyURL)
-            }
-            if foundSession {
-                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found session file path=\(sessionURL.path)")
-                await self.readSessionFile(at: sessionURL)
-            }
-            if foundAlertPrefs {
+            // Global files at the Tempo/ root.
+            if fm.fileExists(atPath: alertPreferencesURL.path) {
                 DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found alert preferences file path=\(alertPreferencesURL.path)")
                 await self.readAlertPreferencesFile(at: alertPreferencesURL)
             }
-            if foundAppearance {
+            if fm.fileExists(atPath: appearanceModeURL.path) {
                 await self.readAppearanceModeFile(at: appearanceModeURL)
             }
+
+            // Accounts index drives per-account discovery.
+            let indexData = fm.fileExists(atPath: indexURL.path)
+                ? Self.coordinatedReadResult(at: indexURL)
+                : nil
+            let accountIds: [String] = {
+                guard case .success(let data) = indexData else { return [] }
+                guard let decoded = try? Self.jsonDecoder().decode(AccountsIndexFile.self, from: data) else {
+                    return []
+                }
+                return decoded.accountIds
+            }()
+            if !accountIds.isEmpty {
+                DevLog.trace(
+                    "AlertTrace",
+                    "iCloudUsageReader bootstrap parsed accounts index count=\(accountIds.count)"
+                )
+                await self.applyAccountsIndex(accountIds)
+            } else {
+                DevLog.trace("AlertTrace", "iCloudUsageReader bootstrap found no accounts index at \(indexURL.path)")
+            }
+
+            // Read per-account payloads for every accountId listed in the index.
+            // Fall back to scanning the accounts directory in case the index
+            // hasn't been written yet but per-account files exist.
+            let accountsToLoad: [String]
+            if accountIds.isEmpty {
+                accountsToLoad = Self.listAccountDirectoryNames(under: accountsDirectory)
+            } else {
+                accountsToLoad = accountIds
+            }
+
+            for accountId in accountsToLoad {
+                let directoryName = AccountIdentifier.percentEncodedDirectoryName(for: accountId)
+                let accountDir = accountsDirectory.appendingPathComponent(directoryName, isDirectory: true)
+                let usageURL = accountDir.appendingPathComponent("usage.json")
+                let historyURL = accountDir.appendingPathComponent("usage-history.json")
+                let sessionURL = accountDir.appendingPathComponent("latest.json")
+
+                if fm.fileExists(atPath: usageURL.path) {
+                    await self.readUsageFile(at: usageURL, accountId: accountId)
+                }
+                if fm.fileExists(atPath: historyURL.path) {
+                    await self.readHistoryFile(at: historyURL, accountId: accountId)
+                }
+                if fm.fileExists(atPath: sessionURL.path) {
+                    await self.readSessionFile(at: sessionURL, accountId: accountId)
+                }
+            }
         }
+    }
+
+    /// Scans `Tempo/accounts/` for subdirectories and returns the canonical
+    /// accountIds derived from each directory name.
+    ///
+    /// The percent-encoding applied by
+    /// `AccountIdentifier.percentEncodedDirectoryName(for:)` uses only
+    /// characters outside `[a-z0-9._@-]`, and `removingPercentEncoding`
+    /// reverses it losslessly. Directory names that are not valid
+    /// percent-encoded strings are ignored rather than being misinterpreted.
+    nonisolated private static func listAccountDirectoryNames(under accountsDirectory: URL) -> [String] {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: accountsDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        var accountIds: [String] = []
+        for entry in entries {
+            let isDirectory = (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            guard isDirectory else { continue }
+            let name = entry.lastPathComponent
+            guard let decoded = name.removingPercentEncoding else { continue }
+            accountIds.append(decoded)
+        }
+        return accountIds
     }
 
     // MARK: - Query Callbacks
@@ -231,30 +361,60 @@ final class iCloudUsageReader: NSObject {
                   let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { continue }
 
             let fileName = (item.value(forAttribute: NSMetadataItemFSNameKey) as? String) ?? url.lastPathComponent
-            guard fileName == "usage.json"
-                || fileName == "usage-history.json"
-                || fileName == "latest.json"
-                || fileName == AlertPreferencesSync.fileName
-                || fileName == AppearanceModeSync.fileName
-            else { continue }
             Self.debugPrint("iCloudUsageReader metadata item name=\(fileName) path=\(url.path)")
             DevLog.trace("AlertTrace", "iCloudUsageReader saw metadata item name=\(fileName) path=\(url.path)")
             guard ensureDownloaded(item: item, url: url) else { continue }
 
-            if fileName == "usage.json" {
-                readUsageFile(at: url)
-            } else if fileName == "usage-history.json" {
-                readHistoryFile(at: url)
-            } else if fileName == "latest.json" {
-                readSessionFile(at: url)
-            } else if fileName == AlertPreferencesSync.fileName {
+            switch fileName {
+            case AlertPreferencesSync.fileName:
                 readAlertPreferencesFile(at: url)
-            } else {
+            case AppearanceModeSync.fileName:
                 readAppearanceModeFile(at: url)
+            case "index.json":
+                guard Self.isUnderAccountsDirectory(url) else { continue }
+                readIndexFile(at: url)
+            case "account.json":
+                guard let accountId = Self.accountId(from: url) else { continue }
+                readAccountMetadataFile(at: url, accountId: accountId)
+            case "usage.json":
+                guard let accountId = Self.accountId(from: url) else { continue }
+                readUsageFile(at: url, accountId: accountId)
+            case "usage-history.json":
+                guard let accountId = Self.accountId(from: url) else { continue }
+                readHistoryFile(at: url, accountId: accountId)
+            case "latest.json":
+                guard let accountId = Self.accountId(from: url) else { continue }
+                readSessionFile(at: url, accountId: accountId)
+            default:
+                continue
             }
         }
 
         refreshStaleness()
+    }
+
+    /// Walks the URL components to find `accounts/<directoryName>/...` and
+    /// returns the canonical (percent-decoded) accountId.
+    ///
+    /// Returns `nil` when the URL is not under the per-account tree (for
+    /// example a stray legacy `Tempo/usage.json` at the root).
+    nonisolated private static func accountId(from url: URL) -> String? {
+        let components = url.pathComponents
+        // Need at least `/accounts/<dir>/filename.json`. The first matching
+        // `accounts` component wins so we don't trip on future nested
+        // directories unintentionally.
+        guard let accountsIndex = components.firstIndex(of: "accounts"),
+              accountsIndex + 1 < components.count
+        else { return nil }
+        let directoryName = components[accountsIndex + 1]
+        return directoryName.removingPercentEncoding ?? directoryName
+    }
+
+    /// Returns `true` when the URL lives under a `Tempo/accounts/` segment.
+    /// Used to disambiguate the per-account `index.json` from any same-named
+    /// file elsewhere in the container.
+    nonisolated private static func isUnderAccountsDirectory(_ url: URL) -> Bool {
+        url.pathComponents.contains("accounts")
     }
 
     private func ensureDownloaded(item: NSMetadataItem, url: URL) -> Bool {
@@ -285,101 +445,189 @@ final class iCloudUsageReader: NSObject {
         return true
     }
 
-    // MARK: - File Read
+    // MARK: - File Read (per-account)
 
-    private func readUsageFile(at url: URL) {
+    private func readUsageFile(at url: URL, accountId: String) {
         Task.detached(priority: .userInitiated) { [weak self] in
             let dataResult = Self.coordinatedReadResult(at: url)
-            await self?.applyUsageData(dataResult, url: url)
+            await self?.applyUsageData(dataResult, url: url, accountId: accountId)
         }
     }
 
-    private func applyUsageData(_ result: Result<Data, Error>, url: URL) {
+    private func applyUsageData(_ result: Result<Data, Error>, url: URL, accountId: String) {
         switch result {
         case .success(let data):
             do {
                 let state = try Self.jsonDecoder().decode(UsageState.self, from: data)
-                latestUsage = state
-                lastReceivedAt = Date()
+                // The file's directory is the source of truth for the
+                // accountId. If the payload disagrees, prefer the URL and
+                // log once so the mismatch is visible.
+                if state.accountId != accountId {
+                    DevLog.trace(
+                        "AlertTrace",
+                        "iCloudUsageReader usage payload accountId=\(state.accountId) does not match directory accountId=\(accountId); using directory"
+                    )
+                }
+                var routed = state
+                routed.accountId = accountId
+                usageByAccount[accountId] = routed
+                let now = Date()
+                usageUpdatedAtByAccount[accountId] = now
+                lastReceivedAt = now
                 usageReadError = nil
                 syncStatus = .syncing
                 DevLog.trace(
                     "AlertTrace",
-                    "iCloudUsageReader decoded usage file path=\(url.path) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)"
+                    "iCloudUsageReader decoded usage file path=\(url.path) accountId=\(accountId) utilization5h=\(routed.utilization5h) utilization7d=\(routed.utilization7d)"
                 )
-                onUsageState?(state)
+                onUsageState?(routed)
             } catch {
                 usageReadError = error.localizedDescription
-                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode usage file path=\(url.path) error=\(error.localizedDescription)")
+                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode usage file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
                 refreshStaleness()
             }
         case .failure(let error):
             usageReadError = error.localizedDescription
-            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read usage file path=\(url.path) error=\(error.localizedDescription)")
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read usage file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
             refreshStaleness()
         }
     }
 
-    private func readHistoryFile(at url: URL) {
+    private func readHistoryFile(at url: URL, accountId: String) {
         Task.detached(priority: .userInitiated) { [weak self] in
             let dataResult = Self.coordinatedReadResult(at: url)
-            await self?.applyHistoryData(dataResult, url: url)
+            await self?.applyHistoryData(dataResult, url: url, accountId: accountId)
         }
     }
 
-    private func applyHistoryData(_ result: Result<Data, Error>, url: URL) {
+    private func applyHistoryData(_ result: Result<Data, Error>, url: URL, accountId: String) {
         switch result {
         case .success(let data):
             do {
                 let snapshots = try Self.jsonDecoder().decode([UsageHistorySnapshot].self, from: data)
-                historySnapshots = snapshots.sorted { $0.date < $1.date }
-                lastHistoryReceivedAt = Date()
+                let sorted = snapshots.sorted { $0.date < $1.date }
+                historyByAccount[accountId] = sorted
+                let now = Date()
+                historyUpdatedAtByAccount[accountId] = now
+                lastHistoryReceivedAt = now
                 historyReadError = nil
                 historySyncStatus = .syncing
                 DevLog.trace(
                     "AlertTrace",
-                    "iCloudUsageReader decoded history file path=\(url.path) snapshotCount=\(snapshots.count)"
+                    "iCloudUsageReader decoded history file path=\(url.path) accountId=\(accountId) snapshotCount=\(sorted.count)"
                 )
             } catch {
                 historyReadError = error.localizedDescription
-                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode history file path=\(url.path) error=\(error.localizedDescription)")
+                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode history file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
                 refreshStaleness()
             }
         case .failure(let error):
             historyReadError = error.localizedDescription
-            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read history file path=\(url.path) error=\(error.localizedDescription)")
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read history file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
             refreshStaleness()
         }
     }
 
-    private func readSessionFile(at url: URL) {
+    private func readSessionFile(at url: URL, accountId: String) {
         Task.detached(priority: .userInitiated) { [weak self] in
             let dataResult = Self.coordinatedReadResult(at: url)
-            await self?.applySessionData(dataResult, url: url)
+            await self?.applySessionData(dataResult, url: url, accountId: accountId)
         }
     }
 
-    private func applySessionData(_ result: Result<Data, Error>, url: URL) {
+    private func applySessionData(_ result: Result<Data, Error>, url: URL, accountId: String) {
         switch result {
         case .success(let data):
             do {
-                let session = try Self.jsonDecoder().decode(SessionInfo.self, from: data)
-                if latestSession?.sessionId == session.sessionId {
-                    DevLog.trace("AlertTrace", "iCloudUsageReader ignored duplicate latest.json session id=\(session.sessionId)")
+                let decoded = try Self.jsonDecoder().decode(SessionInfo.self, from: data)
+                // Directory wins over payload. Preserves routing when the
+                // writer hasn't yet been updated to tag sessions, and
+                // tolerates the special `unassigned` bucket.
+                let effectiveAccountId = accountId
+                let session: SessionInfo
+                if decoded.accountId == effectiveAccountId {
+                    session = decoded
+                } else {
+                    DevLog.trace(
+                        "AlertTrace",
+                        "iCloudUsageReader session payload accountId=\(decoded.accountId) does not match directory accountId=\(effectiveAccountId); using directory"
+                    )
+                    session = SessionInfo(
+                        sessionId: decoded.sessionId,
+                        inputTokens: decoded.inputTokens,
+                        outputTokens: decoded.outputTokens,
+                        costUSD: decoded.costUSD,
+                        durationSeconds: decoded.durationSeconds,
+                        timestamp: decoded.timestamp,
+                        accountId: effectiveAccountId
+                    )
+                }
+
+                if sessionByAccount[effectiveAccountId]?.sessionId == session.sessionId {
+                    DevLog.trace("AlertTrace", "iCloudUsageReader ignored duplicate latest.json accountId=\(effectiveAccountId) sessionId=\(session.sessionId)")
                     return
                 }
-                latestSession = session
+                sessionByAccount[effectiveAccountId] = session
                 DevLog.trace(
                     "AlertTrace",
-                    "iCloudUsageReader decoded session file path=\(url.path) id=\(session.sessionId) timestamp=\(session.timestamp)"
+                    "iCloudUsageReader decoded session file path=\(url.path) accountId=\(effectiveAccountId) id=\(session.sessionId) timestamp=\(session.timestamp)"
                 )
                 onSessionInfo?(session)
             } catch {
-                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode session file path=\(url.path) error=\(error.localizedDescription)")
+                DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode session file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
             }
         case .failure(let error):
-            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read session file path=\(url.path) error=\(error.localizedDescription)")
+            DevLog.trace("AlertTrace", "iCloudUsageReader failed to read session file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
         }
+    }
+
+    private func readAccountMetadataFile(at url: URL, accountId: String) {
+        // `account.json` is consumed by registry-aware surfaces in a later
+        // task. We still acknowledge it here by tracing so iCloud arrival
+        // is visible during testing; the accountId is added to
+        // `knownAccountIds` if it isn't already there.
+        DevLog.trace("AlertTrace", "iCloudUsageReader saw account metadata file path=\(url.path) accountId=\(accountId)")
+        if !knownAccountIds.contains(accountId) {
+            knownAccountIds.append(accountId)
+            onAccountsIndexUpdated?(knownAccountIds)
+        }
+    }
+
+    private func readIndexFile(at url: URL) {
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let dataResult = Self.coordinatedReadResult(at: url)
+            await self?.applyIndexData(dataResult, url: url)
+        }
+    }
+
+    private func applyIndexData(_ result: Result<Data, Error>, url: URL) {
+        switch result {
+        case .success(let data):
+            do {
+                let decoded = try Self.jsonDecoder().decode(AccountsIndexFile.self, from: data)
+                DevLog.trace(
+                    "AlertTrace",
+                    "iCloudUsageReader decoded accounts index path=\(url.path) count=\(decoded.accountIds.count)"
+                )
+                applyAccountsIndex(decoded.accountIds)
+            } catch {
+                DevLog.trace(
+                    "AlertTrace",
+                    "iCloudUsageReader failed to decode accounts index path=\(url.path) error=\(error.localizedDescription)"
+                )
+            }
+        case .failure(let error):
+            DevLog.trace(
+                "AlertTrace",
+                "iCloudUsageReader failed to read accounts index path=\(url.path) error=\(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func applyAccountsIndex(_ accountIds: [String]) {
+        guard knownAccountIds != accountIds else { return }
+        knownAccountIds = accountIds
+        onAccountsIndexUpdated?(accountIds)
     }
 
     private func readAlertPreferencesFile(at url: URL) {

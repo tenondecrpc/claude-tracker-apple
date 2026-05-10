@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 // MARK: - ClaudeCodeKeychainReader
@@ -13,9 +14,14 @@ enum ClaudeCodeKeychainReader {
 
     private static let serviceName = "Claude Code-credentials"
 
-    /// How long a successful read stays cached before we touch the keychain again.
-    /// Aligned with Claude Code CLI's KEYCHAIN_CACHE_TTL_MS (30 seconds).
-    private static let cacheTTL: TimeInterval = 30
+    /// Successful CLI reads stay in memory for this app run. Tempo does
+    /// not own the Claude Code Keychain slot, so avoiding repeated reads
+    /// also avoids repeated macOS authorization prompts.
+    private static let tokenCacheTTL: TimeInterval = 365 * 24 * 60 * 60
+
+    /// Short cache for benign misses and non-interactive reads that cannot
+    /// complete without UI.
+    private static let missCacheTTL: TimeInterval = 30
 
     /// How long a user-denied or user-cancelled read suppresses retries.
     private static let denialBackoff: TimeInterval = 30 * 60
@@ -45,18 +51,18 @@ enum ClaudeCodeKeychainReader {
     private static var cache: CacheEntry?
 
     /// Returns the CLI OAuth tokens if available in the macOS Keychain.
-    static func loadTokens() -> CLITokens? {
+    static func loadTokens(allowUserInteraction: Bool = false) -> CLITokens? {
         DevLog.trace("KeychainTrace", "Claude Code credential token load requested")
         DevLog.trace("AuthTrace", "Claude Code keychain token load requested")
-        if let cached = cachedTokens() {
+        if let cached = cachedEntry() {
             DevLog.trace("KeychainTrace", "Claude Code credential token load served from cache")
             DevLog.trace("AuthTrace", "Claude Code keychain token load served from in-memory cache")
-            return cached
+            return cached.tokens
         }
 
         DevLog.trace("KeychainTrace", "Claude Code credential cache miss; querying Keychain")
         DevLog.trace("AuthTrace", "Claude Code keychain token cache miss; querying Security framework")
-        let tokens = loadTokensWithSecurityFramework()
+        let tokens = loadTokensWithSecurityFramework(allowUserInteraction: allowUserInteraction)
         return tokens
     }
 
@@ -69,11 +75,11 @@ enum ClaudeCodeKeychainReader {
         cacheLock.unlock()
     }
 
-    private static func cachedTokens() -> CLITokens? {
+    private static func cachedEntry() -> CacheEntry? {
         cacheLock.lock()
         defer { cacheLock.unlock() }
         guard let entry = cache, entry.isFresh else { return nil }
-        return entry.tokens
+        return entry
     }
 
     private static func storeCache(_ tokens: CLITokens?, ttl: TimeInterval) {
@@ -82,14 +88,17 @@ enum ClaudeCodeKeychainReader {
         cacheLock.unlock()
     }
 
-    private static func loadTokensWithSecurityFramework() -> CLITokens? {
-        let query: [CFString: Any] = [
+    private static func loadTokensWithSecurityFramework(allowUserInteraction: Bool) -> CLITokens? {
+        var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: serviceName,
             kSecAttrAccount: NSUserName(),
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
+        let authenticationContext = LAContext()
+        authenticationContext.interactionNotAllowed = !allowUserInteraction
+        query[kSecUseAuthenticationContext] = authenticationContext
 
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -99,18 +108,24 @@ enum ClaudeCodeKeychainReader {
             guard let data = result as? Data, let tokens = decodeTokens(from: data) else {
                 DevLog.trace("KeychainTrace", "Claude Code credential item read succeeded but decode failed")
                 DevLog.trace("AuthTrace", "Claude Code keychain read returned data but decoding failed")
-                storeCache(nil, ttl: cacheTTL)
+                storeCache(nil, ttl: missCacheTTL)
                 return nil
             }
             DevLog.trace("KeychainTrace", "Claude Code credential item read succeeded")
             DevLog.trace("AuthTrace", "Loaded Claude Code CLI tokens via Security framework")
-            storeCache(tokens, ttl: cacheTTL)
+            storeCache(tokens, ttl: tokenCacheTTL)
             return tokens
 
         case errSecItemNotFound:
             DevLog.trace("KeychainTrace", "Claude Code credential item not found")
             DevLog.trace("AuthTrace", "Claude Code keychain item not found")
-            storeCache(nil, ttl: cacheTTL)
+            storeCache(nil, ttl: missCacheTTL)
+            return nil
+
+        case errSecInteractionNotAllowed:
+            DevLog.trace("KeychainTrace", "Claude Code credential item requires UI; non-interactive read skipped")
+            DevLog.trace("AuthTrace", "Claude Code keychain read required UI and was skipped")
+            storeCache(nil, ttl: missCacheTTL)
             return nil
 
         case errSecUserCanceled, errSecAuthFailed:
@@ -125,7 +140,7 @@ enum ClaudeCodeKeychainReader {
         default:
             DevLog.trace("KeychainTrace", "Claude Code credential item read failed status=\(status)")
             DevLog.trace("AuthTrace", "Claude Code keychain read failed status=\(status)")
-            storeCache(nil, ttl: cacheTTL)
+            storeCache(nil, ttl: missCacheTTL)
             return nil
         }
     }

@@ -122,7 +122,7 @@ struct BurnRateCard: View {
 
             if let extra = extraUsage, extra.isEnabled,
                let used = extra.usedCreditsAmount, let limit = extra.monthlyLimitAmount {
-                let extraColor = UtilizationSeverity(utilization: (extra.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.info)
+                let extraColor = UtilizationSeverity(utilization: (extra.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.Usage.normal)
 
                 Divider()
                     .overlay(ClaudeCodeTheme.progressTrack)
@@ -208,11 +208,30 @@ struct MenuActionRow: View {
 
 // MARK: - MenuBarHeaderView
 
-struct MenuBarHeaderView: View {
+struct MenuBarHeaderView<TrailingAccessory: View>: View {
     var onRefresh: (() -> Void)? = nil
     var isPolling: Bool = false
     var serviceState: ServiceHealthState = .operational
     var serviceName: String?
+    /// Optional accessory rendered to the left of the refresh control.
+    /// Used by the dashboard popover to surface a compact account avatar
+    /// in the header instead of a separate full-width row that would
+    /// otherwise compete with the alert/refresh-feedback banner.
+    @ViewBuilder var trailingAccessory: () -> TrailingAccessory
+
+    init(
+        onRefresh: (() -> Void)? = nil,
+        isPolling: Bool = false,
+        serviceState: ServiceHealthState = .operational,
+        serviceName: String? = nil,
+        @ViewBuilder trailingAccessory: @escaping () -> TrailingAccessory
+    ) {
+        self.onRefresh = onRefresh
+        self.isPolling = isPolling
+        self.serviceState = serviceState
+        self.serviceName = serviceName
+        self.trailingAccessory = trailingAccessory
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -221,6 +240,7 @@ struct MenuBarHeaderView: View {
                     .font(.headline)
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Spacer()
+                trailingAccessory()
                 // Service status dot
                 Circle()
                     .fill(dotColor)
@@ -266,6 +286,26 @@ struct MenuBarHeaderView: View {
         case .stale:       return ClaudeCodeTheme.ServiceStatus.stale
         case .unavailable: return ClaudeCodeTheme.ServiceStatus.unavailable
         }
+    }
+}
+
+// Convenience init so existing call sites that do not need a trailing
+// accessory (e.g. `SignInView`) keep compiling without specifying the
+// generic `TrailingAccessory` type.
+extension MenuBarHeaderView where TrailingAccessory == EmptyView {
+    init(
+        onRefresh: (() -> Void)? = nil,
+        isPolling: Bool = false,
+        serviceState: ServiceHealthState = .operational,
+        serviceName: String? = nil
+    ) {
+        self.init(
+            onRefresh: onRefresh,
+            isPolling: isPolling,
+            serviceState: serviceState,
+            serviceName: serviceName,
+            trailingAccessory: { EmptyView() }
+        )
     }
 }
 

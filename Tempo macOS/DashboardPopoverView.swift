@@ -16,7 +16,8 @@ struct DashboardPopoverView: View {
                 onRefresh: { coordinator.poller.pollNow() },
                 isPolling: coordinator.poller.isPolling,
                 serviceState: showServiceStatus ? coordinator.serviceStatusMonitor.state : .operational,
-                serviceName: showServiceStatus ? coordinator.serviceStatusMonitor.affectedServiceName : nil
+                serviceName: showServiceStatus ? coordinator.serviceStatusMonitor.affectedServiceName : nil,
+                trailingAccessory: { accountAccessory }
             )
 
             if let feedback = coordinator.poller.refreshFeedback {
@@ -55,7 +56,14 @@ struct DashboardPopoverView: View {
 
     @ViewBuilder
     private func contentState(use24HourTime: Bool) -> some View {
-        if let usage = coordinator.poller.latestUsage {
+        // Defense in depth: when the registry has no accounts, never render
+        // the usage ring or the "Fetching usage..." spinner. The outer
+        // `authState.isAuthenticated` gate in `SignInView` is the primary
+        // correctness path after the CLI fallback fix; this registry
+        // check catches any future regression of that invariant.
+        if coordinator.registry.accounts.isEmpty {
+            EmptyView()
+        } else if let usage = coordinator.poller.latestUsage {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 usageContent(
                     usage: usage,
@@ -99,7 +107,7 @@ struct DashboardPopoverView: View {
                 sessionProgress: usage.utilization5h,
                 weeklyProgress: usage.utilization7d,
                 centerLabel: "\(Int(usage.utilization5h * 100))%",
-                centerSubtitle: "Session"
+                centerSubtitle: "5H"
             )
             .frame(width: 144, height: 144)
             .frame(maxWidth: .infinity)
@@ -173,12 +181,25 @@ struct DashboardPopoverView: View {
                     DispatchQueue.main.async { menuWindow?.close() }
                 }
 
-                MenuActionRow(
-                    icon: "arrow.right.square",
-                    label: "Logout",
-                    subtitle: coordinator.authState.accountEmail
-                ) {
-                    coordinator.client.signOut()
+                // Defense in depth:
+                // only render the Logout row when there is an account to
+                // sign out of. Without this guard, a regression that
+                // reintroduced `isAuthenticated == true` with an empty
+                // registry would show a Logout control whose click does
+                // nothing because `registry.activeAccountId` is nil.
+                if !coordinator.registry.accounts.isEmpty {
+                    MenuActionRow(
+                        icon: "arrow.right.square",
+                        label: "Logout",
+                        subtitle: coordinator.authState.accountEmail
+                    ) {
+                        // TODO(multi-account task 4.1): surface a per-account
+                        // sign-out affordance (menu of known accounts). For
+                        // now, sign out the currently active account only.
+                        if let activeId = coordinator.registry.activeAccountId {
+                            coordinator.client.signOut(for: activeId)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 7)
@@ -194,6 +215,96 @@ struct DashboardPopoverView: View {
             .padding(.horizontal, 7)
             .padding(.vertical, 5)
         }
+    }
+
+    // MARK: - Account accessory (header)
+
+    /// Compact avatar Menu surfaced inside `MenuBarHeaderView`. Replaces
+    /// the previous full-width "account row" so the prominent slot below
+    /// the header is reserved for refresh feedback and alert banners. The
+    /// active account's name and email live inside the menu (as a
+    /// non-interactive section header) so users still have one click to
+    /// see who is signed in without taking permanent vertical space.
+    @ViewBuilder
+    private var accountAccessory: some View {
+        let accounts = coordinator.registry.accounts
+        let activeId = coordinator.registry.activeAccountId
+        let activeAccount = accounts.first(where: { $0.accountId == activeId })
+        let hasAccounts = !accounts.isEmpty
+        let helpLabel = accountAccessoryTooltip(for: activeAccount)
+
+        Menu {
+            if let activeAccount {
+                // Section header surfaces the active account identity so
+                // a single click reveals "who am I" without sacrificing
+                // header real estate.
+                Section {
+                    Text(accountMenuLabel(for: activeAccount))
+                    if !activeAccount.email.trimmingCharacters(in: .whitespaces).isEmpty,
+                       activeAccount.email != accountMenuLabel(for: activeAccount) {
+                        Text(activeAccount.email)
+                    }
+                }
+                Divider()
+            }
+
+            if hasAccounts {
+                Section {
+                    ForEach(accounts) { account in
+                        if account.accountId != activeId {
+                            Button("Set as active: \(accountMenuLabel(for: account))") {
+                                coordinator.registry.setActive(accountId: account.accountId)
+                                coordinator.poller.syncWorkers()
+                            }
+                        }
+                    }
+                }
+                Divider()
+            }
+
+            Button("Switch account...") {
+                // Route through the existing onChange hook in
+                // `TempoMacApp.swift`, which closes the current window and
+                // opens the Welcome window when `requiresExplicitSignIn`
+                // flips true.
+                coordinator.authState.requiresExplicitSignIn = true
+            }
+        } label: {
+            AccountAvatarLabel(
+                initial: accountInitial(for: activeAccount),
+                isSignedIn: hasAccounts
+            )
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(helpLabel)
+    }
+
+    private func accountInitial(for account: Account?) -> String {
+        guard let account else { return "?" }
+        let name = account.displayName.trimmingCharacters(in: .whitespaces)
+        let email = account.email.trimmingCharacters(in: .whitespaces)
+        let source = !name.isEmpty ? name : (!email.isEmpty ? email : account.accountId)
+        return source.first.map { String($0).uppercased() } ?? "?"
+    }
+
+    private func accountAccessoryTooltip(for account: Account?) -> String {
+        guard let account else { return "Not signed in" }
+        let name = accountMenuLabel(for: account)
+        let email = account.email.trimmingCharacters(in: .whitespaces)
+        if !email.isEmpty && email != name {
+            return "\(name) - \(email)"
+        }
+        return name
+    }
+
+    private func accountMenuLabel(for account: Account) -> String {
+        let trimmedDisplay = account.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedDisplay.isEmpty { return trimmedDisplay }
+        let trimmedEmail = account.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedEmail.isEmpty { return trimmedEmail }
+        return account.accountId
     }
 
     // MARK: - Loading Placeholder
@@ -261,5 +372,44 @@ struct DashboardPopoverView: View {
         let hoursUntilReset = max(0, usage.resetAt5h.timeIntervalSince(now) / 3600)
         let hoursElapsed = max(0.1, 5.0 - hoursUntilReset)
         return usage.utilization5h * 100.0 / hoursElapsed
+    }
+}
+
+// MARK: - AccountAvatarLabel
+//
+// Compact label rendered inside the popover header's account Menu. Shows
+// a single-letter monogram for the active account, falling back to a
+// person glyph when no account is signed in. Click is handled by the
+// surrounding `Menu`.
+
+private struct AccountAvatarLabel: View {
+    let initial: String
+    let isSignedIn: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(isSignedIn ? ClaudeCodeTheme.accentMuted : ClaudeCodeTheme.surface)
+                .overlay(
+                    Circle().stroke(
+                        isSignedIn
+                            ? ClaudeCodeTheme.accent.opacity(0.55)
+                            : ClaudeCodeTheme.progressTrack,
+                        lineWidth: 1
+                    )
+                )
+
+            if isSignedIn {
+                Text(initial)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(ClaudeCodeTheme.accent)
+            } else {
+                Image(systemName: "person.crop.circle.badge.questionmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ClaudeCodeTheme.textTertiary)
+            }
+        }
+        .frame(width: 22, height: 22)
+        .contentShape(Circle())
     }
 }

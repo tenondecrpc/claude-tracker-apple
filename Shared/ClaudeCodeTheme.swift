@@ -259,27 +259,44 @@ extension ClaudeCodeTheme {
     }
 
     enum Usage {
-        static var session: Color { ClaudeCodeTheme.accent }
-        static var sessionEmphasis: Color { ClaudeCodeTheme.accentLight }
-        // Purple (`highlight`) from the Claude Code palette. Pairs with the
-        // terracotta session accent for a warm/cool dual-ring reading.
-        static var weekly: Color { ClaudeCodeTheme.highlight }
-        static var warning: Color { ClaudeCodeTheme.warning }
-        // A stronger warm red than the core error token so 100% usage
-        // reads as a distinct limit state instead of blending with the
-        // app's terracotta accent.
+        // Common utilization palette across macOS, iOS, watchOS, widgets,
+        // and the menu bar:
+        // 0..<60%  = yellow
+        // 60..<80% = orange
+        // 80...100% = red
+        static var normal: Color {
+            ClaudeCodeTheme.adaptive(
+                dark: (0.9098, 0.7882, 0.4196),
+                light: (0.5412, 0.3843, 0.1255)
+            )
+        }
+        static var warning: Color {
+            ClaudeCodeTheme.adaptive(
+                dark: (0.9294, 0.5529, 0.2784),
+                light: (0.7608, 0.3294, 0.1216)
+            )
+        }
         static var critical: Color {
             ClaudeCodeTheme.adaptive(
                 dark: (0.8980, 0.3529, 0.2902),
                 light: (0.7176, 0.2314, 0.1804)
             )
         }
+        static var session: Color { normal }
+        static var sessionEmphasis: Color { normal }
+        static var weekly: Color { normal }
 
         #if os(macOS)
-        static var menuBarWarning: NSColor {
+        static var menuBarNormal: NSColor {
             ClaudeCodeTheme.dynamicNSColor(
                 dark: (0.9098, 0.7882, 0.4196),
                 light: (0.5412, 0.3843, 0.1255)
+            )
+        }
+        static var menuBarWarning: NSColor {
+            ClaudeCodeTheme.dynamicNSColor(
+                dark: (0.9294, 0.5529, 0.2784),
+                light: (0.7608, 0.3294, 0.1216)
             )
         }
         static var menuBarCritical: NSColor {

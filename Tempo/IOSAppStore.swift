@@ -45,15 +45,67 @@ final class IOSAppStore {
     private var demoUsage: UsageState?
     private var demoHistory: [UsageHistorySnapshot] = []
 
-    var usage: UsageState? { isDemoMode ? demoUsage : iCloudReader.latestUsage }
+    /// Persisted iOS active account selection. `nil` means "no active
+    /// account chosen yet", which resolves to the first discovered account
+    /// in `iCloudReader.knownAccountIds` (see `resolvedAccountId`).
+    ///
+    /// Written via `setActiveAccount(accountId:)` so the change propagates
+    /// through `onActiveAccountChange`. Direct writes are supported for
+    /// SwiftUI bindings that need it but route through `didSet` to persist
+    /// to UserDefaults under `Keys.activeAccountId`.
+    var activeAccountId: String? {
+        didSet {
+            if activeAccountId == oldValue { return }
+            if let id = activeAccountId {
+                defaults.set(id, forKey: Keys.activeAccountId)
+            } else {
+                defaults.removeObject(forKey: Keys.activeAccountId)
+            }
+        }
+    }
+
+    var usage: UsageState? { isDemoMode ? demoUsage : activeAccountUsage }
     var historySnapshots: [UsageHistorySnapshot] {
-        isDemoMode ? demoHistory : iCloudReader.historySnapshots
+        isDemoMode ? demoHistory : activeAccountHistory
     }
     var filteredHistorySnapshots: [UsageHistorySnapshot] {
         UsageHistoryTransformer.filteredSnapshots(
             historySnapshots,
             range: historyRange
         )
+    }
+
+    /// Returns the accountId that per-account reads should target.
+    ///
+    /// Precedence:
+    /// 1. `activeAccountId` when it is still present in
+    ///    `iCloudReader.knownAccountIds` (user explicitly picked it, and it
+    ///    has not been removed on macOS).
+    /// 2. The first entry of `iCloudReader.knownAccountIds` (registry
+    ///    order on macOS), which is the "first discovered account" default
+    ///    called out in task 5.3.
+    /// 3. Any accountId present in `usageByAccount` sorted lexically, as a
+    ///    last resort when the registry index hasn't arrived yet but
+    ///    per-account files already have.
+    var resolvedAccountId: String? {
+        if let id = activeAccountId,
+           iCloudReader.knownAccountIds.contains(id) {
+            return id
+        }
+        if let first = iCloudReader.knownAccountIds.first {
+            return first
+        }
+        return iCloudReader.usageByAccount.keys.sorted().first
+    }
+
+    private var activeAccountUsage: UsageState? {
+        guard let accountId = resolvedAccountId else { return nil }
+        return iCloudReader.usageByAccount[accountId]
+    }
+
+    private var activeAccountHistory: [UsageHistorySnapshot] {
+        guard let accountId = resolvedAccountId else { return [] }
+        return iCloudReader.historyByAccount[accountId] ?? []
     }
 
     var usageSyncStatus: iCloudUsageReader.SyncStatus {
@@ -82,6 +134,12 @@ final class IOSAppStore {
     private(set) var isWatchPaired = false
     private(set) var isWatchAppInstalled = false
     var onSessionAlertPreferencesChange: ((SessionAlertPreferences) -> Void)?
+    /// Fires when the user changes the iOS active account selection
+    /// (including a programmatic reset to `nil` when the current active id
+    /// vanishes from `knownAccountIds`). The coordinator listens for this
+    /// to re-send the active account's usage state to the watch and
+    /// refresh the iOS widget snapshot.
+    var onActiveAccountChange: ((String?) -> Void)?
 
     func updateWatchState(isPaired: Bool, isInstalled: Bool) {
         isWatchPaired = isPaired
@@ -111,6 +169,7 @@ final class IOSAppStore {
         static let appearanceMode = "ios.appearanceMode"
         static let iPhoneAlertsEnabled = "ios.iPhoneAlertsEnabled"
         static let watchAlertsEnabled = "ios.watchAlertsEnabled"
+        static let activeAccountId = "ios.activeAccountId"
     }
 
     var preferredColorScheme: ColorScheme? { appearanceMode.colorScheme }
@@ -169,10 +228,45 @@ final class IOSAppStore {
         } else {
             watchAlertsEnabled = defaults.bool(forKey: Keys.watchAlertsEnabled)
         }
+
+        // Load persisted active account selection. A persisted id that
+        // does not match any currently known account is still kept: the
+        // coordinator reconciles it when `onAccountsIndexUpdated` fires
+        // so we don't silently drop a selection that will become valid
+        // seconds later when the index finishes downloading.
+        if let storedActiveAccountId = defaults.string(forKey: Keys.activeAccountId),
+           !storedActiveAccountId.isEmpty {
+            activeAccountId = storedActiveAccountId
+        } else {
+            activeAccountId = nil
+        }
     }
 
     func refreshStaleness() {
         iCloudReader.refreshStaleness()
+    }
+
+    // MARK: - Active Account
+
+    /// Updates the iOS active account selection and notifies observers.
+    ///
+    /// - Parameter accountId: canonical accountId (email-normalized) or
+    ///   `nil` to clear the selection. No validation against
+    ///   `knownAccountIds` happens here; `resolvedAccountId` handles that
+    ///   and the coordinator reconciles the persisted id when the
+    ///   iCloud-discovered accounts index arrives.
+    ///
+    /// No-ops when the value is unchanged so we don't spam the coordinator
+    /// with redundant watch relay / widget writes. The persistence is done
+    /// in the `activeAccountId` `didSet`.
+    func setActiveAccount(accountId: String?) {
+        let normalized: String? = {
+            guard let id = accountId, !id.isEmpty else { return nil }
+            return id
+        }()
+        if activeAccountId == normalized { return }
+        activeAccountId = normalized
+        onActiveAccountChange?(normalized)
     }
 
     // MARK: - Demo Mode
@@ -183,6 +277,7 @@ final class IOSAppStore {
     func enterDemoMode() {
         isDemoMode = true
         demoUsage = UsageState(
+            accountId: "demo@example.com",
             utilization5h: 0.68,
             utilization7d: 0.42,
             resetAt5h: Date().addingTimeInterval(2 * 3600),
