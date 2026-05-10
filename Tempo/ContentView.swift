@@ -31,7 +31,7 @@ struct ContentView: View {
         .tint(ClaudeCodeTheme.accent)
         .onChange(of: widgetRoute, initial: true) { _, route in
             guard let route else { return }
-            switch route {
+            switch route.kind {
             case .dashboard, .stats:
                 selectedTab = .dashboard
             }

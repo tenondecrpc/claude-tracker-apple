@@ -1,6 +1,6 @@
 # Tempo for Claude
 
-A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends.
+A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends. Supports multiple Anthropic accounts simultaneously - personal, work, or any combination.
 
 [![CI - Build](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml)
 [![Security - CodeQL (Swift)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml)
@@ -78,20 +78,21 @@ Install the app, try it on your devices, and send feedback while features are st
 
 ## What it does
 
+- Tracks **multiple Anthropic accounts** simultaneously (personal, work, etc.) - switch with one click
 - Shows your **5-hour and 7-day utilization** as a ring gauge in the macOS menu bar
 - Displays **burn rate**, extra usage, and next reset time at a glance
 - Includes an iOS companion UI (**Dashboard**, **Activity**, **Settings**) styled with Claude tokens
 - Shows **local Claude Code activity and project stats** in the macOS detail window
 - Ships **widgets on macOS, iPhone, and Apple Watch**
 - Delivers a **haptic alert on your Apple Watch** shortly after a Claude Code session ends
-- Relays live usage data from macOS -> iCloud (`usage.json`, `usage-history.json`) -> iOS -> Apple Watch
+- Relays live usage data from macOS -> iCloud (per-account `usage.json`, `usage-history.json`) -> iOS -> Apple Watch
 
 ## Architecture
 
 ```text
 macOS menu bar app
-  |- Tempo OAuth / fresh Claude Code CLI fallback -> usage poller -> iCloud Drive (usage.json / usage-history.json)
-  |- Claude local session reader -> iCloud Drive (latest.json)
+  |- Tempo OAuth / fresh Claude Code CLI fallback -> usage poller -> iCloud Drive (per-account usage.json / usage-history.json)
+  |- Claude local session reader -> iCloud Drive (per-account latest.json)
   └- Local Claude stats -> macOS detail window
 
 iOS companion (NSMetadataQuery + dashboard/activity/settings)
@@ -116,6 +117,55 @@ Tempo stores its own OAuth credentials in Keychain and uses them as the preferre
 - Data is synchronized only between your Apple devices through your iCloud container.
 - iCloud sync and transport rely on Apple's security model and encryption standards.
 
+## Multi-account
+
+Tempo supports signing in to multiple Anthropic accounts at once (for example, personal and work, or parallel subscriptions). macOS is the only surface where accounts can be added or removed; iPhone, Apple Watch, and the widgets discover accounts automatically over iCloud and follow the account you pick as active.
+
+### Adding accounts (macOS)
+
+- Open the menu bar popover and click the Account row at the top.
+- Pick `Add account...`. The Welcome window opens and runs the Anthropic OAuth flow.
+- Repeat for each account you want to track. Accounts you have added show up under `Preferences > Accounts`.
+
+The newly added account becomes the active one on macOS so you can confirm the sign-in worked.
+
+### Switching the active account (macOS)
+
+- Click the Account row in the popover and pick `Set as active: <email>`.
+- The popover, the Stats detail window, and the macOS widget rebind to that account right away.
+
+### Signing out (macOS)
+
+- Open `Preferences > Accounts` and click `Sign out` on the account you want to remove.
+- That account's Keychain slot is deleted and its iCloud data under `Tempo/accounts/<email>/` is removed.
+- If the account you signed out of was active, Tempo promotes the next remaining account to active automatically.
+- When you sign out of the last account, the Welcome window comes back so you can sign in again.
+
+### iPhone
+
+- Accounts appear on the iPhone automatically once macOS signs them in and iCloud finishes syncing. There is no add-account flow on iOS.
+- The Dashboard shows an account chip at the top. Tap the chip to open the Accounts sheet and pick a different account; the Dashboard and the Activity tab rebind to that account and only show its data.
+- The iPhone remembers the active account across relaunches. If you remove that account on macOS, the iPhone automatically falls back to another signed-in account.
+
+### iPhone widgets
+
+- Long-press a Tempo widget, pick `Edit Widget`, and use the `Account` picker to pin the widget to a specific account. Leave it unset to follow whichever account is active on the iPhone.
+- If you remove a pinned account on macOS, the widget shows a small `Account removed` badge and falls back to the active account until you repin it.
+- Tapping a widget pinned to a given account opens the iPhone app directly on that account.
+
+### Apple Watch
+
+- The watch always follows the iPhone's active account. There is no picker on the watch.
+- When no account is signed in on any device, the watch shows a `No accounts available` placeholder telling you to use the Mac app.
+- Session completion haptics only fire for the currently active account. A completion event for a different signed-in account is suppressed to keep the wrist honest.
+- CLI-only sessions (sessions produced by Claude Code CLI under an account that is not signed in to Tempo) are exempt from that gate and can still fire a haptic; the completion sheet labels them as `CLI-only session`.
+
+### Leftover iCloud files from earlier builds
+
+If you used Tempo before multi-account, you may still see `Tempo/usage.json`, `Tempo/usage-history.json`, or `Tempo/latest.json` in iCloud Drive at the top level of the `Tempo/` folder. Tempo does not read those paths anymore; you can delete them from Finder whenever you like.
+
+For the full developer-level layout (`Tempo/accounts/<email>/...`, `accounts/index.json`, Keychain keying), see [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
+
 ## Targets
 
 | Folder | Target | Role |
@@ -135,6 +185,22 @@ Tempo stores its own OAuth credentials in Keychain and uses them as the preferre
 3. Build and run the macOS target, then grant access to `~/.claude` when Tempo asks for local Claude Code stats
 4. Sign in with your Claude account. Tempo first restores its own Keychain OAuth credentials, may use a fresh Claude Code CLI access token as a read-only fallback, and otherwise opens the OAuth browser flow for a paste-code sign-in.
 5. Launch the iOS and watch targets on physical devices if you want live iCloud sync and WatchConnectivity verification
+
+## Developer notes
+
+### Leftover iCloud files from prior dev builds
+
+The user-facing note under [`Multi-account > Leftover iCloud files from earlier builds`](#leftover-icloud-files-from-earlier-builds) applies to developers too, so we do not repeat it here. A few extra details for dev and test work:
+
+- On macOS, the iCloud container lives at `~/Library/Mobile Documents/iCloud~com~tenondev~tempo~claude/Documents/Tempo/`.
+- When debugging a fresh checkout against an existing container, any legacy `usage.json`, `usage-history.json`, or `latest.json` at the top level of that `Tempo/` folder is ignored by current builds. Deleting them prevents confusion while reading logs or inspecting files. Do not touch the `Tempo/accounts/` subtree.
+- One-liner to remove the legacy files (Finder works too):
+
+  ```sh
+  rm -f ~/Library/Mobile\ Documents/iCloud~com~tenondev~tempo~claude/Documents/Tempo/usage.json \
+        ~/Library/Mobile\ Documents/iCloud~com~tenondev~tempo~claude/Documents/Tempo/usage-history.json \
+        ~/Library/Mobile\ Documents/iCloud~com~tenondev~tempo~claude/Documents/Tempo/latest.json
+  ```
 
 ## Requirements
 

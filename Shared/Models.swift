@@ -30,18 +30,99 @@ struct ExtraUsage: Codable {
     }
 }
 
-struct SessionInfo: Codable, Identifiable {
+nonisolated struct SessionInfo: Codable, Identifiable {
     let sessionId: String
     let inputTokens: Int
     let outputTokens: Int
     let costUSD: Double
     let durationSeconds: Int
     let timestamp: Date
+    /// Canonical `accountId` (see `AccountIdentifier`) that this session
+    /// belongs to. Unlike `UsageState`, sessions are allowed to be
+    /// unassigned: payloads without `accountId` decode successfully and the
+    /// field falls back to `AccountIdentifier.unassignedAccountId`. This
+    /// covers CLI-only sessions whose `oauthAccount` cannot be matched to a
+    /// known Anthropic account, as well as older-format payloads that
+    /// predated the multi-account layout.
+    let accountId: String
 
     var id: String { sessionId }
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId
+        case inputTokens
+        case outputTokens
+        case costUSD
+        case durationSeconds
+        case timestamp
+        case accountId
+    }
+
+    init(
+        sessionId: String,
+        inputTokens: Int,
+        outputTokens: Int,
+        costUSD: Double,
+        durationSeconds: Int,
+        timestamp: Date,
+        accountId: String = AccountIdentifier.unassignedAccountId
+    ) {
+        self.sessionId = sessionId
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.costUSD = costUSD
+        self.durationSeconds = durationSeconds
+        self.timestamp = timestamp
+        self.accountId = accountId
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sessionId = try container.decode(String.self, forKey: .sessionId)
+        inputTokens = try container.decode(Int.self, forKey: .inputTokens)
+        outputTokens = try container.decode(Int.self, forKey: .outputTokens)
+        costUSD = try container.decode(Double.self, forKey: .costUSD)
+        durationSeconds = try container.decode(Int.self, forKey: .durationSeconds)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        accountId = try container.decodeIfPresent(String.self, forKey: .accountId)
+            ?? AccountIdentifier.unassignedAccountId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sessionId, forKey: .sessionId)
+        try container.encode(inputTokens, forKey: .inputTokens)
+        try container.encode(outputTokens, forKey: .outputTokens)
+        try container.encode(costUSD, forKey: .costUSD)
+        try container.encode(durationSeconds, forKey: .durationSeconds)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encode(accountId, forKey: .accountId)
+    }
+}
+
+extension SessionInfo {
+    /// Preview/mock fixture used by SwiftUI previews and documentation.
+    /// Uses an explicit `accountId` of `"preview@example.com"` so downstream
+    /// per-account filtering logic can be exercised in previews.
+    static var mock: SessionInfo {
+        SessionInfo(
+            sessionId: "preview-1",
+            inputTokens: 4200,
+            outputTokens: 1800,
+            costUSD: 0.12,
+            durationSeconds: 142,
+            timestamp: Date(),
+            accountId: "preview@example.com"
+        )
+    }
 }
 
 struct UsageState: Codable {
+    /// Canonical `accountId` (see `AccountIdentifier`) that this usage state
+    /// belongs to. Required on decoding: a payload without `accountId` MUST
+    /// fail to decode rather than silently defaulting. No legacy single-account
+    /// payloads are supported.
+    var accountId: String
     var utilization5h: Double
     var utilization7d: Double
     var resetAt5h: Date
@@ -64,6 +145,7 @@ struct UsageState: Codable {
 
     static var mock: UsageState {
         UsageState(
+            accountId: "preview@example.com",
             utilization5h: 0.42,
             utilization7d: 0.18,
             resetAt5h: Date().addingTimeInterval(2 * 3600 + 13 * 60),

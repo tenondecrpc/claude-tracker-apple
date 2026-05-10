@@ -50,12 +50,25 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             applySessionInfo(userInfo)
         case "AppearanceMode":
             applyAppearanceMode(userInfo)
+        case "NoActiveAccount":
+            applyNoActiveAccount()
         default:
             return
         }
     }
 
     private func applyUsageState(_ userInfo: [String: Any]) {
+        // accountId is required: per design.md, `UsageState` decoding on the
+        // watch must not silently fall back to an `unassigned` bucket. If the
+        // iPhone forgets to include the field we log and drop the payload
+        // rather than synthesize a partial state.
+        guard let accountId = userInfo["accountId"] as? String, !accountId.isEmpty else {
+            DevLog.trace(
+                "AlertTrace",
+                "Dropped UsageState payload on watch: missing accountId"
+            )
+            return
+        }
         guard
             let utilization5h = userInfo["utilization5h"] as? Double,
             let utilization7d = userInfo["utilization7d"] as? Double,
@@ -64,7 +77,10 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             let isMocked = userInfo["isMocked"] as? Bool
         else { return }
 
+        let accountLabel = userInfo["accountLabel"] as? String ?? ""
+
         let state = UsageState(
+            accountId: accountId,
             utilization5h: utilization5h,
             utilization7d: utilization7d,
             resetAt5h: Date(timeIntervalSince1970: resetAt5hInterval),
@@ -89,6 +105,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
         Task { @MainActor in
             self.store.apply(state)
+            self.store.applyActiveAccount(id: accountId, label: accountLabel)
             self.store.applyAppearanceMode(appearanceMode)
             self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
             if let snapshots {
@@ -108,6 +125,17 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             let timestampInterval = userInfo["timestamp"] as? TimeInterval
         else { return }
 
+        // accountId on SessionInfo is allowed to be absent (CLI-only /
+        // legacy payloads) per the shared model contract; default to the
+        // unassigned bucket rather than dropping the payload. CLI-only
+        // sessions are intentionally allowed to surface on whichever active
+        // account the watch is currently following (the iPhone gates real
+        // account-owned completions in `WatchRelayManager`; the unassigned
+        // bucket is a shared "no account" lane that every active account
+        // should still see).
+        let accountId = userInfo["accountId"] as? String ?? AccountIdentifier.unassignedAccountId
+        let accountLabel = userInfo["accountLabel"] as? String ?? ""
+
         let watchAlertsEnabled = userInfo["watchAlertsEnabled"] as? Bool ?? SessionAlertPreferences.default.watchAlertsEnabled
         let appearanceMode = Self.appearanceMode(from: userInfo)
 
@@ -117,18 +145,53 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             outputTokens: outputTokens,
             costUSD: costUSD,
             durationSeconds: durationSeconds,
-            timestamp: Date(timeIntervalSince1970: timestampInterval)
+            timestamp: Date(timeIntervalSince1970: timestampInterval),
+            accountId: accountId
         )
 
+        // Task 7.4: outer receiver-level safety net for mismatched
+        // accountIds. The inner gate in `TokenStore.applySession(_:)`
+        // already protects `pendingCompletion`, but a second SessionInfo
+        // for a non-active account should never have side effects on the
+        // watch at all: no `sessions` history mutation, no local
+        // notification. Exception: `unassigned` (CLI-only) sessions are
+        // always allowed through because they have no owning account.
+        //
+        // The active-account check must run on the main actor because
+        // `store.activeAccountId` is `@MainActor`-isolated. We therefore
+        // move `notifySessionCompletion` inside the Task so both the store
+        // update and the alert delivery are gated by the same read.
         Task { @MainActor in
+            let isUnassigned = accountId == AccountIdentifier.unassignedAccountId
+            if !isUnassigned,
+               let active = self.store.activeAccountId,
+               !active.isEmpty,
+               active != accountId {
+                DevLog.trace(
+                    "AlertTrace",
+                    "Dropped SessionInfo: session accountId=\(accountId) does not match activeAccountId=\(active)"
+                )
+                // Still let the global preferences/appearance fields that
+                // tagged along catch up so other payload types are not
+                // starved when the iPhone coalesces them into a session
+                // message.
+                self.store.applyAppearanceMode(appearanceMode)
+                self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
+                return
+            }
+
             self.store.applySession(sessionInfo)
+            if !accountLabel.isEmpty {
+                self.store.applyActiveAccount(id: accountId, label: accountLabel)
+            }
             self.store.applyAppearanceMode(appearanceMode)
             self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
+
+            self.alertManager.notifySessionCompletion(
+                for: sessionInfo,
+                enabledInPreferences: watchAlertsEnabled
+            )
         }
-        alertManager.notifySessionCompletion(
-            for: sessionInfo,
-            enabledInPreferences: watchAlertsEnabled
-        )
     }
 
     private func applyAppearanceMode(_ userInfo: [String: Any]) {
@@ -139,6 +202,17 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
         Task { @MainActor in
             self.store.applyAppearanceMode(appearanceMode)
+        }
+    }
+
+    /// Handles the `NoActiveAccount` context sent by the iPhone when it has
+    /// no active account selected. Clears usage, pending completion, and
+    /// account label on the main actor so the dashboard (task 7.3) can
+    /// render the "No accounts available" placeholder without flashing
+    /// stale data from the previous account.
+    private func applyNoActiveAccount() {
+        Task { @MainActor in
+            self.store.applyNoActiveAccount()
         }
     }
 

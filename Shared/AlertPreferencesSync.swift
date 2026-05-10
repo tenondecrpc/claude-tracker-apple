@@ -3,6 +3,12 @@ import Foundation
 enum AlertPreferencesSync {
     static let fileName = "alert-preferences.json"
 
+    // NOTE: Alert preferences are intentionally GLOBAL (app-wide), not per-account.
+    // See openspec/changes/multi-account-support/design.md:
+    //   "Tempo/alert-preferences.json and Tempo/appearance-mode.json stay at
+    //    Tempo/ because they are intentionally global."
+    // Do NOT move this file under Tempo/accounts/<id>/. The single preferences
+    // file applies to every signed-in account.
     static func trackerDirectory(fileManager: FileManager = .default) -> URL {
         if let containerURL = fileManager.url(forUbiquityContainerIdentifier: TempoICloud.containerIdentifier) {
             return containerURL.appendingPathComponent("Documents/Tempo", isDirectory: true)

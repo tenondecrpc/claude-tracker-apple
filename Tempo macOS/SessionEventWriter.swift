@@ -20,8 +20,25 @@ final class SessionEventWriter {
     nonisolated private static let scanWindow: TimeInterval = 5 * 60
 
     private let defaults = UserDefaults.standard
+
+    /// Registry used to resolve the current CLI `oauthAccount` email to a
+    /// known Tempo `accountId`. When `nil`, or when the email does not
+    /// match any registered account, sessions are tagged with
+    /// `AccountIdentifier.unassignedAccountId` and routed to the
+    /// `Tempo/accounts/unassigned/latest.json` bucket per design.md
+    /// ("Session ingestion per account").
+    private let registry: AccountRegistry?
+
     private var timer: Timer?
     private var isPolling = false
+
+    /// - Parameter registry: `AccountRegistry` used to tag each written
+    ///   `SessionInfo` with a canonical `accountId`. Pass `nil` only in
+    ///   bootstrap contexts where no registry exists yet; all written
+    ///   sessions will be routed to the `unassigned` bucket.
+    init(registry: AccountRegistry? = nil) {
+        self.registry = registry
+    }
 
     func start() {
         stop()
@@ -45,14 +62,24 @@ final class SessionEventWriter {
         defer { isPolling = false }
 
         do {
-            let latestSession = try await Task.detached(priority: .utility) {
+            let parsedSession = try await Task.detached(priority: .utility) {
                 try Self.readLatestCompletedSession()
             }.value
 
-            guard let latestSession else {
+            guard let parsedSession else {
                 DevLog.trace("AlertTrace", "SessionWriter found no completed session to write")
                 return
             }
+
+            // Tag the parsed session with the accountId that owns it. The
+            // parser intentionally leaves `accountId` at the "unassigned"
+            // default; the MainActor `SessionEventWriter` resolves the
+            // current CLI `oauthAccount` against the `AccountRegistry`
+            // before writing to iCloud so we route to the correct
+            // `Tempo/accounts/<id>/latest.json` bucket (or to
+            // `accounts/unassigned/latest.json` for CLI-only sessions).
+            let latestSession = taggedSession(from: parsedSession)
+
             guard latestSession.sessionId != lastWrittenSessionID else {
                 DevLog.trace("AlertTrace", "SessionWriter skipped duplicate session id=\(latestSession.sessionId)")
                 return
@@ -63,31 +90,74 @@ final class SessionEventWriter {
         } catch {}
     }
 
+    /// Returns a copy of `session` whose `accountId` is set to the
+    /// currently-active account in the registry, or
+    /// `AccountIdentifier.unassignedAccountId` when no account is active
+    /// (bootstrap or signed-out states).
+    private func taggedSession(from session: SessionInfo) -> SessionInfo {
+        let accountId = resolveCurrentAccountId()
+        if session.accountId == accountId { return session }
+        return SessionInfo(
+            sessionId: session.sessionId,
+            inputTokens: session.inputTokens,
+            outputTokens: session.outputTokens,
+            costUSD: session.costUSD,
+            durationSeconds: session.durationSeconds,
+            timestamp: session.timestamp,
+            accountId: accountId
+        )
+    }
+
+    /// Resolve the `accountId` that should tag the next written session.
+    ///
+    /// Sessions are tagged with whatever account is currently active in
+    /// the `AccountRegistry`. Earlier versions tried to read the email
+    /// from `~/.claude.json` to disambiguate CLI sessions across multiple
+    /// signed-in accounts, but the file is unreadable under App Sandbox
+    /// and the lookup never succeeded in production. The active account
+    /// is always the user's intent for the current foreground session,
+    /// so it is a strictly better tag.
+    private func resolveCurrentAccountId() -> String {
+        guard let registry, let activeId = registry.activeAccountId else {
+            return AccountIdentifier.unassignedAccountId
+        }
+        return activeId
+    }
+
     private func writeLatestSessionToICloud(_ sessionInfo: SessionInfo) throws {
-        let directory = iCloudTrackerDirectory()
-        if !FileManager.default.fileExists(atPath: directory.path) {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // Route to the per-account file under
+        // `Tempo/accounts/<percentEncodedAccountId>/latest.json`. When the
+        // session's `accountId` is `AccountIdentifier.unassignedAccountId`
+        // (the literal "unassigned"), the helper routes to
+        // `Tempo/accounts/unassigned/latest.json` because "unassigned" is
+        // already inside `AccountIdentifier`'s allowed directory character
+        // set, so percent-encoding is a no-op.
+        guard let outputURL = TempoICloud.latestSessionFileURL(for: sessionInfo.accountId),
+              let accountDirectory = TempoICloud.accountDirectoryURL(for: sessionInfo.accountId) else {
+            // iCloud ubiquity container unavailable. Skip the write; the
+            // next poll will retry.
+            DevLog.trace(
+                "AlertTrace",
+                "SessionWriter skipping write because iCloud container is unavailable accountId=\(sessionInfo.accountId)"
+            )
+            return
         }
 
-        let outputURL = directory.appendingPathComponent("latest.json")
+        if !FileManager.default.fileExists(atPath: accountDirectory.path) {
+            try FileManager.default.createDirectory(
+                at: accountDirectory,
+                withIntermediateDirectories: true
+            )
+        }
+
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(sessionInfo)
         try data.write(to: outputURL, options: .atomic)
         DevLog.trace(
             "AlertTrace",
-            "SessionWriter wrote latest session path=\(outputURL.path) id=\(sessionInfo.sessionId) timestamp=\(sessionInfo.timestamp)"
+            "SessionWriter wrote latest session path=\(outputURL.path) accountId=\(sessionInfo.accountId) id=\(sessionInfo.sessionId) timestamp=\(sessionInfo.timestamp)"
         )
-    }
-
-    private func iCloudTrackerDirectory() -> URL {
-        if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
-        ) {
-            return containerURL.appendingPathComponent("Documents/Tempo")
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo")
     }
 
     private var lastWrittenSessionID: String? {

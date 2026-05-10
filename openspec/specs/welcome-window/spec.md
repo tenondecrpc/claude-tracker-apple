@@ -38,24 +38,27 @@ The window SHALL display:
 - **WHEN** the Welcome window is displayed
 - **THEN** the preview shows hardcoded concentric rings at ~49% session (inner, violet) and ~4% weekly (outer, blue)
 
-### Requirement: Sign in with Claude Code restores safe credentials first
-The "Sign in with Claude Code" button SHALL first attempt `tryRestoreSession()`. Restore SHALL prefer Tempo OAuth credentials from Keychain, refresh only Tempo OAuth credentials if needed, and may use a fresh Claude Code CLI access token as a read-only fallback. If no valid Tempo OAuth credentials and no fresh CLI access token exist, the button SHALL initiate the OAuth PKCE browser flow. While checking, the button SHALL show a spinner for a minimum of 2 seconds before proceeding.
+### Requirement: Sign in with Anthropic starts OAuth without CLI Keychain access
+The "Sign in with Anthropic" button SHALL start the OAuth PKCE browser flow without reading the Claude Code CLI Keychain slot. OAuth token exchange SHALL store Tempo-owned credentials in Tempo's per-account Keychain slot.
 
 #### Scenario: Valid Tempo OAuth credentials restore session without browser
-- **WHEN** the user clicks "Sign in with Claude Code" and valid Tempo OAuth credentials exist in Keychain
-- **THEN** a spinner is shown for at least 2 seconds, the session is restored as `webOAuth`, and the window closes
+- **WHEN** the app launches and valid Tempo OAuth credentials exist in Keychain
+- **THEN** the session is restored as `webOAuth` without reading the Claude Code CLI Keychain slot
+
+#### Scenario: OAuth button starts browser flow
+- **WHEN** the user clicks "Sign in with Anthropic"
+- **THEN** the OAuth PKCE authorization URL is opened in the default browser
+
+### Requirement: CLI fallback is explicit and cached
+The "Use existing Claude Code CLI session" button SHALL be the only Welcome window action allowed to read the Claude Code CLI Keychain slot. The read SHALL use in-memory caching so accepted, missing, denied, or cancelled reads do not cause repeated prompts during background work.
 
 #### Scenario: Fresh CLI access token restores session without browser
-- **WHEN** the user clicks "Sign in with Claude Code", Tempo OAuth credentials are unavailable, and Claude Code has a fresh CLI access token
+- **WHEN** the user clicks "Use existing Claude Code CLI session" and Claude Code has a fresh CLI access token
 - **THEN** a spinner is shown for at least 2 seconds, the session is restored as `cliSession`, and the window closes
 
 #### Scenario: Expired CLI token does not restore session
-- **WHEN** the user clicks "Sign in with Claude Code" and the only available Claude Code CLI token is expired
-- **THEN** Tempo does not refresh Claude Code credentials and proceeds to the OAuth PKCE browser flow
-
-#### Scenario: No credentials triggers OAuth flow
-- **WHEN** the user clicks "Sign in with Claude Code" and no valid Tempo OAuth credentials or fresh CLI access token exist
-- **THEN** after the spinner, the OAuth PKCE authorization URL is opened in the default browser
+- **WHEN** the user clicks "Use existing Claude Code CLI session" and the only available Claude Code CLI token is expired
+- **THEN** Tempo does not refresh Claude Code credentials and asks the user to sign in with Anthropic instead
 
 ### Requirement: Sign in with Email button is a disabled placeholder
 The "Sign in with Email" button SHALL have a `TempoTheme.surface` background with `TempoTheme.textPrimary` text and an envelope icon. It SHALL be visually distinct as non-functional (reduced opacity or "Coming Soon" label).

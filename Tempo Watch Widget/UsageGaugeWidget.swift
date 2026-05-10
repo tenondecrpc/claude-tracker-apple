@@ -1,6 +1,15 @@
 import WidgetKit
 import SwiftUI
 
+// Watch widget contract (see openspec/changes/multi-account-support/design.md,
+// "Widget strategy"): the watch widget renders the iPhone's currently active
+// account only and has no account configuration intent. The utilization and
+// appearance values below are read from the shared App Group UserDefaults,
+// which `WatchSessionReceiver.applyUsageState` keeps in lockstep with
+// whichever account the iPhone relays. Do NOT convert this widget to
+// `AppIntentConfiguration` / `SelectAccountIntent` - per the design the
+// watch strictly follows the iPhone.
+
 // MARK: - Timeline Entry
 
 struct UsageEntry: TimelineEntry {

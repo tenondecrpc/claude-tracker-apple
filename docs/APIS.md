@@ -34,7 +34,7 @@ state=<random>
 
 **Callback note**: Uses a "paste code" flow - the redirect lands in the browser and the user pastes a `<code>#<state>` string. Code = part before `#`, state = part after.
 
-**Tempo auth source order**: Tempo prefers its own OAuth credentials, stored in the macOS Keychain under service `com.tenondev.tempo.claude.oauth`. If those credentials are missing or cannot be restored, Tempo may read the Claude Code CLI Keychain item (`Claude Code-credentials`) as a read-only fallback, but only uses the CLI access token while it is still fresh. Tempo MUST NOT use Claude Code's refresh token, write to Claude Code's Keychain item, delete Claude Code's Keychain item, or repair the Claude Code terminal session. If neither Tempo OAuth nor a fresh CLI access token is available, Tempo starts its own OAuth PKCE browser flow. See `docs/AUTH_FLOW.md`.
+**Tempo auth source order**: Tempo prefers its own OAuth credentials, stored in the macOS Keychain under service `com.tenondev.tempo.claude.oauth`. Tempo reads the Claude Code CLI Keychain item (`Claude Code-credentials`) only when the user explicitly chooses the CLI fallback, and only uses the CLI access token while it is still fresh. Tempo MUST NOT use Claude Code's refresh token, write to Claude Code's Keychain item, delete Claude Code's Keychain item, or repair the Claude Code terminal session. If Tempo OAuth is unavailable and the user does not choose the CLI fallback, Tempo starts its own OAuth PKCE browser flow. See `docs/AUTH_FLOW.md`.
 
 **Token exchange - POST body (JSON):**
 ```json

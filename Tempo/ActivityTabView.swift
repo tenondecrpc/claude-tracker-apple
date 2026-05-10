@@ -1,6 +1,13 @@
 import SwiftUI
 import Charts
 
+// Activity is filtered per active account entirely through
+// `IOSAppStore`. `store.filteredHistorySnapshots` delegates to
+// `historySnapshots`, which reads `iCloudReader.historyByAccount`
+// keyed by `store.resolvedAccountId` (see task 5.3). No direct reads
+// of `iCloudReader.historyByAccount` or any non-active session source
+// happen in this view, so changing the active account automatically
+// refilters the chart and summary.
 struct ActivityTabView: View {
     @Bindable var store: IOSAppStore
 
@@ -52,7 +59,7 @@ struct ActivityTabView: View {
             Text("Activity")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
-            Text("Historical trend from iCloud usage-history.json")
+            Text("Historical trend from iCloud per-account history")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
         }

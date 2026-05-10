@@ -3,9 +3,17 @@ import SwiftUI
 struct DashboardTabView: View {
     let store: IOSAppStore
 
+    /// Drives presentation of the Accounts sheet opened from the header
+    /// chip. Task 6.1 wires the chip tap and presents the sheet; task 6.2
+    /// now renders the full account list, last-updated metadata, and
+    /// "Set as active" actions via `AccountsSheetView`.
+    @State private var showAccountsSheet = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                accountChip
+
                 titleSection
 
                 if store.isWatchPaired && !store.isWatchAppInstalled {
@@ -29,6 +37,62 @@ struct DashboardTabView: View {
             .padding(16)
         }
         .background(ClaudeCodeTheme.background)
+        .sheet(isPresented: $showAccountsSheet) {
+            AccountsSheetView(
+                store: store,
+                isPresented: $showAccountsSheet
+            )
+        }
+    }
+
+    /// Label shown inside the header chip.
+    ///
+    /// Task 6.1 uses the raw `accountId` (the canonicalized email) as the
+    /// label because iOS does not yet materialize per-account
+    /// `account.json` display names. Task 6.2 enriches this once the
+    /// Accounts sheet loads per-account metadata.
+    ///
+    /// Returns "No account" when neither an explicitly chosen
+    /// `activeAccountId` nor a discovered account is available. The chip
+    /// stays tappable in that state so the sheet can explain how to add
+    /// an account via the Mac app.
+    private var accountChipLabel: String {
+        if let id = store.resolvedAccountId, !id.isEmpty {
+            return id
+        }
+        return "No account"
+    }
+
+    private var accountChip: some View {
+        Button {
+            showAccountsSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                Text(accountChipLabel)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(ClaudeCodeTheme.textTertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(ClaudeCodeTheme.surface)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(ClaudeCodeTheme.border.opacity(0.6), lineWidth: 1)
+            )
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Active account: \(accountChipLabel)")
+        .accessibilityHint("Opens the accounts list")
     }
 
     private var titleSection: some View {
@@ -123,7 +187,7 @@ struct DashboardTabView: View {
         }
 
         if let extraUsage = usage.extraUsage, extraUsage.isEnabled {
-            let extraColor = UtilizationSeverity(utilization: (extraUsage.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.info)
+            let extraColor = UtilizationSeverity(utilization: (extraUsage.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.Usage.normal)
 
             card {
                 VStack(alignment: .leading, spacing: 10) {
@@ -360,11 +424,167 @@ private struct UsageRingGauge: View {
                 Text("\(Int((sessionProgress * 100).rounded()))%")
                     .font(.title.bold().monospacedDigit())
                     .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
-                Text("Session")
+                Text("5H")
                     .font(.caption)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
         }
         .padding(.horizontal, 24)
+    }
+}
+
+/// Accounts sheet opened from the dashboard header chip (task 6.2).
+///
+/// Lists every account the iOS reader has discovered from
+/// `Tempo/accounts/index.json` (falling back to any per-account
+/// `usage.json` directories the reader found before the index landed).
+/// Each row shows the canonical accountId as the label (iOS does not yet
+/// materialize `account.json` display names), a relative "last updated"
+/// time from `iCloudUsageReader.usageUpdatedAtByAccount`, and a checkmark
+/// when the row matches the store's active account.
+///
+/// Tapping a row calls `IOSAppStore.setActiveAccount(accountId:)` and
+/// dismisses the sheet. Adding an account remains a macOS-only flow, so
+/// the sheet footer always points users at the Mac app instead of
+/// offering an iOS Add action. When no accounts have been discovered
+/// yet, the sheet shows an empty state with the same footer text.
+private struct AccountsSheetView: View {
+    let store: IOSAppStore
+    @Binding var isPresented: Bool
+
+    private let addAccountFooterText =
+        "To add an account, open Tempo for Claude on your Mac and sign in."
+
+    private let emptyStateText =
+        "No accounts yet. Sign in on your Mac to get started."
+
+    /// Account ids to render as real, switchable accounts. Excludes the
+    /// `"unassigned"` bucket because CLI-only session data is not a
+    /// switchable account on iOS.
+    private var accountIds: [String] {
+        let raw: [String]
+        if !store.iCloudReader.knownAccountIds.isEmpty {
+            raw = store.iCloudReader.knownAccountIds
+        } else {
+            raw = store.iCloudReader.usageByAccount.keys.sorted()
+        }
+        return raw.filter { $0 != AccountIdentifier.unassignedAccountId }
+    }
+
+    /// Resolves the accountId that should carry the active checkmark.
+    /// Prefers the explicit `activeAccountId` selection; falls back to
+    /// `resolvedAccountId` so the first-discovered default still shows as
+    /// active before the user has tapped anything.
+    private var activeAccountId: String? {
+        store.activeAccountId ?? store.resolvedAccountId
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if accountIds.isEmpty {
+                    emptyState
+                } else {
+                    accountList
+                }
+            }
+            .background(ClaudeCodeTheme.background)
+            .navigationTitle("Accounts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        isPresented = false
+                    }
+                    .foregroundStyle(ClaudeCodeTheme.accent)
+                }
+            }
+        }
+    }
+
+    private var accountList: some View {
+        List {
+            if !accountIds.isEmpty {
+                Section {
+                    ForEach(accountIds, id: \.self) { accountId in
+                        accountRow(accountId: accountId)
+                    }
+                }
+            }
+
+            Section {
+                Text(addAccountFooterText)
+                    .font(.footnote)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(ClaudeCodeTheme.background)
+    }
+
+    @ViewBuilder
+    private func accountRow(accountId: String) -> some View {
+        let isActive = accountId == activeAccountId
+        Button {
+            store.setActiveAccount(accountId: accountId)
+            isPresented = false
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(accountId)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(lastUpdatedLabel(for: accountId))
+                        .font(.caption)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                }
+                Spacer()
+                if isActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(ClaudeCodeTheme.accent)
+                        .accessibilityLabel("Active account")
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(isActive ? "Already the active account" : "Sets this as the active account")
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 44, weight: .regular))
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+            Text(emptyStateText)
+                .font(.subheadline)
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                .multilineTextAlignment(.center)
+            Text(addAccountFooterText)
+                .font(.footnote)
+                .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                .multilineTextAlignment(.center)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    /// Builds the "Updated X ago" or "No data yet" label from the
+    /// reader's per-account timestamp map.
+    private func lastUpdatedLabel(for accountId: String) -> String {
+        guard let date = store.iCloudReader.usageUpdatedAtByAccount[accountId] else {
+            return "No data yet"
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return "Updated \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 }

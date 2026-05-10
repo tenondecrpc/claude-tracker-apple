@@ -1,358 +1,181 @@
 import Foundation
 
-// MARK: - UsagePoller
-
+// MARK: - UsagePoller (orchestrator)
+//
+// `UsagePoller` owns one `AccountPollingWorker` per known Anthropic account
+// and reconciles the worker set with `AccountRegistry`. It exposes a small
+// "current view" surface (`latestUsage`, `lastPollAt`, `refreshFeedback`,
+// etc.) that proxies the currently active account's worker so existing UI
+// callers keep compiling while task 4.x reworks them to be per-account.
+//
+// Design notes:
+// - Workers are independent. One account's rate-limit backoff, refresh
+//   feedback, and in-flight polls do not affect other accounts.
+// - The orchestrator does NOT observe `AccountRegistry` on its own. The
+//   coordinator (`MacAppCoordinator`, task 3.6) is responsible for calling
+//   `syncWorkers()` whenever the registry mutates.
+// - The orchestrator re-exposes each worker's `onUsageState` through a
+//   single top-level closure so coordinator code written against the
+//   single-account shape (history append, widget snapshot publish) keeps
+//   working. Each invocation carries the worker's own `accountId` through
+//   the `UsageState.accountId` field.
 @Observable
 @MainActor
 final class UsagePoller {
-    struct RefreshFeedback: Identifiable, Equatable {
-        enum Kind: Equatable {
-            case success
-            case failure
-        }
 
-        let id = UUID()
-        let kind: Kind
-        let message: String
-    }
+    /// Type alias so UI code that binds to `UsagePoller.RefreshFeedback`
+    /// (for example `RefreshFeedbackBannerView`) keeps compiling. The
+    /// concrete type lives on `AccountPollingWorker`; both symbols refer
+    /// to the same value.
+    typealias RefreshFeedback = AccountPollingWorker.RefreshFeedback
 
-    var lastPollAt: Date?
-    var latestUsage: UsageState?
-    var lastPollError: String?
-    var isPolling = false
-    var refreshFeedback: RefreshFeedback?
-    var rateLimitRetryAt: Date? {
-        didSet {
-            persistRateLimitRetryAt()
-        }
-    }
+    // MARK: Collaborators
 
     private let client: MacOSAPIClient
-    private var timer: Timer?
+    private let registry: AccountRegistry
+
+    // MARK: Workers
+
+    /// Workers indexed by `accountId`. The orchestrator is the sole owner;
+    /// callers access a worker through `worker(for:)`.
+    private var workers: [String: AccountPollingWorker] = [:]
+
+    /// Tracks whether the orchestrator is currently running so `syncWorkers`
+    /// can decide whether to auto-start freshly-added workers.
     private var isRunning = false
-    private var currentInterval: TimeInterval = 1800  // 30 minutes
-    private var refreshFeedbackDismissTask: Task<Void, Never>?
 
-    // Reset-timestamp reconciliation state
-    private var lastResetAt5h: Date?
-    private var lastResetAt7d: Date?
-    private var lastUtilization5h: Double = 0
+    // MARK: Callbacks
 
+    /// Invoked whenever any worker completes a successful poll. The emitted
+    /// `UsageState.accountId` matches the worker that produced it, so
+    /// downstream state (history, widget snapshot) can route per-account.
     var onUsageState: ((UsageState) -> Void)?
 
-    private enum Defaults {
-        static let rateLimitRetryAtKey = "UsagePoller.rateLimitRetryAt"
-    }
+    // MARK: Init
 
-    private static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    init(client: MacOSAPIClient) {
+    init(client: MacOSAPIClient, registry: AccountRegistry) {
         self.client = client
-        rateLimitRetryAt = Self.loadPersistedRateLimitRetryAt()
+        self.registry = registry
+
+        for account in registry.accounts {
+            let worker = makeWorker(for: account.accountId)
+            workers[account.accountId] = worker
+        }
     }
 
-    // MARK: - Start / Stop
+    // MARK: Worker factory
 
+    private func makeWorker(for accountId: String) -> AccountPollingWorker {
+        let worker = AccountPollingWorker(accountId: accountId, client: client)
+        worker.onUsageState = { [weak self] state in
+            self?.onUsageState?(state)
+        }
+        return worker
+    }
+
+    // MARK: - Lifecycle
+
+    /// Starts polling for every known account.
     func start() {
-        stop()
         isRunning = true
-        refreshFeedback = nil
-
-        if scheduleActiveRateLimitIfNeeded() {
-            return
-        }
-
-        currentInterval = 1800
-        lastPollError = nil
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.immediatePoll()
-            guard self.isRunning else { return }
-            self.scheduleTimer(interval: self.currentInterval)
+        for worker in workers.values {
+            worker.start()
         }
     }
 
+    /// Stops polling for every known account. Workers retain their
+    /// `latestUsage` and backoff state; a subsequent `start()` resumes
+    /// polling.
     func stop() {
         isRunning = false
-        timer?.invalidate()
-        timer = nil
-    }
-
-    func resetAuthenticationBackoff(clearUsage: Bool = false) {
-        timer?.invalidate()
-        timer = nil
-        currentInterval = 1800
-        rateLimitRetryAt = nil
-        lastPollError = nil
-        refreshFeedback = nil
-        refreshFeedbackDismissTask?.cancel()
-        refreshFeedbackDismissTask = nil
-        if clearUsage {
-            latestUsage = nil
-            lastPollAt = nil
+        for worker in workers.values {
+            worker.stop()
         }
     }
 
-    func pollNow() {
-        guard !isPolling else { return }
-        if scheduleActiveRateLimitIfNeeded(isManualRefresh: true) {
-            return
-        }
-        Task { [weak self] in await self?.doPoll(isManualRefresh: true) }
+    // MARK: - Commands
+
+    /// Triggers an immediate poll. When `accountId` is nil (or matches the
+    /// active account), the active account's worker polls; otherwise the
+    /// named worker polls. Unknown accountIds are silently ignored to match
+    /// the existing "best effort" semantics.
+    func pollNow(accountId: String? = nil) {
+        let targetId = accountId ?? registry.activeAccountId
+        guard let id = targetId, let worker = workers[id] else { return }
+        worker.pollNow()
     }
 
-    // MARK: - Scheduling
+    /// Resets authentication backoff for a specific account. Delegates to
+    /// that account's worker. When the accountId is unknown this is a
+    /// no-op; the coordinator handles reconciliation via `syncWorkers()`.
+    func resetAuthenticationBackoff(for accountId: String, clearUsage: Bool = false) {
+        guard let worker = workers[accountId] else { return }
+        worker.resetAuthenticationBackoff(clearUsage: clearUsage)
+    }
 
-    private func scheduleTimer(interval: TimeInterval) {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.isRunning else { return }
-                self.timer = nil
-                guard !self.isPolling else {
-                    self.scheduleTimer(interval: self.currentInterval)
-                    return
-                }
-                await self.doPoll()
-                guard self.isRunning else { return }
-                self.scheduleTimer(interval: self.currentInterval)
+    /// Returns the worker for the given accountId, if one exists.
+    func worker(for accountId: String) -> AccountPollingWorker? {
+        workers[accountId]
+    }
+
+    // MARK: - Registry reconciliation
+
+    /// Reconciles the worker set with `registry.accounts`:
+    /// - Creates and starts a worker for any newly-registered accountId.
+    /// - Stops and removes workers whose accountIds are no longer in the
+    ///   registry. Their rate-limit retry `UserDefaults` entry persists
+    ///   under a key scoped to that accountId and is not cleaned up here;
+    ///   the account's sign-out cleanup (task 2.5) handles the Keychain
+    ///   and iCloud data, and a stale preference key is harmless.
+    ///
+    /// This method is idempotent: repeated calls with an unchanged registry
+    /// do no work. It does NOT mutate `registry.activeAccountId`; that is
+    /// the coordinator's concern.
+    func syncWorkers() {
+        let currentIds = Set(registry.accounts.map { $0.accountId })
+        let existingIds = Set(workers.keys)
+
+        // Remove workers whose accounts are gone.
+        for removedId in existingIds.subtracting(currentIds) {
+            if let worker = workers.removeValue(forKey: removedId) {
+                worker.stop()
+            }
+        }
+
+        // Add workers for newly-registered accounts. Start them only when
+        // the orchestrator itself is running; otherwise they remain idle and
+        // will be started by the next `start()` call.
+        for addedId in currentIds.subtracting(existingIds) {
+            let worker = makeWorker(for: addedId)
+            workers[addedId] = worker
+            if isRunning {
+                worker.start()
             }
         }
     }
 
-    private func immediatePoll() async {
-        await doPoll()
+    // MARK: - Active-account proxies
+    //
+    // These mirror the former single-account public surface so existing UI
+    // bindings (menu bar icon, dashboard, detail window) continue to
+    // compile while task 4.x converts them to per-account. They always
+    // reflect the worker for `registry.activeAccountId`.
+
+    var activeWorker: AccountPollingWorker? {
+        guard let id = registry.activeAccountId else { return nil }
+        return workers[id]
     }
 
-    // MARK: - Core Poll
-
-    private func doPoll(isManualRefresh: Bool = false) async {
-        isPolling = true
-        defer { isPolling = false }
-        do {
-            let state = try await fetchUsage()
-            currentInterval = 900
-            rateLimitRetryAt = nil
-            lastPollAt = Date()
-            lastPollError = nil
-            latestUsage = state
-            try writeToiCloud(state)
-            onUsageState?(state)
-            if isManualRefresh {
-                showRefreshFeedback(.success, message: "Updated usage just now")
-            }
-        } catch MacAuthError.rateLimited(let retryAfter) {
-            let backoff = retryDelay(from: retryAfter)
-            let retryAt = Date().addingTimeInterval(backoff)
-            currentInterval = backoff
-            rateLimitRetryAt = retryAt
-            recordPollError(rateLimitMessage(retryAt: retryAt), isManualRefresh: isManualRefresh)
-        } catch MacAuthError.httpError(let code) {
-            recordPollError("API error (\(code))", isManualRefresh: isManualRefresh)
-        } catch MacAuthError.noToken {
-            recordPollError("Not authenticated", isManualRefresh: isManualRefresh)
-        } catch {
-            recordPollError(error.localizedDescription, isManualRefresh: isManualRefresh)
-        }
+    var latestUsage: UsageState? {
+        get { activeWorker?.latestUsage }
+        set { activeWorker?.latestUsage = newValue }
     }
 
-    private func retryDelay(from retryAfter: TimeInterval?) -> TimeInterval {
-        let requestedDelay = retryAfter ?? currentInterval * 2
-        return min(max(requestedDelay, 60), 3600)
-    }
-
-    private static func loadPersistedRateLimitRetryAt() -> Date? {
-        let timestamp = UserDefaults.standard.double(forKey: Defaults.rateLimitRetryAtKey)
-        guard timestamp > 0 else { return nil }
-        let retryAt = Date(timeIntervalSince1970: timestamp)
-        return retryAt > Date() ? retryAt : nil
-    }
-
-    private func persistRateLimitRetryAt() {
-        guard let rateLimitRetryAt else {
-            UserDefaults.standard.removeObject(forKey: Defaults.rateLimitRetryAtKey)
-            return
-        }
-        UserDefaults.standard.set(rateLimitRetryAt.timeIntervalSince1970, forKey: Defaults.rateLimitRetryAtKey)
-    }
-
-    @discardableResult
-    private func scheduleActiveRateLimitIfNeeded(isManualRefresh: Bool = false) -> Bool {
-        guard let retryAt = rateLimitRetryAt else { return false }
-        let remaining = retryAt.timeIntervalSinceNow
-        guard remaining > 0 else {
-            rateLimitRetryAt = nil
-            return false
-        }
-
-        currentInterval = remaining
-        let message = rateLimitMessage(retryAt: retryAt)
-        lastPollError = message
-        scheduleTimer(interval: remaining)
-
-        if isManualRefresh {
-            showRefreshFeedback(.failure, message: "Usage is rate limited - retry in \(retryDelayLabel(until: retryAt))")
-        }
-        return true
-    }
-
-    var rateLimitRetryLabel: String? {
-        guard let retryAt = rateLimitRetryAt, retryAt > Date() else { return nil }
-        return retryDelayLabel(until: retryAt)
-    }
-
-    var isRateLimited: Bool {
-        guard let retryAt = rateLimitRetryAt else { return false }
-        return retryAt > Date()
-    }
-
-    private func rateLimitMessage(retryAt: Date) -> String {
-        "Usage temporarily rate limited - retrying in \(retryDelayLabel(until: retryAt))"
-    }
-
-    private func retryDelayLabel(until retryAt: Date) -> String {
-        Self.retryDelayLabel(seconds: retryAt.timeIntervalSinceNow)
-    }
-
-    private static func retryDelayLabel(seconds: TimeInterval) -> String {
-        let minutes = max(1, Int(ceil(seconds / 60)))
-        if minutes < 60 {
-            return "\(minutes) min"
-        }
-
-        let hours = minutes / 60
-        let remainingMinutes = minutes % 60
-        if remainingMinutes == 0 {
-            return "\(hours) hr"
-        }
-        return "\(hours) hr \(remainingMinutes) min"
-    }
-
-    private func recordPollError(_ message: String, isManualRefresh: Bool) {
-        lastPollError = message
-        DevLog.trace("AuthTrace", "Usage poll failed manual=\(isManualRefresh) message=\(message)")
-        if isManualRefresh {
-            showRefreshFeedback(.failure, message: "Refresh failed - \(message)")
-        }
-    }
-
-    private func showRefreshFeedback(_ kind: RefreshFeedback.Kind, message: String) {
-        refreshFeedbackDismissTask?.cancel()
-        let feedback = RefreshFeedback(kind: kind, message: message)
-        refreshFeedback = feedback
-        refreshFeedbackDismissTask = Task { @MainActor [weak self, id = feedback.id] in
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            guard !Task.isCancelled, self?.refreshFeedback?.id == id else { return }
-            self?.refreshFeedback = nil
-        }
-    }
-
-    // MARK: - Fetch & Map (Tasks 3.1, 3.2, 3.3)
-
-    private func fetchUsage() async throws -> UsageState {
-        let data = try await client.authenticatedRequest(
-            for: URL(string: "https://api.anthropic.com/api/oauth/usage")!
-        )
-
-        struct Window: Decodable {
-            let utilization: Double?
-            let resets_at: String?
-        }
-        struct RawExtraUsage: Decodable {
-            let is_enabled: Bool
-            let used_credits: Double?
-            let monthly_limit: Double?
-            let utilization: Double?
-        }
-        struct Response: Decodable {
-            let five_hour: Window
-            let seven_day: Window
-            let extra_usage: RawExtraUsage?
-        }
-
-        let response = try JSONDecoder().decode(Response.self, from: data)
-        let isDoubleLimitPromoActive = UsagePromoDetector.detectDoubleLimitPromo(from: data)
-
-        // Normalize utilization from 0–100 to 0.0–1.0
-        let utilization5h = (response.five_hour.utilization ?? 0) / 100.0
-        let utilization7d = (response.seven_day.utilization ?? 0) / 100.0
-
-        let rawResetAt5h = response.five_hour.resets_at.flatMap { Self.isoFormatter.date(from: $0) }
-        let rawResetAt7d = response.seven_day.resets_at.flatMap { Self.isoFormatter.date(from: $0) }
-
-        // Reset-timestamp reconciliation (Task 3.3):
-        // Preserve previous value if server omits it; discard on utilization drop (rollover).
-        let didReset5h = lastUtilization5h > 0.01 && utilization5h < 0.01
-        let resetAt5h: Date
-        if let raw = rawResetAt5h {
-            resetAt5h = raw
-        } else if didReset5h {
-            resetAt5h = Date().addingTimeInterval(5 * 3600)
-        } else {
-            resetAt5h = lastResetAt5h ?? Date().addingTimeInterval(5 * 3600)
-        }
-
-        let resetAt7d: Date
-        if let raw = rawResetAt7d {
-            resetAt7d = raw
-        } else {
-            resetAt7d = lastResetAt7d ?? Date().addingTimeInterval(7 * 24 * 3600)
-        }
-
-        lastUtilization5h = utilization5h
-        lastResetAt5h = resetAt5h
-        lastResetAt7d = resetAt7d
-
-        let extraUsage = response.extra_usage.map { raw in
-            ExtraUsage(
-                isEnabled: raw.is_enabled,
-                usedCredits: raw.used_credits,
-                monthlyLimit: raw.monthly_limit,
-                utilization: raw.utilization
-            )
-        }
-
-        return UsageState(
-            utilization5h: utilization5h,
-            utilization7d: utilization7d,
-            resetAt5h: resetAt5h,
-            resetAt7d: resetAt7d,
-            isMocked: false,
-            extraUsage: extraUsage,
-            isDoubleLimitPromoActive: isDoubleLimitPromoActive
-        )
-    }
-
-    // MARK: - iCloud Write (Task 3.5)
-
-    private func writeToiCloud(_ state: UsageState) throws {
-        let dir = iCloudTrackerDirectory()
-
-        if !FileManager.default.fileExists(atPath: dir.path) {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-
-        let fileURL = dir.appendingPathComponent("usage.json")
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(state)
-        try data.write(to: fileURL, options: .atomic)
-    }
-
-    /// Returns the Tempo directory in the shared iCloud ubiquity container.
-    /// Falls back to the generic iCloud Drive path when the container URL is unavailable.
-    private func iCloudTrackerDirectory() -> URL {
-        if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
-        ) {
-            return containerURL.appendingPathComponent("Documents/Tempo")
-        }
-        // Fallback: generic iCloud Drive path (macOS only, requires iCloud Drive to be enabled)
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo")
-    }
+    var lastPollAt: Date? { activeWorker?.lastPollAt }
+    var lastPollError: String? { activeWorker?.lastPollError }
+    var isPolling: Bool { activeWorker?.isPolling ?? false }
+    var refreshFeedback: RefreshFeedback? { activeWorker?.refreshFeedback }
+    var rateLimitRetryAt: Date? { activeWorker?.rateLimitRetryAt }
+    var rateLimitRetryLabel: String? { activeWorker?.rateLimitRetryLabel }
+    var isRateLimited: Bool { activeWorker?.isRateLimited ?? false }
 }
