@@ -75,6 +75,7 @@ Scope delivered:
 - Watch follows the iPhone's active account only: it clears state on `NoActiveAccount`, suppresses completion alerts for non-active accounts, and does not persist its own selection.
 - Widgets (macOS, iOS, watchOS) render the active account by default. macOS and iOS widgets expose a `SelectAccountIntent` for pinning to a specific account.
 - Shared `AccountIdentifier` canonicalizes accountIds (lowercased, trimmed, NFC-normalized email) across all targets; `UsageState`, `WidgetUsageSnapshot`, and `SessionInfo` carry `accountId`.
+- Bugfix shipped: `MacOSAPIClient.tryRestoreSession()` only promotes a CLI session to `isAuthenticated = true` when the canonical CLI email matches an existing `AccountRegistry` row; `writeIndex` guards against empty-registry thrash on launch; `DashboardPopoverView` adds defense-in-depth gating so the popover is never in a mixed authenticated-but-empty-registry state.
 
 ### Already shipped UI beyond the original phase plan
 

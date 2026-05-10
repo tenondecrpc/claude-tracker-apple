@@ -424,7 +424,7 @@ private struct UsageRingGauge: View {
                 Text("\(Int((sessionProgress * 100).rounded()))%")
                     .font(.title.bold().monospacedDigit())
                     .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
-                Text("Session")
+                Text("5H")
                     .font(.caption)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
@@ -458,16 +458,9 @@ private struct AccountsSheetView: View {
     private let emptyStateText =
         "No accounts yet. Sign in on your Mac to get started."
 
-    /// Text shown under the CLI-only sessions row explaining why iOS
-    /// cannot associate the bucket to an account. Associating CLI-only
-    /// sessions with an account is a macOS-only affordance; on iOS we
-    /// just surface the explanation.
-    private let cliOnlyInfoText =
-        "CLI-only sessions cannot be associated with an account on iOS. Use the Mac app to associate them."
-
     /// Account ids to render as real, switchable accounts. Excludes the
-    /// `"unassigned"` bucket which is rendered in its own CLI-only
-    /// sessions section below.
+    /// `"unassigned"` bucket because CLI-only session data is not a
+    /// switchable account on iOS.
     private var accountIds: [String] {
         let raw: [String]
         if !store.iCloudReader.knownAccountIds.isEmpty {
@@ -476,19 +469,6 @@ private struct AccountsSheetView: View {
             raw = store.iCloudReader.usageByAccount.keys.sorted()
         }
         return raw.filter { $0 != AccountIdentifier.unassignedAccountId }
-    }
-
-    /// Whether any unassigned (CLI-only) data has been observed by the
-    /// reader. Presence in any of the three reader maps is enough; the
-    /// writer can populate either `usage.json` or `latest.json` first
-    /// depending on which pipeline fires. We also treat registry
-    /// membership as a signal so the group shows up as soon as the
-    /// `accounts/index.json` lists `"unassigned"`.
-    private var hasUnassignedBucket: Bool {
-        let id = AccountIdentifier.unassignedAccountId
-        return store.iCloudReader.knownAccountIds.contains(id)
-            || store.iCloudReader.usageByAccount[id] != nil
-            || store.iCloudReader.sessionByAccount[id] != nil
     }
 
     /// Resolves the accountId that should carry the active checkmark.
@@ -502,7 +482,7 @@ private struct AccountsSheetView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if accountIds.isEmpty && !hasUnassignedBucket {
+                if accountIds.isEmpty {
                     emptyState
                 } else {
                     accountList
@@ -529,17 +509,6 @@ private struct AccountsSheetView: View {
                     ForEach(accountIds, id: \.self) { accountId in
                         accountRow(accountId: accountId)
                     }
-                }
-            }
-
-            if hasUnassignedBucket {
-                Section("CLI-only sessions") {
-                    unassignedRow
-                    Text(cliOnlyInfoText)
-                        .font(.footnote)
-                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
                 }
             }
 
@@ -588,35 +557,6 @@ private struct AccountsSheetView: View {
         .accessibilityHint(isActive ? "Already the active account" : "Sets this as the active account")
     }
 
-    /// Row representing the special `"unassigned"` bucket that holds
-    /// CLI-only sessions (sessions whose `oauthAccount.emailAddress`
-    /// did not match any signed-in Anthropic account on the Mac). The
-    /// bucket is not a real account, so this row is intentionally not
-    /// a button: iOS cannot associate sessions with an account. The
-    /// inline footnote below this row in the enclosing section
-    /// explains the macOS-only workflow.
-    private var unassignedRow: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "terminal")
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("CLI-only sessions")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                Text(unassignedLastUpdatedLabel)
-                    .font(.caption)
-                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
-            }
-            Spacer()
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("CLI-only sessions")
-        .accessibilityHint("Not a switchable account. Use the Mac app to associate with an account.")
-    }
-
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -646,20 +586,5 @@ private struct AccountsSheetView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return "Updated \(formatter.localizedString(for: date, relativeTo: Date()))"
-    }
-
-    /// Subtitle line shown under the CLI-only sessions row. Shows the
-    /// timestamp of the most recent unassigned session relay (prefers
-    /// the session map over the usage map because CLI-only activity is
-    /// session-driven). Falls back to the plain "No data yet" copy
-    /// used by real account rows.
-    private var unassignedLastUpdatedLabel: String {
-        let id = AccountIdentifier.unassignedAccountId
-        if let session = store.iCloudReader.sessionByAccount[id] {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .short
-            return "Last session \(formatter.localizedString(for: session.timestamp, relativeTo: Date()))"
-        }
-        return lastUpdatedLabel(for: id)
     }
 }

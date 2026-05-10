@@ -158,8 +158,7 @@ final class AccountRegistryICloudMirror {
             return
         }
 
-        // Empty-write guard (cli-session-registry-consistency-fix,
-        // Property 2): avoid thrashing `Tempo/accounts/index.json` with
+        // Empty-write guard: avoid thrashing `Tempo/accounts/index.json` with
         // successive `count=0` writes during boot on a CLI-only machine
         // where the caller-side seed was mistakenly invoked. Intentional
         // last-account clears (invoked from `AccountRemovalService` after

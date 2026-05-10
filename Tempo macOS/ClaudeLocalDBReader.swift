@@ -22,7 +22,7 @@ struct LocalModelUsageItem: Codable {
     let cacheCreationInputTokens: Int
 }
 
-struct LocalProjectStat: Identifiable {
+nonisolated struct LocalProjectStat: Identifiable {
     var id: String { dirName }
     let dirName: String
     let displayName: String

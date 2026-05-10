@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 // MARK: - ClaudeCodeKeychainReader
@@ -95,9 +96,9 @@ enum ClaudeCodeKeychainReader {
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
-        query[kSecUseAuthenticationUI] = allowUserInteraction
-            ? kSecUseAuthenticationUIAllow
-            : kSecUseAuthenticationUIFail
+        let authenticationContext = LAContext()
+        authenticationContext.interactionNotAllowed = !allowUserInteraction
+        query[kSecUseAuthenticationContext] = authenticationContext
 
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)

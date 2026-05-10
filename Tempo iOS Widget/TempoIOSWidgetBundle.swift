@@ -636,7 +636,7 @@ private struct TempoIOSDualRing: View {
                 Text(TempoWidgetFormatting.percentString(sessionProgress))
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(UsageRingStyle.sessionColor(utilization: sessionProgress))
-                Text("session")
+                Text("5H")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }

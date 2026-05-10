@@ -117,7 +117,7 @@ struct PreferencesWindowView: View {
             }
 
             // Accounts card: list every registered Anthropic account with
-            // per-row sign-out, and an "Add account..." footer that hands
+            // per-row sign-out, and a "Switch account..." footer that hands
             // off to the Welcome window via the existing
             // `authState.requiresExplicitSignIn` onChange hook in
             // `TempoMacApp.swift`.
@@ -152,7 +152,7 @@ struct PreferencesWindowView: View {
                         // already registered).
                         coordinator.authState.requiresExplicitSignIn = true
                     } label: {
-                        Label("Add account...", systemImage: "plus")
+                        Label("Switch account...", systemImage: "person.crop.circle.badge.arrow.forward")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)

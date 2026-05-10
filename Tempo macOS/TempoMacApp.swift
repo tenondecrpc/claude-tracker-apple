@@ -170,7 +170,7 @@ final class MacAppCoordinator {
         // Seed the iCloud mirror once at startup so iOS discovery is
         // correct even if the user never mutates the registry in this
         // session. Gated on a non-empty registry per
-        // `cli-session-registry-consistency-fix` so a CLI-only launch
+        // so a CLI-only launch
         // does not thrash `Tempo/accounts/index.json` with a `count=0`
         // payload on every boot.
         if !registry.accounts.isEmpty {

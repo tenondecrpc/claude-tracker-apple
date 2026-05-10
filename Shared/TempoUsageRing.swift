@@ -10,11 +10,12 @@ import SwiftUI
 /// proportions. The color tokens live here so "session" and "weekly" render
 /// the same hue on every device.
 enum UsageRingStyle {
-    /// Outer ring (5h session). Slightly thicker so the primary, faster-changing
-    /// metric reads first at a glance.
+    /// Outer ring (7d weekly). Slightly thicker so the weekly window reads as
+    /// the containing metric.
     static let outerStrokeRatio: CGFloat = 0.10
 
-    /// Inner ring (7d weekly). Thinner to preserve visual hierarchy.
+    /// Inner ring (5h session). The session window drives the center value and
+    /// severity color.
     static let innerStrokeRatio: CGFloat = 0.075
 
     /// Gap between the outer stroke and the inner ring.
@@ -37,8 +38,9 @@ enum UsageRingStyle {
 
 // MARK: - TempoUsageRing
 
-/// The single shared dual ring view. Session (5h) is the outer ring; weekly
-/// (7d) is the inner ring. Optional `center` content renders inside the hole.
+/// The single shared dual ring view. Weekly (7d) is the outer containing ring;
+/// session (5h) is the inner ring. Optional `center` content renders inside the
+/// hole.
 struct TempoUsageRing<Center: View>: View {
     let sessionProgress: Double
     let weeklyProgress: Double
@@ -66,9 +68,9 @@ struct TempoUsageRing<Center: View>: View {
                     .stroke(ClaudeCodeTheme.ringTrack, lineWidth: outerStroke)
 
                 Circle()
-                    .trim(from: 0, to: Self.clamp(sessionProgress))
+                    .trim(from: 0, to: Self.clamp(weeklyProgress))
                     .stroke(
-                        UsageRingStyle.sessionColor(utilization: sessionProgress),
+                        UsageRingStyle.weeklyColor(utilization: weeklyProgress),
                         style: StrokeStyle(lineWidth: outerStroke, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
@@ -78,9 +80,9 @@ struct TempoUsageRing<Center: View>: View {
                     .padding(innerInset)
 
                 Circle()
-                    .trim(from: 0, to: Self.clamp(weeklyProgress))
+                    .trim(from: 0, to: Self.clamp(sessionProgress))
                     .stroke(
-                        UsageRingStyle.weeklyColor(utilization: weeklyProgress),
+                        UsageRingStyle.sessionColor(utilization: sessionProgress),
                         style: StrokeStyle(lineWidth: innerStroke, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))

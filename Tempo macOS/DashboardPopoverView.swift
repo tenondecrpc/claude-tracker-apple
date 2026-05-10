@@ -56,8 +56,7 @@ struct DashboardPopoverView: View {
 
     @ViewBuilder
     private func contentState(use24HourTime: Bool) -> some View {
-        // Defense in depth (cli-session-registry-consistency-fix,
-        // Property 4): when the registry has no accounts, never render
+        // Defense in depth: when the registry has no accounts, never render
         // the usage ring or the "Fetching usage..." spinner. The outer
         // `authState.isAuthenticated` gate in `SignInView` is the primary
         // correctness path after the CLI fallback fix; this registry
@@ -108,7 +107,7 @@ struct DashboardPopoverView: View {
                 sessionProgress: usage.utilization5h,
                 weeklyProgress: usage.utilization7d,
                 centerLabel: "\(Int(usage.utilization5h * 100))%",
-                centerSubtitle: "Session"
+                centerSubtitle: "5H"
             )
             .frame(width: 144, height: 144)
             .frame(maxWidth: .infinity)
@@ -182,7 +181,7 @@ struct DashboardPopoverView: View {
                     DispatchQueue.main.async { menuWindow?.close() }
                 }
 
-                // Defense in depth (cli-session-registry-consistency-fix):
+                // Defense in depth:
                 // only render the Logout row when there is an account to
                 // sign out of. Without this guard, a regression that
                 // reintroduced `isAuthenticated == true` with an empty
@@ -263,21 +262,12 @@ struct DashboardPopoverView: View {
                 Divider()
             }
 
-            Button("Add account...") {
+            Button("Switch account...") {
                 // Route through the existing onChange hook in
                 // `TempoMacApp.swift`, which closes the current window and
                 // opens the Welcome window when `requiresExplicitSignIn`
                 // flips true.
                 coordinator.authState.requiresExplicitSignIn = true
-            }
-
-            if hasAccounts {
-                Button("Manage accounts...") {
-                    let menuWindow = NSApp.keyWindow
-                    openSettings()
-                    NSApp.activate(ignoringOtherApps: true)
-                    DispatchQueue.main.async { menuWindow?.close() }
-                }
             }
         } label: {
             AccountAvatarLabel(
@@ -422,4 +412,6 @@ private struct AccountAvatarLabel: View {
         .frame(width: 22, height: 22)
         .contentShape(Circle())
     }
+}
+}
 }

@@ -30,7 +30,7 @@ struct ExtraUsage: Codable {
     }
 }
 
-struct SessionInfo: Codable, Identifiable {
+nonisolated struct SessionInfo: Codable, Identifiable {
     let sessionId: String
     let inputTokens: Int
     let outputTokens: Int

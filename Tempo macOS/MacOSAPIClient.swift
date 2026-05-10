@@ -492,8 +492,8 @@ final class MacOSAPIClient {
         // `ClaudeCodeKeychainReader` on demand; this function never
         // refreshes, rotates, or writes them per `docs/AUTH_FLOW.md`.
         //
-        // Invariant (cli-session-registry-consistency-fix): after this
-        // branch returns, `authState.isAuthenticated == true` implies
+        // Invariant: after this branch returns,
+        // `authState.isAuthenticated == true` implies
         // `registry.accounts.count >= 1`. The registration below is what
         // keeps that invariant intact after explicit CLI sign-in.
         if let cliTokens = ClaudeCodeKeychainReader.loadTokens(allowUserInteraction: true),
@@ -561,7 +561,7 @@ final class MacOSAPIClient {
     }
 
     /// DEBUG-only regression canary for the
-    /// `cli-session-registry-consistency-fix` invariant:
+    /// invariant:
     ///
     ///     authState.isAuthenticated == true implies
     ///     AccountRegistry.accounts.count >= 1
@@ -574,7 +574,7 @@ final class MacOSAPIClient {
         #if DEBUG
         if authState.isAuthenticated && registry.accounts.isEmpty {
             assertionFailure(
-                "cli-session-registry-consistency-fix regression: isAuthenticated with empty registry"
+                "isAuthenticated with empty registry"
             )
         }
         #endif

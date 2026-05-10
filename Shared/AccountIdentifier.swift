@@ -3,7 +3,7 @@ import CryptoKit
 
 /// Errors produced while deriving a canonical `accountId` from an email or
 /// other seed value.
-enum AccountIdentifierError: Error, Equatable {
+nonisolated enum AccountIdentifierError: Error, Equatable {
     /// The provided email was empty (or contained only whitespace) after
     /// canonicalization. Canonical `accountId` values must be non-empty.
     case emptyEmail
@@ -17,7 +17,7 @@ enum AccountIdentifierError: Error, Equatable {
 /// Keychain `kSecAttrAccount` values and for iCloud directory names. Only the
 /// directory name is percent-encoded for filesystem safety; the in-memory
 /// `accountId` always stays canonical.
-enum AccountIdentifier {
+nonisolated enum AccountIdentifier {
     /// Sentinel `accountId` used for session-level payloads (`SessionInfo`,
     /// `LocalProjectStat`) whose owning account cannot be determined, for
     /// example CLI-only sessions whose `oauthAccount` does not match any

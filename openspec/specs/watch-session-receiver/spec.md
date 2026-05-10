@@ -1,46 +1,33 @@
-### Requirement: WatchSessionReceiver activates WCSession on watchOS
-`WatchSessionReceiver` SHALL be a `final class` conforming to `WCSessionDelegate`. Its initializer SHALL call `WCSession.default.activate()` (guarded by `WCSession.isSupported()`). It SHALL store the delegate reference on `WCSession.default.delegate` before activating.
+## MODIFIED Requirements
 
-#### Scenario: Session activation at init
-- **WHEN** `WatchSessionReceiver(store:)` is called
-- **THEN** `WCSession.default.activate()` is called and the receiver is set as delegate
+### Requirement: Receiver routes account-aware UsageState payloads to TokenStore
+`WatchSessionReceiver` SHALL implement `session(_:didReceiveApplicationContext:)`. When the payload contains `"type": "UsageState"` it SHALL decode a `UsageState`, extract the `accountId` and `accountLabel` fields, and call `store.apply(_:forAccountId:label:)` on the `@MainActor`. When the payload contains `"type": "NoActiveAccount"` it SHALL call `store.clearActiveAccount()` on the `@MainActor`.
 
-#### Scenario: Unsupported device guard
-- **WHEN** `WCSession.isSupported()` returns false
-- **THEN** `WatchSessionReceiver.init` returns without calling activate (no crash)
+`WatchSessionReceiver` SHALL also continue to implement `session(_:didReceiveUserInfo:)` for `SessionInfo` payloads. It SHALL call `store.applySession(_:forAccountId:)` on the `@MainActor` and SHALL ignore the payload when its `accountId` does not match the current active account.
 
-### Requirement: Receiver routes UsageState payloads to TokenStore
-`WatchSessionReceiver` SHALL implement `session(_:didReceiveUserInfo:)`. When the payload contains `"type": "UsageState"`, it SHALL decode a `UsageState` from the dictionary and call `store.apply(_:)` on the `@MainActor`.
+#### Scenario: Valid active-account UsageState payload received
+- **WHEN** `didReceiveApplicationContext` fires with `["type": "UsageState", "accountId": "A", "accountLabel": "a@example.com", ...]`
+- **THEN** `TokenStore.apply(_:forAccountId:label:)` is called with the decoded `UsageState`, accountId `"A"`, and label `"a@example.com"`
 
-#### Scenario: Valid UsageState payload received
-- **WHEN** `didReceiveUserInfo` fires with `["type": "UsageState", ...]`
-- **THEN** `TokenStore.apply(_:)` is called with the decoded `UsageState`
+#### Scenario: NoActiveAccount payload received
+- **WHEN** `didReceiveApplicationContext` fires with `["type": "NoActiveAccount"]`
+- **THEN** `TokenStore.clearActiveAccount()` is called and any displayed usage state is cleared
+
+#### Scenario: SessionInfo for non-active account is ignored
+- **WHEN** `didReceiveUserInfo` fires with `SessionInfo` whose `accountId` does not match the current active accountId
+- **THEN** the payload is silently ignored and `TokenStore` is not modified
 
 #### Scenario: Unknown type payload ignored
-- **WHEN** `didReceiveUserInfo` fires with `["type": "SomeFutureType", ...]`
+- **WHEN** either delivery fires with a `"type"` the receiver does not recognize
 - **THEN** the payload is silently ignored and `TokenStore` is not modified
 
 #### Scenario: Missing type key ignored
-- **WHEN** `didReceiveUserInfo` fires with a payload that has no `"type"` key
+- **WHEN** a payload arrives without a `"type"` key
 - **THEN** the payload is silently ignored and `TokenStore` is not modified
 
 ### Requirement: Main actor dispatch for store mutation
-`WatchSessionReceiver` SHALL dispatch the `store.apply(_:)` call to `@MainActor` using `Task { @MainActor in ... }` since `WCSessionDelegate` methods are called on a background thread.
+`WatchSessionReceiver` SHALL dispatch all `TokenStore` mutation calls (including `apply`, `clearActiveAccount`, and `applySession`) to `@MainActor` using `Task { @MainActor in ... }` since `WCSessionDelegate` methods are called on a background thread.
 
 #### Scenario: Background thread delivery
-- **WHEN** `didReceiveUserInfo` is invoked on a background thread
-- **THEN** `TokenStore.apply(_:)` executes on the main actor without data races
-
-### Requirement: WatchSessionReceiver is instantiated at app launch
-`Claude_Tracker_WatchApp` SHALL hold a `WatchSessionReceiver` as a stored property (not a local) so it lives for the lifetime of the app. The receiver SHALL be injected with the shared `TokenStore`.
-
-#### Scenario: Receiver lifetime
-- **WHEN** the watch app launches
-- **THEN** `WatchSessionReceiver` is initialized once and retained for the app's lifetime
-
-### Requirement: TokenStore is injected into the view hierarchy
-`Claude_Tracker_WatchApp` SHALL hold a `TokenStore` and pass it into the `ContentView` via `.environment(_:)` or direct initializer injection so all views share a single store instance.
-
-#### Scenario: Single store instance
-- **WHEN** the watch app launches
-- **THEN** all views read from the same `TokenStore` instance that the receiver writes to
+- **WHEN** `didReceiveApplicationContext` or `didReceiveUserInfo` is invoked on a background thread
+- **THEN** all `TokenStore` mutations execute on the main actor without data races

@@ -17,8 +17,8 @@ struct WelcomeWindowView: View {
     }
 
     /// True when an authenticated user opens the window from the menu
-    /// bar's "Add account" affordance. A stale registry row while signed
-    /// out must not switch the unauthenticated Sign In flow to add-account
+    /// bar's "Switch account" affordance. A stale registry row while signed
+    /// out must not switch the unauthenticated Sign In flow to account-switch
     /// copy. While a CLI restore is in progress, keep the first-sign-in
     /// layout stable because the restore registers an account just before
     /// this window dismisses.
@@ -49,7 +49,7 @@ struct WelcomeWindowView: View {
 
     private var welcomeView: some View {
         VStack(spacing: 22) {
-            // Add-account mode reuses this window but the content is
+            // Account-switch mode reuses this window but the content is
             // much shorter. Without a top spacer the hero would stick to
             // the title bar and leave a huge gap above the CTA. Mirroring
             // the spacer at the bottom centres the smaller layout.
@@ -58,7 +58,7 @@ struct WelcomeWindowView: View {
             heroHeader
 
             // The menu-bar preview is a first-run affordance. Returning
-            // users opening the window via "Add account" already know the
+            // users opening the window via "Switch account" already know the
             // product, so skip the preview to keep the focus on sign-in.
             if !isAddingAccount {
                 menuBarPreview
@@ -77,16 +77,16 @@ struct WelcomeWindowView: View {
                 primaryCTA
 
                 Text(isAddingAccount
-                     ? "Anthropic OAuth verifies the email so this account stays separate from the others."
-                     : "Recommended. Verified via Anthropic so multiple accounts stay cleanly separated.")
+                     ? "Anthropic OAuth verifies the email so this account stays isolated from the current one."
+                     : "Recommended. Verified via Anthropic so account data stays cleanly isolated.")
                     .font(.caption)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
 
                 // CLI fallback only makes sense on first sign-in. In
-                // add-account mode the user is explicitly trying to add a
-                // *different* account, so re-restoring the existing CLI
+                // account-switch mode the user is explicitly trying to use
+                // a different account, so re-restoring the existing CLI
                 // session would defeat the purpose.
                 if !isAddingAccount {
                     cliFallbackSection
@@ -124,12 +124,12 @@ struct WelcomeWindowView: View {
             }
             .padding(.bottom, 4)
 
-            Text(isAddingAccount ? "Add another account" : "Welcome to Tempo for Claude")
+            Text(isAddingAccount ? "Switch account" : "Welcome to Tempo for Claude")
                 .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 .multilineTextAlignment(.center)
             Text(isAddingAccount
-                 ? "Sign in with another Anthropic account to track it alongside your existing accounts."
+                 ? "Sign in with a different Anthropic account. Tempo keeps each account's data isolated."
                  : "Track your Claude usage from the menu bar - sessions, weekly limits, and resets at a glance.")
                 .font(.body)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
@@ -150,8 +150,8 @@ struct WelcomeWindowView: View {
             )
             FeatureChip(
                 icon: "person.2.fill",
-                title: "Multi-account",
-                subtitle: "Switch between Anthropic accounts"
+                title: "Account switching",
+                subtitle: "Keep each account isolated"
             )
             FeatureChip(
                 icon: "menubar.dock.rectangle",
@@ -177,7 +177,7 @@ struct WelcomeWindowView: View {
                 Image(systemName: "person.crop.circle.badge.checkmark")
                     .font(.system(size: 16, weight: .semibold))
                 Text(isAddingAccount
-                     ? "Sign in with another Anthropic account"
+                     ? "Sign in with a different Anthropic account"
                      : "Sign in with Anthropic")
                     .font(.headline)
             }
@@ -301,7 +301,7 @@ struct WelcomeWindowView: View {
                 UsageRingView(
                     sessionProgress: 0.49,
                     weeklyProgress: 0.04,
-                    centerLabel: "49%"
+                    centerLabel: "4%"
                 )
                 .frame(width: 100, height: 100)
                 .frame(maxWidth: .infinity)

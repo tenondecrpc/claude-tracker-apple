@@ -1,6 +1,6 @@
 # Tempo for Claude
 
-A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends.
+A macOS menu bar app that tracks your Claude Code token and credit usage in real time, with an Apple Watch companion for haptic alerts when a session ends. Supports multiple Anthropic accounts simultaneously - personal, work, or any combination.
 
 [![CI - Build](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/build.yml)
 [![Security - CodeQL (Swift)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/codeql.yml)
@@ -78,20 +78,21 @@ Install the app, try it on your devices, and send feedback while features are st
 
 ## What it does
 
+- Tracks **multiple Anthropic accounts** simultaneously (personal, work, etc.) - switch with one click
 - Shows your **5-hour and 7-day utilization** as a ring gauge in the macOS menu bar
 - Displays **burn rate**, extra usage, and next reset time at a glance
 - Includes an iOS companion UI (**Dashboard**, **Activity**, **Settings**) styled with Claude tokens
 - Shows **local Claude Code activity and project stats** in the macOS detail window
 - Ships **widgets on macOS, iPhone, and Apple Watch**
 - Delivers a **haptic alert on your Apple Watch** shortly after a Claude Code session ends
-- Relays live usage data from macOS -> iCloud (`usage.json`, `usage-history.json`) -> iOS -> Apple Watch
+- Relays live usage data from macOS -> iCloud (per-account `usage.json`, `usage-history.json`) -> iOS -> Apple Watch
 
 ## Architecture
 
 ```text
 macOS menu bar app
-  |- Tempo OAuth / fresh Claude Code CLI fallback -> usage poller -> iCloud Drive (usage.json / usage-history.json)
-  |- Claude local session reader -> iCloud Drive (latest.json)
+  |- Tempo OAuth / fresh Claude Code CLI fallback -> usage poller -> iCloud Drive (per-account usage.json / usage-history.json)
+  |- Claude local session reader -> iCloud Drive (per-account latest.json)
   └- Local Claude stats -> macOS detail window
 
 iOS companion (NSMetadataQuery + dashboard/activity/settings)

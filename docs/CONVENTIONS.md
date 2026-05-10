@@ -136,6 +136,14 @@ The `__registry__` slot is reserved. It is the only non-credential slot under th
 - `Tempo macOS/AccountRemovalService.swift` is the single entry point for sign-out. It deletes the per-account Keychain slot via `CredentialStore`, the per-account iCloud directory, and the account from the registry. `MacOSAPIClient.signOut(for:)` goes through this service.
 - iOS does not hold tokens and does not mutate the registry. It discovers accounts by reading `accounts/index.json` and the per-account files.
 
+### CLI-Only Session Contract
+
+CLI-only credentials are NOT a sanctioned sign-in path on macOS. `ClaudeCodeKeychainReader` is the only component that reads CLI tokens and is strictly read-only - it never writes, refreshes, or deletes the CLI Keychain item.
+
+`MacOSAPIClient.tryRestoreSession()` only promotes a CLI session to `isAuthenticated = true` when the canonical email derived from `~/.claude.json` resolves to an `accountId` already present in `AccountRegistry`. If no matching row exists, the app presents the signed-out popover and the user must complete Tempo OAuth. This invariant - `authState.isAuthenticated == true` implies `AccountRegistry.accounts.count >= 1` - is enforced by a `#if DEBUG` `assertionFailure` canary in `MacOSAPIClient.swift` and by defense-in-depth gating in `DashboardPopoverView`.
+
+`AccountRegistryICloudMirror.writeIndex(accountIds:)` guards against spurious `count=0` writes when the registry is empty at launch: it no-ops if the remote `index.json` is already absent or already `count=0`, and only writes through when it would be reducing a non-empty remote index to zero (intentional last-account removal).
+
 ### Identity Convergence Across CLI and OAuth
 
 A user who signs into Claude Code CLI today and completes Tempo OAuth tomorrow under the same Anthropic email MUST produce a single `AccountRegistry` row, a single per-account iCloud directory, and a single Keychain credential slot. Both paths build the `accountId` by canonicalizing `~/.claude.json` `oauthAccount.emailAddress` through `AccountIdentifier.canonicalize(email:)`, so the derived ids match byte for byte and `AccountRegistry.add` updates in place instead of creating a duplicate.

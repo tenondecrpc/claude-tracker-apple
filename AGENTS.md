@@ -31,8 +31,10 @@ Preferred example:
 Apple Watch app that tracks Claude Code token/credit usage and delivers haptic alerts when a session ends.
 
 **Pipelines**:
-- Usage pipeline: macOS app (OAuth + poll) → iCloud JSON (`usage.json`, `usage-history.json`, `alert-preferences.json`) → iOS companion → WatchConnectivity → watchOS UI and alerts
-- Session pipeline: macOS app reads Claude Code local data from `~/.claude/` → writes `latest.json` to iCloud → iOS companion relays to watchOS for completion alerts
+- Usage pipeline: macOS app (OAuth + poll) → iCloud JSON (per-account `usage.json`, `usage-history.json`; global `alert-preferences.json`) → iOS companion → WatchConnectivity → watchOS UI and alerts
+- Session pipeline: macOS app reads Claude Code local data from `~/.claude/` → writes per-account `latest.json` to iCloud → iOS companion relays to watchOS for completion alerts
+
+All iCloud files under per-account paths live in `Tempo/accounts/<accountId>/`. The flat legacy paths (`Tempo/usage.json`, `Tempo/usage-history.json`, `Tempo/latest.json`) are no longer read or written. See `docs/CONVENTIONS.md` for the full iCloud layout.
 
 The hook/session data and the OAuth usage data solve different problems. Do not collapse them into a single source.
 

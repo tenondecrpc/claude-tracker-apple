@@ -1,62 +1,27 @@
-### Requirement: Usage ring displays 5-hour utilization
-The dashboard SHALL display a circular progress ring representing `usageState.utilization5h` (0.0–1.0) as the primary glanceable element. The ring SHALL use a filled arc proportional to the utilization value.
+## ADDED Requirements
 
-#### Scenario: Ring at partial utilization
-- **WHEN** `usageState.utilization5h` is 0.42
-- **THEN** the ring arc covers 42% of the full circle
+### Requirement: Dashboard displays account label from iPhone relay
+The watch dashboard SHALL display a compact account label (email prefix or display name) in its header, sourced from the `accountLabel` field of the most recent `updateApplicationContext` payload. Tapping the label SHALL show the full email or display name in a sheet. The watch SHALL NOT provide any account picker control.
 
-#### Scenario: Ring at zero utilization
-- **WHEN** `usageState.utilization5h` is 0.0
-- **THEN** the ring displays as empty (no filled arc)
+#### Scenario: Active account label visible
+- **WHEN** the iPhone has active account `user@example.com` and relays an application context update
+- **THEN** the watch dashboard shows `user` (or a configured short form) in its header
 
-#### Scenario: Ring at full utilization
-- **WHEN** `usageState.utilization5h` is 1.0
-- **THEN** the ring arc covers the full circle
+#### Scenario: Full label on tap
+- **WHEN** the user taps the account label in the dashboard header
+- **THEN** a sheet presents the full email or display name
 
-### Requirement: Mock badge is always visible during development
-The dashboard SHALL display a `⚠ mock` badge whenever `usageState.isMocked == true`. The badge SHALL be persistently visible (not behind any tap or interaction). The badge SHALL disappear automatically when `isMocked` transitions to `false` - which occurs when the iOS relay delivers a real `UsageState` from the OAuth API.
+#### Scenario: No active account state
+- **WHEN** the last received payload had `"type": "NoActiveAccount"`
+- **THEN** the dashboard shows a "No accounts available - check Mac app" state and hides the usage ring
 
-#### Scenario: Mock state active
-- **WHEN** `usageState.isMocked` is `true`
-- **THEN** a `⚠ mock` label is visible on the dashboard
+### Requirement: Active account change clears stale state
+When the received `accountId` differs from the `accountId` the watch currently renders, the watch SHALL discard its previous `usageState` and `pendingCompletion` state before rendering the new account's data. The mock badge policy SHALL still follow `isMocked` on the incoming `UsageState`.
 
-#### Scenario: Mock state inactive
-- **WHEN** `usageState.isMocked` is `false`
-- **THEN** no mock badge is displayed
+#### Scenario: Switch account clears prior state
+- **WHEN** the watch receives a context update with `accountId = B` while it was displaying `accountId = A`
+- **THEN** the dashboard immediately switches to account B and any `pendingCompletion` tied to account A is dismissed
 
-#### Scenario: Badge disappears on first real data
-- **WHEN** the iOS relay sends a `UsageState` with `isMocked: false` and the watch receives it
-- **THEN** the `⚠ mock` badge is no longer visible on the watch dashboard
-
-### Requirement: Reset countdown shows time remaining
-The dashboard SHALL display a human-readable countdown to `usageState.resetAt5h` in the format "Xhr Ymin left". The countdown SHALL update live (at least once per minute).
-
-#### Scenario: Hours and minutes remaining
-- **WHEN** `resetAt5h` is 2 hours and 13 minutes in the future
-- **THEN** the dashboard displays "2hr 13min left"
-
-#### Scenario: Less than one hour remaining
-- **WHEN** `resetAt5h` is 45 minutes in the future
-- **THEN** the dashboard displays "45min left"
-
-#### Scenario: Reset in the past
-- **WHEN** `resetAt5h` is in the past
-- **THEN** the dashboard displays "Resetting…" or "-"
-
-### Requirement: Secondary 7-day utilization indicator
-The dashboard SHALL display `usageState.utilization7d` as a secondary visual indicator (inner ring or badge). It SHALL be visually subordinate to the primary 5-hour ring.
-
-#### Scenario: 7-day indicator present
-- **WHEN** `usageState.utilization7d` is 0.18
-- **THEN** a secondary indicator at 18% is visible alongside the main ring
-
-### Requirement: Session completion sheet appears on pending completion
-The dashboard SHALL present a full-screen sheet when `store.pendingCompletion` is non-nil. Dismissing the sheet SHALL set `pendingCompletion` to `nil`.
-
-#### Scenario: Completion sheet shown
-- **WHEN** `store.pendingCompletion` is set to a `SessionData` value
-- **THEN** `CompletionView` is presented as a sheet
-
-#### Scenario: Completion sheet dismissed
-- **WHEN** the user dismisses `CompletionView`
-- **THEN** `store.pendingCompletion` becomes `nil`
+#### Scenario: Same account refresh preserves state
+- **WHEN** a context update arrives for the same `accountId` currently displayed
+- **THEN** the usage ring updates but no pending completion sheet is dismissed
