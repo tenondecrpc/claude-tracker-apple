@@ -413,5 +413,3 @@ private struct AccountAvatarLabel: View {
         .contentShape(Circle())
     }
 }
-}
-}
