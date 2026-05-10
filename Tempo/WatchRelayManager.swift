@@ -8,6 +8,16 @@ final class WatchRelayManager: NSObject {
         let sessionInfo: SessionInfo
         let alertPreferences: SessionAlertPreferences
         let appearanceMode: AppearanceMode
+        /// The iOS `activeAccountId` captured when this session was queued.
+        /// When the queue is flushed we re-check the current active account
+        /// against `sessionInfo.accountId` and drop entries that no longer
+        /// match, so a watch never gets a completion alert for an account
+        /// the iPhone has since switched away from. `nil` means "do not
+        /// filter by active account" - the same opt-out semantics
+        /// `sendSession` uses when its caller cannot resolve an active
+        /// account id.
+        let activeAccountId: String?
+        let accountLabel: String
     }
 
     private enum DefaultsKey {
@@ -21,6 +31,13 @@ final class WatchRelayManager: NSObject {
     private var pendingHistory: [UsageHistorySnapshot] = []
     private var pendingAlertPreferences: SessionAlertPreferences = .default
     private var pendingAppearanceMode: AppearanceMode?
+    private var pendingAccountLabel: String = ""
+    /// When true, a `NoActiveAccount` context send is queued and will be
+    /// flushed after activation / pairing / watch-app-install. The last
+    /// intent between `send(_:)` and `sendNoActiveAccount()` wins: sending
+    /// a fresh UsageState clears this, and vice versa, matching the
+    /// "replace current state" semantics of `updateApplicationContext`.
+    private var pendingNoActiveAccount: Bool = false
     private var pendingSessions: [PendingSessionTransfer] = []
     private var hasRequestedActivation = false
     private var hasLoggedMissingWatchApp = false
@@ -52,14 +69,19 @@ final class WatchRelayManager: NSObject {
         _ state: UsageState,
         history: [UsageHistorySnapshot] = [],
         alertPreferences: SessionAlertPreferences = .default,
-        appearanceMode: AppearanceMode = .dark
+        appearanceMode: AppearanceMode = .dark,
+        accountLabel: String = ""
     ) {
         ensureDelegate()
+        // Sending a real UsageState supersedes any pending "no active
+        // account" context: the watch should render the newest payload.
+        pendingNoActiveAccount = false
         guard session.activationState == .activated else {
             pendingState = state
             pendingHistory = history
             pendingAlertPreferences = alertPreferences
             pendingAppearanceMode = appearanceMode
+            pendingAccountLabel = accountLabel
             activate()
             return
         }
@@ -72,6 +94,7 @@ final class WatchRelayManager: NSObject {
             pendingHistory = history
             pendingAlertPreferences = alertPreferences
             pendingAppearanceMode = appearanceMode
+            pendingAccountLabel = accountLabel
             return
         }
 
@@ -80,13 +103,15 @@ final class WatchRelayManager: NSObject {
             pendingHistory = history
             pendingAlertPreferences = alertPreferences
             pendingAppearanceMode = appearanceMode
+            pendingAccountLabel = accountLabel
             // Fallback path: some setups report watchInstalled=false while the watch app is running.
             // Queue a background transfer so the watch can still receive the latest state.
             enqueueLatestUsagePayload(
                 state.toUserInfo(
                     history: history,
                     alertPreferences: alertPreferences,
-                    appearanceMode: appearanceMode
+                    appearanceMode: appearanceMode,
+                    accountLabel: accountLabel
                 )
             )
             if !hasLoggedMissingWatchApp {
@@ -100,7 +125,8 @@ final class WatchRelayManager: NSObject {
         let payload = state.toUserInfo(
             history: history,
             alertPreferences: alertPreferences,
-            appearanceMode: appearanceMode
+            appearanceMode: appearanceMode,
+            accountLabel: accountLabel
         )
         do {
             try session.updateApplicationContext(payload)
@@ -123,12 +149,67 @@ final class WatchRelayManager: NSObject {
         pendingHistory = []
         let alertPreferences = pendingAlertPreferences
         let appearanceMode = pendingAppearanceMode ?? .dark
+        let accountLabel = pendingAccountLabel
+        pendingAccountLabel = ""
         send(
             state,
             history: history,
             alertPreferences: alertPreferences,
-            appearanceMode: appearanceMode
+            appearanceMode: appearanceMode,
+            accountLabel: accountLabel
         )
+    }
+
+    // MARK: - Send NoActiveAccount (Task 5.4)
+
+    /// Tells the watch that the iPhone currently has no active account,
+    /// so the watch dashboard should clear any per-account state and
+    /// render the "No accounts available" placeholder (see task 7.x).
+    ///
+    /// Uses `updateApplicationContext` rather than `transferUserInfo`
+    /// because this is the replace-current-state channel: per design.md,
+    /// "iPhone's `activeAccountId` is the single source of truth for the
+    /// watch [and] updateApplicationContext [is used] with the new
+    /// `accountId`...". `transferUserInfo` is reserved for durable
+    /// session events that must still be delivered after a context
+    /// has been superseded.
+    ///
+    /// Follows the same activation/pairing/install gating as `send(_:)`.
+    /// When the session is not yet ready, the intent is queued via
+    /// `pendingNoActiveAccount`; any subsequent `send(_:)` supersedes it.
+    func sendNoActiveAccount() {
+        ensureDelegate()
+        // Clear any pending UsageState; the caller wants the watch to
+        // show the empty-account state, not the previous account's data.
+        pendingState = nil
+        pendingHistory = []
+        pendingAccountLabel = ""
+        guard session.activationState == .activated else {
+            pendingNoActiveAccount = true
+            activate()
+            return
+        }
+        guard session.isPaired, session.isWatchAppInstalled else {
+            pendingNoActiveAccount = true
+            return
+        }
+
+        let payload: [String: Any] = ["type": "NoActiveAccount"]
+        do {
+            try session.updateApplicationContext(payload)
+            pendingNoActiveAccount = false
+        } catch {
+            // Unlike UsageState we do not fall back to transferUserInfo:
+            // NoActiveAccount is a pure state-replacement signal and
+            // isn't valuable as a durable event. Keep it queued; the
+            // next watch-state change or activation will retry.
+            pendingNoActiveAccount = true
+        }
+    }
+
+    private func flushPendingNoActiveAccountIfPossible() {
+        guard pendingNoActiveAccount else { return }
+        sendNoActiveAccount()
     }
 
     func sendAppearanceMode(_ appearanceMode: AppearanceMode) {
@@ -158,11 +239,42 @@ final class WatchRelayManager: NSObject {
 
     // MARK: - Send SessionInfo
 
+    /// Sends a `SessionInfo` completion payload to the watch via
+    /// `transferUserInfo` (durable delivery channel), gating the send on
+    /// the iPhone's active account.
+    ///
+    /// When `activeAccountId` is non-`nil`, the relay compares it to
+    /// `sessionInfo.accountId`. If they differ we skip the transfer, do
+    /// NOT update `lastRelayedSessionID`, and do not enqueue a pending
+    /// retry: the session belongs to an account the iPhone is not
+    /// currently relaying, and if the user later switches to that
+    /// account the session will be re-evaluated fresh. Passing
+    /// `activeAccountId: nil` opts out of gating so tests and future
+    /// callers that do not have an active-account concept still work.
+    ///
+    /// The `accountLabel` piggybacks on the payload so the watch's
+    /// `CompletionView` can display which account completed (task 7.4).
+    /// We intentionally use a mutable default to stay source-compatible
+    /// with the legacy call sites in `flushPendingSessionsIfPossible`.
     func sendSession(
         _ sessionInfo: SessionInfo,
         alertPreferences: SessionAlertPreferences = .default,
-        appearanceMode: AppearanceMode = .dark
+        appearanceMode: AppearanceMode = .dark,
+        activeAccountId: String? = nil,
+        accountLabel: String = ""
     ) {
+        if let activeAccountId, sessionInfo.accountId != activeAccountId {
+            // Per design.md the watch only ever renders the iPhone's
+            // active account. Dropping the transfer here also avoids
+            // consuming the dedup slot (`lastRelayedSessionID`), so if
+            // the user later sets this session's account active, the
+            // caller re-invokes `sendSession` and delivery proceeds.
+            DevLog.trace(
+                "AlertTrace",
+                "Skipped SessionInfo because accountId=\(sessionInfo.accountId) does not match activeAccountId=\(activeAccountId)"
+            )
+            return
+        }
         if lastRelayedSessionID == sessionInfo.sessionId {
             return
         }
@@ -171,7 +283,9 @@ final class WatchRelayManager: NSObject {
             enqueuePendingSessionIfNeeded(
                 sessionInfo,
                 alertPreferences: alertPreferences,
-                appearanceMode: appearanceMode
+                appearanceMode: appearanceMode,
+                activeAccountId: activeAccountId,
+                accountLabel: accountLabel
             )
             activate()
             return
@@ -181,7 +295,9 @@ final class WatchRelayManager: NSObject {
             enqueuePendingSessionIfNeeded(
                 sessionInfo,
                 alertPreferences: alertPreferences,
-                appearanceMode: appearanceMode
+                appearanceMode: appearanceMode,
+                activeAccountId: activeAccountId,
+                accountLabel: accountLabel
             )
             return
         }
@@ -189,7 +305,8 @@ final class WatchRelayManager: NSObject {
         session.transferUserInfo(
             sessionInfo.toUserInfo(
                 alertPreferences: alertPreferences,
-                appearanceMode: appearanceMode
+                appearanceMode: appearanceMode,
+                accountLabel: accountLabel
             )
         )
         lastRelayedSessionID = sessionInfo.sessionId
@@ -202,28 +319,45 @@ final class WatchRelayManager: NSObject {
 
         let queued = pendingSessions
         pendingSessions.removeAll(keepingCapacity: true)
-        queued.forEach {
+        queued.forEach { pending in
+            // Re-check the captured active-account gate at flush time.
+            // If the iPhone switched accounts while the session sat in
+            // the queue, we drop the stale entry rather than deliver a
+            // completion for an account the user is no longer viewing.
+            if let expected = pending.activeAccountId,
+               pending.sessionInfo.accountId != expected {
+                DevLog.trace(
+                    "AlertTrace",
+                    "Skipped SessionInfo because accountId=\(pending.sessionInfo.accountId) does not match activeAccountId=\(expected)"
+                )
+                return
+            }
             session.transferUserInfo(
-                $0.sessionInfo.toUserInfo(
-                    alertPreferences: $0.alertPreferences,
-                    appearanceMode: $0.appearanceMode
+                pending.sessionInfo.toUserInfo(
+                    alertPreferences: pending.alertPreferences,
+                    appearanceMode: pending.appearanceMode,
+                    accountLabel: pending.accountLabel
                 )
             )
-            lastRelayedSessionID = $0.sessionInfo.sessionId
+            lastRelayedSessionID = pending.sessionInfo.sessionId
         }
     }
 
     private func enqueuePendingSessionIfNeeded(
         _ sessionInfo: SessionInfo,
         alertPreferences: SessionAlertPreferences,
-        appearanceMode: AppearanceMode
+        appearanceMode: AppearanceMode,
+        activeAccountId: String?,
+        accountLabel: String
     ) {
         guard pendingSessions.contains(where: { $0.sessionInfo.sessionId == sessionInfo.sessionId }) == false else { return }
         pendingSessions.append(
             PendingSessionTransfer(
                 sessionInfo: sessionInfo,
                 alertPreferences: alertPreferences,
-                appearanceMode: appearanceMode
+                appearanceMode: appearanceMode,
+                activeAccountId: activeAccountId,
+                accountLabel: accountLabel
             )
         )
     }
@@ -247,6 +381,7 @@ extension WatchRelayManager: WCSessionDelegate {
         onWatchStateChange?(session.isPaired, session.isWatchAppInstalled)
         // Activation complete; send latest pending state if we have one.
         flushPendingStateIfPossible()
+        flushPendingNoActiveAccountIfPossible()
         flushPendingAppearanceModeIfPossible()
         flushPendingSessionsIfPossible()
     }
@@ -266,6 +401,7 @@ extension WatchRelayManager: WCSessionDelegate {
         }
         onWatchStateChange?(session.isPaired, session.isWatchAppInstalled)
         flushPendingStateIfPossible()
+        flushPendingNoActiveAccountIfPossible()
         flushPendingAppearanceModeIfPossible()
         flushPendingSessionsIfPossible()
     }
@@ -277,10 +413,13 @@ extension UsageState {
     func toUserInfo(
         history: [UsageHistorySnapshot] = [],
         alertPreferences: SessionAlertPreferences = .default,
-        appearanceMode: AppearanceMode = .dark
+        appearanceMode: AppearanceMode = .dark,
+        accountLabel: String = ""
     ) -> [String: Any] {
         var info: [String: Any] = [
             "type": "UsageState",
+            "accountId": accountId,
+            "accountLabel": accountLabel,
             "utilization5h": utilization5h,
             "utilization7d": utilization7d,
             "resetAt5h": resetAt5h.timeIntervalSince1970,
@@ -301,11 +440,14 @@ extension UsageState {
 extension SessionInfo {
     func toUserInfo(
         alertPreferences: SessionAlertPreferences = .default,
-        appearanceMode: AppearanceMode = .dark
+        appearanceMode: AppearanceMode = .dark,
+        accountLabel: String = ""
     ) -> [String: Any] {
         [
             "type": "SessionInfo",
             "sessionId": sessionId,
+            "accountId": accountId,
+            "accountLabel": accountLabel,
             "inputTokens": inputTokens,
             "outputTokens": outputTokens,
             "costUSD": costUSD,

@@ -55,6 +55,61 @@ struct DetailWindowView: View {
         _chartUse24HourTime = State(initialValue: coordinator.settings.use24HourTime)
     }
 
+    // MARK: - Active Account Derivations
+    //
+    // The Detail window is bound to `coordinator.registry.activeAccountId`.
+    // Every per-account source (history snapshots, local project stats,
+    // usage state) is read through the computed properties below so that
+    // switching accounts causes SwiftUI to recompute via `@Observable`
+    // tracking. See `openspec/changes/multi-account-support/tasks.md`
+    // task 4.4.
+
+    private var activeAccountId: String? {
+        coordinator.registry.activeAccountId
+    }
+
+    private var activeAccount: Account? {
+        guard let id = activeAccountId else { return nil }
+        return coordinator.registry.accounts.first { $0.accountId == id }
+    }
+
+    /// Short human label for the active account, preferring `displayName`
+    /// and falling back to `email`. Returns `nil` when no account is
+    /// active so callers can render a "No account selected" state.
+    private var accountLabel: String? {
+        guard let account = activeAccount else { return nil }
+        let name = account.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { return name }
+        let email = account.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return email.isEmpty ? nil : email
+    }
+
+    /// Email of the active account, shown as a secondary reference under
+    /// the display-name label. Returns `nil` when no account is active or
+    /// when the email would just duplicate `accountLabel` (i.e. the
+    /// account has no display name and the label already shows the email).
+    private var accountEmailReference: String? {
+        guard let account = activeAccount else { return nil }
+        let email = account.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !email.isEmpty else { return nil }
+        return email == accountLabel ? nil : email
+    }
+
+    /// Usage snapshots for the currently active account. Empty when no
+    /// account is active (task 4.4 empty state).
+    private var activeSnapshots: [UsageSnapshot] {
+        guard let id = activeAccountId else { return [] }
+        return history.history(for: id)
+    }
+
+    /// Claude Code local project stats filtered to the active account.
+    /// When no account is active, returns an empty array so aggregate
+    /// surfaces show an empty state rather than mixing in unrelated data.
+    private var activeProjectStats: [LocalProjectStat] {
+        guard let id = activeAccountId else { return [] }
+        return localDB.projectStats.filter { $0.accountId == id }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             windowHeader
@@ -73,6 +128,17 @@ struct DetailWindowView: View {
         .onChange(of: hostingWindow, initial: true) { _, window in
             activateWindowIfNeeded(window)
         }
+        .onChange(of: activeAccountId) { _, newValue in
+            // Derived state (activeSnapshots, activeProjectStats, and the
+            // active-account-proxied `coordinator.poller.latestUsage`) is
+            // recomputed automatically through `@Observable` tracking. The
+            // explicit history reload below covers the case where the
+            // newly-active account's bucket has not yet been seeded from
+            // its per-account iCloud file in this process.
+            if let id = newValue {
+                history.load(for: id)
+            }
+        }
         .task {
             // Load local stats on demand when the user opens the stats window
             await localDB.load()
@@ -88,13 +154,34 @@ struct DetailWindowView: View {
     // MARK: - Window Header
 
     private var windowHeader: some View {
-        HStack {
+        HStack(alignment: .center) {
             Text("Tempo for Claude")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
             Spacer()
-            if let email = coordinator.authState.accountEmail {
-                Text(email)
+            if let label = accountLabel {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(label)
+                        .font(.callout)
+                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if let email = accountEmailReference {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(ClaudeCodeTheme.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(
+                    accountEmailReference.map { "Active account: \(label), \($0)" }
+                        ?? "Active account: \(label)"
+                )
+            } else {
+                Text("No account selected")
                     .font(.callout)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
             }
@@ -263,7 +350,7 @@ struct DetailWindowView: View {
 
     // Extra Usage card
     private func extraUsageCard(extra: ExtraUsage) -> some View {
-        let extraColor = UtilizationSeverity(utilization: (extra.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.info)
+        let extraColor = UtilizationSeverity(utilization: (extra.utilization ?? 0) / 100.0).usageColor(normal: ClaudeCodeTheme.Usage.normal)
 
         return HStack(spacing: 0) {
             Rectangle()
@@ -422,7 +509,7 @@ struct DetailWindowView: View {
     private func subscriptionCard() -> some View {
         let pct = avgWeeklyValue
         let message: String
-        if history.snapshots.isEmpty {
+        if activeSnapshots.isEmpty {
             message = "Not enough data yet to evaluate subscription value."
         } else if pct < 0.30 {
             message = "Moderate usage. You have plenty of headroom in your weekly allocation."
@@ -536,10 +623,10 @@ struct DetailWindowView: View {
         let sonnet = models.filter { $0.key.contains("sonnet") }.values.reduce(0, +)
         let haiku = models.filter { $0.key.contains("haiku") }.values.reduce(0, +)
 
-        let msgCount = localDB.projectStats.reduce(0) { $0 + $1.messages7d }
-        let toolCount = localDB.projectStats.reduce(0) { $0 + $1.toolCalls7d }
-        let sessionCount = localDB.projectStats.reduce(0) { $0 + $1.sessions7d }
-        let costEquiv7d = localDB.projectStats.reduce(0.0) { $0 + $1.costEquiv7d }
+        let msgCount = activeProjectStats.reduce(0) { $0 + $1.messages7d }
+        let toolCount = activeProjectStats.reduce(0) { $0 + $1.toolCalls7d }
+        let sessionCount = activeProjectStats.reduce(0) { $0 + $1.sessions7d }
+        let costEquiv7d = activeProjectStats.reduce(0.0) { $0 + $1.costEquiv7d }
 
         return VStack(alignment: .leading, spacing: 12) {
             // Main stats row
@@ -628,13 +715,13 @@ struct DetailWindowView: View {
             }
             Divider().overlay(ClaudeCodeTheme.progressTrack)
 
-            if localDB.projectStats.isEmpty {
+            if activeProjectStats.isEmpty {
                 Text("No project data available")
                     .font(.caption)
                     .foregroundStyle(ClaudeCodeTheme.textSecondary)
                     .padding(.top, 8)
             } else {
-                ForEach(localDB.projectStats.filter { $0.hasActivity7d }) { stat in
+                ForEach(activeProjectStats.filter { $0.hasActivity7d }) { stat in
                     HStack {
                         Text(stat.displayName)
                             .font(.caption)
@@ -1001,7 +1088,7 @@ struct DetailWindowView: View {
             Text("Scroll to view earlier data")
                 .font(.caption2)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                .opacity(history.snapshots.count > 10 ? 1 : 0)
+                .opacity(activeSnapshots.count > 10 ? 1 : 0)
         }
     }
 
@@ -1025,10 +1112,10 @@ struct DetailWindowView: View {
         case .days90: interval = 90 * 24 * 3600
         case .custom:
             let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: customEnd) ?? customEnd
-            return history.snapshots.filter { $0.date >= customStart && $0.date < endOfDay }
+            return activeSnapshots.filter { $0.date >= customStart && $0.date < endOfDay }
         }
         let cutoff = now.addingTimeInterval(-interval)
-        return history.snapshots.filter { $0.date >= cutoff }
+        return activeSnapshots.filter { $0.date >= cutoff }
     }
 
     private var maxGapForCurrentRange: TimeInterval {
@@ -1385,31 +1472,31 @@ struct DetailWindowView: View {
     }
 
     private var avgSession: String {
-        let values = history.snapshots.map(\.utilization5h)
+        let values = activeSnapshots.map(\.utilization5h)
         guard !values.isEmpty else { return "-" }
         return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
     }
 
     private var avgWeekly: String {
-        let values = history.snapshots.map(\.utilization7d)
+        let values = activeSnapshots.map(\.utilization7d)
         guard !values.isEmpty else { return "-" }
         return "\(Int(values.reduce(0, +) / Double(values.count) * 100))%"
     }
 
     private var avgWeeklyValue: Double {
-        let values = history.snapshots.map(\.utilization7d)
+        let values = activeSnapshots.map(\.utilization7d)
         guard !values.isEmpty else { return 0 }
         return values.reduce(0, +) / Double(values.count)
     }
 
     private var peakSession: String {
-        guard let peak = history.snapshots.map(\.utilization5h).max() else { return "-" }
+        guard let peak = activeSnapshots.map(\.utilization5h).max() else { return "-" }
         return "\(Int(peak * 100))%"
     }
 
     private var highUsageDays: Int {
         let cal = Calendar.current
-        let grouped = Dictionary(grouping: history.snapshots) { cal.startOfDay(for: $0.date) }
+        let grouped = Dictionary(grouping: activeSnapshots) { cal.startOfDay(for: $0.date) }
         return grouped.values.filter { ($0.map(\.utilization5h).max() ?? 0) >= 0.9 }.count
     }
 
@@ -1421,7 +1508,7 @@ struct DetailWindowView: View {
 
         var csv = "date,utilization5h,utilization7d,isUsingExtraUsage5h,isUsingExtraUsage7d\n"
         let fmt = ISO8601DateFormatter()
-        for snap in history.snapshots {
+        for snap in activeSnapshots {
             csv += "\(fmt.string(from: snap.date)),\(snap.utilization5h),\(snap.utilization7d),\(snap.isUsingExtraUsage5h),\(snap.isUsingExtraUsage7d)\n"
         }
         try? csv.write(to: url, atomically: true, encoding: .utf8)
@@ -1466,8 +1553,8 @@ struct DetailWindowView: View {
             snapshots: snapshots,
             avgSessionLabel: avgSession,
             avgWeeklyLabel: avgWeekly,
-            messagesLabel: localDB.projectStats.reduce(0) { $0 + $1.messages7d }.formatted(),
-            sessionsLabel: localDB.projectStats.reduce(0) { $0 + $1.sessions7d }.formatted(),
+            messagesLabel: activeProjectStats.reduce(0) { $0 + $1.messages7d }.formatted(),
+            sessionsLabel: activeProjectStats.reduce(0) { $0 + $1.sessions7d }.formatted(),
             exportedAt: exportDate
         )
         .frame(width: 1060, height: 740)
@@ -1737,6 +1824,8 @@ private struct StatsShareCardView: View {
                             .lineStyle(StrokeStyle(lineWidth: 2, dash: [8, 6]))
 
                         ForEach(snapshots) { snap in
+                            let weeklyPointColor = UtilizationSeverity(utilization: snap.utilization7d)
+                                .usageColor(normal: ClaudeCodeTheme.Usage.normal)
                             AreaMark(
                                 x: .value("Time", snap.date),
                                 yStart: .value("Weekly Area Min", 0),
@@ -1746,8 +1835,8 @@ private struct StatsShareCardView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        weeklyColor.opacity(0.16),
-                                        weeklyColor.opacity(0.02)
+                                        weeklyPointColor.opacity(0.16),
+                                        weeklyPointColor.opacity(0.02)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -1757,8 +1846,11 @@ private struct StatsShareCardView: View {
 
                         ForEach(Array(sessionSegments.enumerated()), id: \.offset) { segmentIndex, segment in
                             let sessionSeriesKey = "session-\(segmentIndex)"
-                            let segmentColor = segment.isUsingExtraUsage ? extraUsageColor : sessionColor
                             ForEach(segment.snapshots) { snap in
+                                let segmentColor = segment.isUsingExtraUsage
+                                    ? extraUsageColor
+                                    : UtilizationSeverity(utilization: snap.utilization5h)
+                                        .usageColor(normal: ClaudeCodeTheme.Usage.normal)
                                 AreaMark(
                                     x: .value("Time", snap.date),
                                     yStart: .value("Session Area Min", 0),
@@ -1794,11 +1886,13 @@ private struct StatsShareCardView: View {
                         }
 
                         ForEach(snapshots) { snap in
+                            let weeklyPointColor = UtilizationSeverity(utilization: snap.utilization7d)
+                                .usageColor(normal: ClaudeCodeTheme.Usage.normal)
                             LineMark(
                                 x: .value("Time", snap.date),
                                 y: .value("Weekly", snap.utilization7d * 100)
                             )
-                            .foregroundStyle(weeklyColor)
+                            .foregroundStyle(weeklyPointColor)
                             .lineStyle(StrokeStyle(lineWidth: 4))
                             .interpolationMethod(.catmullRom)
                         }

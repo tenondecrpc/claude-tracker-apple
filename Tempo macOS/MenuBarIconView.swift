@@ -4,7 +4,7 @@ import Cocoa
 // MARK: - Utilization Color Helper
 
 private func utilizationNSColor(for value: Double) -> NSColor {
-    UtilizationSeverity(utilization: value).usageColor(normal: .labelColor)
+    UtilizationSeverity(utilization: value).usageColor(normal: ClaudeCodeTheme.Usage.menuBarNormal)
 }
 
 // MARK: - Pulse Dot
@@ -25,7 +25,6 @@ extension NSImage {
         let radius: CGFloat = 6
         let lineWidth: CGFloat = 1.5
         let clampedPercentage = max(0, min(1, percentage))
-        let severity = UtilizationSeverity(utilization: clampedPercentage)
         let arcColor = utilizationNSColor(for: clampedPercentage)
 
         // Track circle (30% opacity of arc color)
@@ -63,8 +62,7 @@ extension NSImage {
 
         image.unlockFocus()
 
-        // Only use template (monochrome) when utilization is low - colors need isTemplate = false
-        image.isTemplate = severity == .normal
+        image.isTemplate = false
 
         return image
     }

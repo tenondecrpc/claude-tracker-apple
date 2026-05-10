@@ -79,7 +79,7 @@ struct TrendView: View {
             Text("\(Int(value * 100))%")
                 .font(.system(.caption, design: .rounded))
                 .fontWeight(.semibold)
-                .foregroundStyle(UtilizationSeverity(utilization: value).usageColor(normal: ClaudeCodeTheme.textSecondary))
+                .foregroundStyle(UtilizationSeverity(utilization: value).usageColor(normal: ClaudeCodeTheme.Usage.normal))
         }
     }
 
@@ -130,8 +130,7 @@ struct TrendView: View {
     }
 
     private func barColor(for day: DayBar) -> Color {
-        let baseColor = day.isToday ? ClaudeCodeTheme.Usage.session : ClaudeCodeTheme.textSecondary.opacity(0.6)
-        return UtilizationSeverity(utilization: day.utilization).usageColor(normal: baseColor)
+        UtilizationSeverity(utilization: day.utilization).usageColor(normal: ClaudeCodeTheme.Usage.normal)
     }
 }
 

@@ -32,8 +32,36 @@ struct LocalProjectStat: Identifiable {
     let toolCalls7d: Int
     let totalTokens7d: Int
     let costEquiv7d: Double
+    /// Canonical `accountId` that owns this project's sessions. Defaults to
+    /// `AccountIdentifier.unassignedAccountId` for sessions that cannot be
+    /// matched to any registered account (for example, CLI-only sessions
+    /// whose `oauthAccount` is missing or unknown). See
+    /// `openspec/changes/multi-account-support/specs/session-info/spec.md`.
+    let accountId: String
 
     var hasActivity7d: Bool { messages7d > 0 || toolCalls7d > 0 || totalTokens7d > 0 }
+
+    init(
+        dirName: String,
+        displayName: String,
+        sessionCount: Int,
+        sessions7d: Int,
+        messages7d: Int,
+        toolCalls7d: Int,
+        totalTokens7d: Int,
+        costEquiv7d: Double,
+        accountId: String = AccountIdentifier.unassignedAccountId
+    ) {
+        self.dirName = dirName
+        self.displayName = displayName
+        self.sessionCount = sessionCount
+        self.sessions7d = sessions7d
+        self.messages7d = messages7d
+        self.toolCalls7d = toolCalls7d
+        self.totalTokens7d = totalTokens7d
+        self.costEquiv7d = costEquiv7d
+        self.accountId = accountId
+    }
 }
 
 private struct LoadedClaudeStats {
@@ -221,10 +249,23 @@ final class ClaudeLocalDBReader {
         case accessRequired
     }
 
-    init() {
+    /// Registry used to match the current Claude Code CLI `oauthAccount`
+    /// email to a known Tempo account when tagging `LocalProjectStat`s with
+    /// `accountId`. Optional because early coordinator wiring may construct
+    /// this reader before a registry is available; unmatched or registry-
+    /// less reads fall back to `AccountIdentifier.unassignedAccountId`.
+    private let registry: AccountRegistry?
+
+    /// - Parameter registry: `AccountRegistry` used to resolve the current
+    ///   CLI `oauthAccount` email to a known `accountId`. Pass `nil` only in
+    ///   bootstrap contexts where no registry exists yet; all discovered
+    ///   project stats will be tagged with
+    ///   `AccountIdentifier.unassignedAccountId`.
+    init(registry: AccountRegistry? = nil) {
         // Bookmark loading is deferred until first access is needed.
         // This avoids a Keychain prompt at launch and unnecessary I/O.
         // Call load() explicitly when local stats are required.
+        self.registry = registry
     }
 
     // MARK: - Folder Access
@@ -337,6 +378,12 @@ final class ClaudeLocalDBReader {
     /// Call this when the user opens the stats window or when local data
     /// is needed. Safe to call multiple times -- subsequent calls refresh data.
     func load() async {
+        // Snapshot the active accountId before diving into the detached
+        // task. The registry is `@MainActor`-isolated, so reading it once
+        // up-front avoids touching MainActor state from the nonisolated
+        // priority job below.
+        let currentAccountId = resolveCurrentAccountId()
+
         do {
             let loaded: LoadedClaudeStats = try await Task.detached(priority: .userInitiated) {
                 try Self.withClaudeFolderAccess { claudeURL in
@@ -346,7 +393,7 @@ final class ClaudeLocalDBReader {
 
                     if let data = try? Data(contentsOf: statsCacheURL),
                        let cache = try? JSONDecoder().decode(StatsCache.self, from: data) {
-                        let projects = Self.readProjectStats(from: projectsURL)
+                        let projects = Self.readProjectStats(from: projectsURL, accountId: currentAccountId)
                         return LoadedClaudeStats(
                             activity: cache.dailyActivity,
                             modelTokens: cache.dailyModelTokens,
@@ -358,7 +405,11 @@ final class ClaudeLocalDBReader {
                         )
                     }
 
-                    return try Self.buildFallbackStats(from: projectsURL, totalSubagents: subagents)
+                    return try Self.buildFallbackStats(
+                        from: projectsURL,
+                        totalSubagents: subagents,
+                        accountId: currentAccountId
+                    )
                 }
             }.value
 
@@ -397,9 +448,24 @@ final class ClaudeLocalDBReader {
         totalSubagents = 0
     }
 
+    /// Resolve the `accountId` that should tag projects discovered during
+    /// the next `load()`. Tags every discovered project with the
+    /// currently-active account; falls back to
+    /// `AccountIdentifier.unassignedAccountId` when no registry is wired
+    /// in or when no account is active. The previous email-based lookup
+    /// via `~/.claude.json` was removed because the file is unreadable
+    /// under App Sandbox and never produced a useful tag in production.
+    private func resolveCurrentAccountId() -> String {
+        guard let registry, let activeId = registry.activeAccountId else {
+            return AccountIdentifier.unassignedAccountId
+        }
+        return activeId
+    }
+
     private nonisolated static func buildFallbackStats(
         from projectsURL: URL,
-        totalSubagents: Int
+        totalSubagents: Int,
+        accountId: String
     ) throws -> LoadedClaudeStats {
         let fm = FileManager.default
         let projectEntries = try fm.contentsOfDirectory(atPath: projectsURL.path)
@@ -443,7 +509,8 @@ final class ClaudeLocalDBReader {
                         messages7d: aggregate.messages7d,
                         toolCalls7d: aggregate.toolCalls7d,
                         totalTokens7d: aggregate.totalTokens7d,
-                        costEquiv7d: aggregate.costEquiv7d
+                        costEquiv7d: aggregate.costEquiv7d,
+                        accountId: accountId
                     )
                 )
             }
@@ -493,7 +560,7 @@ final class ClaudeLocalDBReader {
         )
     }
 
-    private nonisolated static func readProjectStats(from url: URL) -> [LocalProjectStat] {
+    private nonisolated static func readProjectStats(from url: URL, accountId: String) -> [LocalProjectStat] {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(atPath: url.path) else { return [] }
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
@@ -518,7 +585,8 @@ final class ClaudeLocalDBReader {
                 messages7d: stats7d.messages,
                 toolCalls7d: stats7d.toolCalls,
                 totalTokens7d: stats7d.totalTokens,
-                costEquiv7d: stats7d.costEquiv
+                costEquiv7d: stats7d.costEquiv,
+                accountId: accountId
             )
         }
         .sorted { $0.sessions7d > $1.sessions7d }

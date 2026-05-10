@@ -35,10 +35,10 @@ The macOS app SHALL prefer Tempo's own OAuth credentials over Claude Code CLI cr
 - **THEN** Tempo deletes only its own credentials and returns to the sign-in flow
 
 ### Requirement: Claude Code CLI credentials are read-only fallback credentials
-If Tempo OAuth credentials are unavailable or cannot be restored, the macOS app MAY read the Claude Code CLI Keychain item `Claude Code-credentials` as a fallback. Tempo SHALL only use the CLI access token if it is fresh. Tempo SHALL NOT use Claude Code's refresh token, write to the Claude Code Keychain item, delete the Claude Code Keychain item, or attempt to repair the Claude Code terminal session.
+If Tempo OAuth credentials are unavailable or cannot be restored, the macOS app MAY read the Claude Code CLI Keychain item `Claude Code-credentials` only after the user explicitly chooses the CLI fallback. Tempo SHALL only use the CLI access token if it is fresh. Tempo SHALL NOT use Claude Code's refresh token, write to the Claude Code Keychain item, delete the Claude Code Keychain item, or attempt to repair the Claude Code terminal session.
 
 #### Scenario: Fresh CLI access token exists
-- **WHEN** no valid Tempo OAuth credentials are available and `ClaudeCodeKeychainReader.loadTokens()` returns a fresh non-empty access token
+- **WHEN** no valid Tempo OAuth credentials are available, the user explicitly chooses the CLI fallback, and `ClaudeCodeKeychainReader.loadTokens(allowUserInteraction: true)` returns a fresh non-empty access token
 - **THEN** the app restores `authSource = cliSession` and may issue usage API requests with that access token
 
 #### Scenario: CLI access token is expired
@@ -60,12 +60,12 @@ Authenticated usage requests SHALL use Tempo OAuth credentials first. The CLI ac
 - **WHEN** Tempo OAuth credentials and a fresh Claude Code CLI access token both exist
 - **THEN** the request uses Tempo OAuth credentials and logs `source=webOAuth`
 
-#### Scenario: Only fresh CLI credentials are available
-- **WHEN** Tempo OAuth credentials are unavailable and the Claude Code CLI access token is fresh
+#### Scenario: Explicit CLI fallback uses fresh CLI credentials
+- **WHEN** Tempo OAuth credentials are unavailable, the user explicitly chose the CLI fallback, and the Claude Code CLI access token is fresh
 - **THEN** the request uses the CLI access token and logs `source=cliSession`
 
 #### Scenario: No credential source is available
-- **WHEN** neither Tempo OAuth credentials nor a fresh CLI access token exist
+- **WHEN** Tempo OAuth credentials are unavailable and the user has not explicitly chosen the CLI fallback
 - **THEN** no usage polling starts and the user is prompted to sign in through Tempo OAuth
 
 ### Requirement: Sign-out isolates Tempo from Claude Code

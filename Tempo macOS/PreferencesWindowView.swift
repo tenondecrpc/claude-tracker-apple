@@ -116,6 +116,51 @@ struct PreferencesWindowView: View {
                 .padding(.horizontal, 2)
             }
 
+            // Accounts card: list every registered Anthropic account with
+            // per-row sign-out, and an "Add account..." footer that hands
+            // off to the Welcome window via the existing
+            // `authState.requiresExplicitSignIn` onChange hook in
+            // `TempoMacApp.swift`.
+            preferencesCard(title: "Accounts") {
+                if coordinator.registry.accounts.isEmpty {
+                    HStack {
+                        Text("No accounts signed in")
+                            .font(.callout)
+                            .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 2)
+                } else {
+                    ForEach(Array(coordinator.registry.accounts.enumerated()), id: \.element.accountId) { index, account in
+                        accountRow(for: account)
+                        if index < coordinator.registry.accounts.count - 1 {
+                            Divider().overlay(ClaudeCodeTheme.progressTrack)
+                        }
+                    }
+                }
+
+                Divider().overlay(ClaudeCodeTheme.progressTrack)
+                HStack {
+                    Spacer()
+                    Button {
+                        // Route through the existing onChange hook in
+                        // `TempoMacApp.swift`, which closes the current
+                        // key window and opens the Welcome window in
+                        // add-account mode (the Welcome view flips into
+                        // that mode whenever at least one account is
+                        // already registered).
+                        coordinator.authState.requiresExplicitSignIn = true
+                    } label: {
+                        Label("Add account...", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.top, 10)
+                .padding(.horizontal, 2)
+            }
+
             preferencesCard(title: "Alerts") {
                 settingsRow(
                     icon: "iphone",
@@ -217,39 +262,93 @@ struct PreferencesWindowView: View {
             // Data & Sync card
             preferencesCard(title: "Data & Sync") {
                 settingsRow(
-                    icon: "icloud",
-                    title: "Sync History via iCloud",
-                    subtitle: "Sync usage history across your Macs",
-                    toggle: $settings.syncHistoryViaICloud
-                )
-                Divider().overlay(ClaudeCodeTheme.progressTrack)
-                settingsRow(
                     icon: "dot.radiowaves.left.and.right",
                     title: "Service Status Monitoring",
                     subtitle: "Show Claude service status in the menu bar",
                     toggle: $settings.serviceStatusMonitoring
                 )
             }
-
-            // Account card
-            preferencesCard(title: "Account") {
-                if let email = coordinator.authState.accountEmail {
-                    Text(email)
-                        .font(.callout)
-                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
-                        .padding(.vertical, 8)
-                }
-                Button("Sign Out") {
-                    coordinator.client.signOut()
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(ClaudeCodeTheme.error)
-                .font(.subheadline.weight(.semibold))
-            }
         }
     }
 
     // MARK: - Helpers
+
+    /// Formats `createdAt` timestamps with `DateFormatter.Style.medium`.
+    private static let createdAtFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f
+    }()
+
+    /// Relative formatter used for the "Last poll" field. Creating one per
+    /// render would work, but a cached instance matches the pattern used
+    /// elsewhere in the app (see `WidgetUsageFormatting.swift`).
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+
+    @ViewBuilder
+    private func accountRow(for account: Account) -> some View {
+        let isActive = account.accountId == coordinator.registry.activeAccountId
+        let lastPoll = coordinator.poller.worker(for: account.accountId)?.lastPollAt
+        // TODO(multi-account): Surface the per-account "last session" by
+        // reading `SessionEventWriter`'s last-written cache or the account
+        // directory's `latest.json`. For now, render "-" so the pane ships
+        // with a complete layout.
+        let lastSessionLabel = "-"
+
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(account.displayName)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                        .lineLimit(1)
+                    if isActive {
+                        Text("Active")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(ClaudeCodeTheme.accent)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(ClaudeCodeTheme.accentMuted)
+                            .clipShape(.rect(cornerRadius: 4))
+                    }
+                }
+                Text(account.email)
+                    .font(.caption)
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                    .lineLimit(1)
+                Text("Added \(Self.createdAtFormatter.string(from: account.createdAt))")
+                    .font(.caption2)
+                    .foregroundStyle(ClaudeCodeTheme.textTertiary)
+                HStack(spacing: 12) {
+                    Text("Last poll: \(formatLastPoll(lastPoll))")
+                    Text("Last session: \(lastSessionLabel)")
+                }
+                .font(.caption2)
+                .foregroundStyle(ClaudeCodeTheme.textTertiary)
+            }
+
+            Spacer(minLength: 12)
+
+            Button("Sign out") {
+                coordinator.client.signOut(for: account.accountId)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(ClaudeCodeTheme.error)
+            .font(.subheadline.weight(.semibold))
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 2)
+    }
+
+    private func formatLastPoll(_ date: Date?) -> String {
+        guard let date else { return "never" }
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
+    }
 
     @ViewBuilder
     private func preferencesCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

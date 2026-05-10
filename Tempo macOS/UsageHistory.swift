@@ -62,34 +62,61 @@ struct UsageSnapshot: Codable, Identifiable {
 }
 
 // MARK: - UsageHistory
+//
+// Per-account usage history store. Each Anthropic account has its own
+// bucket of `UsageSnapshot`s kept in memory under `histories[accountId]`
+// and persisted to its own iCloud file at
+// `TempoICloud.usageHistoryFileURL(for: accountId)`.
+//
+// Multi-account layout (see
+// `openspec/changes/multi-account-support/design.md` - "iCloud layout"):
+//
+// ```
+// Tempo/
+//   accounts/
+//     <accountIdDir>/
+//       usage-history.json   <- one per account, each owned by this class
+// ```
+//
+// This class no longer writes to any flat `Tempo/usage-history.json` path
+// and no longer reads or writes the legacy
+// `~/.config/tempo-for-claude/usage-history.json` cache. The iCloud file
+// per account is the single source of truth; in-memory state is seeded by
+// `load(for:)` or `loadAll(accountIds:)` and kept in sync by `append`.
+//
+// Callers decide which account to render (e.g. the coordinator's
+// `activeAccountId`) and read via `history(for:)`. The class does not
+// track the active account itself, keeping this type a pure per-account
+// store.
 
 @Observable
 @MainActor
 final class UsageHistory {
 
-    private(set) var snapshots: [UsageSnapshot] = []
-    private var syncHistoryViaICloud: Bool
-
-    private static let storageURL: URL = {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/tempo-for-claude")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("usage-history.json")
-    }()
+    /// Per-account in-memory snapshots, keyed by canonical `accountId`
+    /// (as produced by `AccountIdentifier.canonicalize(email:)`). Entries
+    /// within each bucket are sorted ascending by `date`.
+    private(set) var histories: [String: [UsageSnapshot]] = [:]
 
     private static let maxAge: TimeInterval = 30 * 24 * 3600  // 30 days
 
-    init(syncHistoryViaICloud: Bool = true) {
-        self.syncHistoryViaICloud = syncHistoryViaICloud
-        load()
-        if syncHistoryViaICloud {
-            syncWithICloud()
-        }
+    init() {}
+
+    // MARK: - Public API
+
+    /// Returns the in-memory history for `accountId`. Returns an empty
+    /// array if the account has not been `load(for:)`ed yet or has no
+    /// recorded snapshots.
+    func history(for accountId: String) -> [UsageSnapshot] {
+        histories[accountId] ?? []
     }
 
-    // MARK: - Public
-
-    func append(_ state: UsageState) {
+    /// Appends a snapshot derived from `state` into that state's account
+    /// bucket (`state.accountId`), prunes entries older than 30 days, and
+    /// persists the bucket to the per-account iCloud file. Other accounts'
+    /// buckets and files are left untouched.
+    func append(usage state: UsageState) {
+        let accountId = state.accountId
         let snapshot = UsageSnapshot(
             date: Date(),
             utilization5h: state.utilization5h,
@@ -97,91 +124,57 @@ final class UsageHistory {
             isUsingExtraUsage5h: state.isUsingExtraUsage5h,
             isUsingExtraUsage7d: state.isUsingExtraUsage7d
         )
-        snapshots.append(snapshot)
-        pruneOld()
-        save()
-        if syncHistoryViaICloud {
-            syncWithICloud()
+        var bucket = histories[accountId] ?? []
+        bucket.append(snapshot)
+        histories[accountId] = Self.mergeAndPrune(bucket, with: [], maxAge: Self.maxAge)
+        syncWithICloud(for: accountId)
+    }
+
+    /// Loads `accountId`'s history from its iCloud file into memory. If
+    /// the file is missing or unreadable, the bucket is set to an empty
+    /// array (previous in-memory state for that account is discarded).
+    func load(for accountId: String) {
+        let cloudSnapshots = Self.readSnapshots(for: accountId) ?? []
+        histories[accountId] = Self.mergeAndPrune(cloudSnapshots, with: [], maxAge: Self.maxAge)
+    }
+
+    /// Loads histories for each `accountId` in order. Convenience wrapper
+    /// for coordinators that seed the store right after `AccountRegistry`
+    /// produces its known account list.
+    func loadAll(accountIds: [String]) {
+        for accountId in accountIds {
+            load(for: accountId)
         }
     }
 
-    func setSyncHistoryEnabled(_ enabled: Bool) {
-        syncHistoryViaICloud = enabled
-        if enabled {
-            syncWithICloud()
-        }
+    /// Drops the in-memory bucket for `accountId`. Does NOT delete the
+    /// iCloud file; account removal (which deletes the whole per-account
+    /// iCloud directory) is handled by `AccountRegistry` per task 2.5.
+    func forget(accountId: String) {
+        histories.removeValue(forKey: accountId)
     }
 
-    // MARK: - Persistence
+    // MARK: - iCloud Sync (per account)
 
-    private func load() {
-        guard let data = try? Data(contentsOf: Self.storageURL) else { return }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        snapshots = (try? decoder.decode([UsageSnapshot].self, from: data)) ?? []
+    private func syncWithICloud(for accountId: String) {
+        let localSnapshots = histories[accountId] ?? []
+        let cloudSnapshots = Self.readSnapshots(for: accountId) ?? []
+        let merged = Self.mergeAndPrune(localSnapshots, with: cloudSnapshots, maxAge: Self.maxAge)
+        histories[accountId] = merged
+        Self.writeSnapshots(merged, for: accountId)
     }
 
-    private func save() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(snapshots) else { return }
-        try? data.write(to: Self.storageURL, options: .atomic)
-    }
+    // MARK: - Merge / Dedupe
 
-    private func pruneOld() {
-        let cutoff = Date().addingTimeInterval(-Self.maxAge)
-        snapshots.removeAll { $0.date < cutoff }
-    }
-
-    // MARK: - iCloud Sync
-
-    private func syncWithICloud() {
-        let iCloudURL = Self.iCloudMirrorURL()
-        let iCloudSnapshots = Self.readSnapshots(at: iCloudURL) ?? []
-        let merged = Self.mergeSnapshots(local: snapshots, cloud: iCloudSnapshots, maxAge: Self.maxAge)
-        snapshots = merged
-        save()
-        Self.writeSnapshots(merged, to: iCloudURL)
-    }
-
-    private static func iCloudMirrorURL() -> URL {
-        if let containerURL = FileManager.default.url(
-            forUbiquityContainerIdentifier: TempoICloud.containerIdentifier
-        ) {
-            return containerURL.appendingPathComponent("Documents/Tempo/usage-history.json")
-        }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Tempo/usage-history.json")
-    }
-
-    private static func readSnapshots(at url: URL) -> [UsageSnapshot]? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode([UsageSnapshot].self, from: data)
-    }
-
-    private static func writeSnapshots(_ snapshots: [UsageSnapshot], to url: URL) {
-        let dir = url.deletingLastPathComponent()
-        if !FileManager.default.fileExists(atPath: dir.path) {
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(snapshots) else { return }
-        try? data.write(to: url, options: .atomic)
-    }
-
-    private static func mergeSnapshots(
-        local: [UsageSnapshot],
-        cloud: [UsageSnapshot],
+    private static func mergeAndPrune(
+        _ primary: [UsageSnapshot],
+        with secondary: [UsageSnapshot],
         maxAge: TimeInterval
     ) -> [UsageSnapshot] {
         var mergedByIdentity: [String: UsageSnapshot] = [:]
-        for snapshot in local + cloud {
+        for snapshot in primary + secondary {
             mergedByIdentity[snapshotIdentity(snapshot)] = snapshot
         }
-
         let cutoff = Date().addingTimeInterval(-maxAge)
         return mergedByIdentity.values
             .filter { $0.date >= cutoff }
@@ -195,5 +188,38 @@ final class UsageHistory {
         let extraUsage5hFlag = snapshot.isUsingExtraUsage5h ? 1 : 0
         let extraUsage7dFlag = snapshot.isUsingExtraUsage7d ? 1 : 0
         return "\(timestamp)|\(utilization5h)|\(utilization7d)|\(extraUsage5hFlag)|\(extraUsage7dFlag)"
+    }
+
+    // MARK: - iCloud I/O helpers
+
+    private static func readSnapshots(for accountId: String) -> [UsageSnapshot]? {
+        guard let url = TempoICloud.usageHistoryFileURL(for: accountId),
+              let data = try? Data(contentsOf: url)
+        else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode([UsageSnapshot].self, from: data)
+    }
+
+    private static func writeSnapshots(_ snapshots: [UsageSnapshot], for accountId: String) {
+        guard let url = TempoICloud.usageHistoryFileURL(for: accountId),
+              let accountDir = TempoICloud.accountDirectoryURL(for: accountId)
+        else {
+            // iCloud ubiquity container is unavailable. Skip the write
+            // silently (matches `AccountPollingWorker.writeToiCloud`).
+            return
+        }
+
+        if !FileManager.default.fileExists(atPath: accountDir.path) {
+            try? FileManager.default.createDirectory(
+                at: accountDir,
+                withIntermediateDirectories: true
+            )
+        }
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(snapshots) else { return }
+        try? data.write(to: url, options: .atomic)
     }
 }

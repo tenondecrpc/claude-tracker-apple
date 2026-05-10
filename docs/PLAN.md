@@ -60,6 +60,22 @@ Important constraints:
 - `Tempo Watch/WatchAlertManager.swift` schedules local watch notifications.
 - `Tempo Watch/CompletionView.swift` presents completed-session details.
 
+### Multi-account support
+**Status**: Complete
+
+Shipped as a clean replacement of the single-account contract. There is no migration milestone: Tempo does not read the legacy flat iCloud files (`Tempo/usage.json`, `Tempo/usage-history.json`, `Tempo/latest.json`) and does not fall back to the single-slot `credentials` Keychain entry. Developers clean up stale dev-container files manually.
+
+Scope delivered:
+
+- macOS `AccountRegistry` with per-account OAuth credential slots in the Keychain (service `com.tenondev.tempo.claude.oauth`, `kSecAttrAccount` = canonical accountId) plus a reserved `__registry__` slot for the non-secret account list.
+- iCloud tree partitioned under `Tempo/accounts/<accountId>/` with `usage.json`, `usage-history.json`, `latest.json`, and `account.json`, plus `Tempo/accounts/index.json` as the directory index. `alert-preferences.json` and `appearance-mode.json` remain global.
+- `UsagePoller` runs one `AccountPollingWorker` per account with independent 15-minute cadence and rate-limit backoff.
+- `ClaudeLocalDBReader` and `SessionEventWriter` tag sessions by accountId derived from `~/.claude.json` `oauthAccount.emailAddress`; CLI-only sessions land in a dedicated `unassigned` bucket.
+- iOS dashboard adds a header account chip that opens a per-account picker; dashboard and Activity views filter by the active account; `activeAccountId` persists locally, not in iCloud.
+- Watch follows the iPhone's active account only: it clears state on `NoActiveAccount`, suppresses completion alerts for non-active accounts, and does not persist its own selection.
+- Widgets (macOS, iOS, watchOS) render the active account by default. macOS and iOS widgets expose a `SelectAccountIntent` for pinning to a specific account.
+- Shared `AccountIdentifier` canonicalizes accountIds (lowercased, trimmed, NFC-normalized email) across all targets; `UsageState`, `WidgetUsageSnapshot`, and `SessionInfo` carry `accountId`.
+
 ### Already shipped UI beyond the original phase plan
 
 - macOS detail window with Overview, Activity, and Preferences tabs.
@@ -136,13 +152,13 @@ All findings from the 2026-05-03 security audit (items #1-#9) are implemented. T
 
 ## Unscheduled Backlog
 
-1. **Multi-account support** - Add and switch between multiple Claude accounts within one app instance.
-2. **Historical pace prediction** - Forecast session and weekly usage based on burn rate and historical behavior. The instantaneous burn rate (%/hr, shown in the macOS popover and iOS dashboard) is already shipped; this item covers trend-line extrapolation and weekly forecasts from `usage-history.json`.
-3. **Live session chart** - Show real-time, sub-30-second chart updates during an active session.
-4. **Time-of-day breakdowns** - Add hourly and time-of-day breakdowns alongside the existing day-level views (watch 7-day bar chart, macOS activity heatmap).
-5. **Bar chart alternatives on iOS/macOS** - Offer `BarMark`-based chart alternatives to the current line/area charts. A custom bar chart already exists on watchOS (`TrendView`).
-6. **Consumption rate histogram** - Show how often usage falls into utilization bands such as 0-25% or 25-50%.
-7. **Scheduled triggers / automations** - Add configurable automation rules such as "alert me at 80%" or Shortcuts integration.
-8. **Codex / Claude API key support** - Support usage tracking for users working through raw API keys instead of OAuth.
-9. **All Accounts dashboard** - Aggregate usage across multiple Claude accounts or workspaces. Blocked by multi-account support (#1).
+1. **Historical pace prediction** - Forecast session and weekly usage based on burn rate and historical behavior. The instantaneous burn rate (%/hr, shown in the macOS popover and iOS dashboard) is already shipped; this item covers trend-line extrapolation and weekly forecasts from `usage-history.json`.
+2. **Live session chart** - Show real-time, sub-30-second chart updates during an active session.
+3. **Time-of-day breakdowns** - Add hourly and time-of-day breakdowns alongside the existing day-level views (watch 7-day bar chart, macOS activity heatmap).
+4. **Bar chart alternatives on iOS/macOS** - Offer `BarMark`-based chart alternatives to the current line/area charts. A custom bar chart already exists on watchOS (`TrendView`).
+5. **Consumption rate histogram** - Show how often usage falls into utilization bands such as 0-25% or 25-50%.
+6. **Scheduled triggers / automations** - Add configurable automation rules such as "alert me at 80%" or Shortcuts integration.
+7. **Codex / Claude API key support** - Support usage tracking for users working through raw API keys instead of OAuth.
+8. **All Accounts dashboard** - Aggregate usage across multiple Claude accounts or workspaces in a single combined view. Multi-account support is shipped; this item covers the cross-account aggregation surface that was intentionally left out of scope (no "combined usage" views ship with multi-account).
+9. **Per-account display-name editing** - Allow users to rename an account's display label (accountId itself remains immutable). Surfaced as a future enhancement in the multi-account design.
 10. **Dedicated-server push notifications for Claude Code replies** - Detect Claude Code reply completion on macOS and send the event to a dedicated push server that owns device registration, APNs credentials, and delivery to iPhone and watch. Keep this as a future backlog item, not part of the current committed phases.

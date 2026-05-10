@@ -149,6 +149,7 @@ final class UsageStatePoller {
         }
 
         return UsageState(
+            accountId: AccountIdentifier.unassignedAccountId,
             utilization5h: utilization5h,
             utilization7d: utilization7d,
             resetAt5h: resetAt5h,

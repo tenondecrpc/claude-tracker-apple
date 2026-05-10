@@ -12,6 +12,22 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
+	<!--
+	    Read-only temporary exception for `~/.claude.json`, the Claude Code
+	    CLI's OAuth profile file. The app reads ONLY this exact path to
+	    resolve the canonical email address backing a CLI session, and uses
+	    that email as the stable `accountId` across both the CLI session
+	    fallback and a later Tempo OAuth sign-in under the same email.
+	    Without this exception the sandbox silently fails the read, the
+	    canonical email is lost, and CLI-first / OAuth-later sessions end
+	    up with different synthetic `cli-local-<hash>` ids instead of
+	    converging on the canonical email-derived id.
+	    See `docs/AUTH_FLOW.md` and `Shared/AccountIdentifier.swift`.
+	-->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+	<array>
+		<string>/.claude.json</string>
+	</array>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.com.tenondev.tempo.claude</string>

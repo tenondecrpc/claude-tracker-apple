@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -6,36 +7,108 @@ import WidgetKit
 private struct TempoMacEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetUsageSnapshot?
+    /// The accountId the user pinned via `SelectAccountIntent`. `nil` means
+    /// "follow the active account". Kept on the entry so the view can
+    /// reference the original pin when rendering the "account removed"
+    /// indicator after a fallback.
+    let configuredAccountId: String?
+    /// True when the user pinned a specific account via `SelectAccountIntent`
+    /// but that accountId no longer has a snapshot in the shared store, so
+    /// the provider fell back to the active-account snapshot. The view
+    /// renders a small warning badge when this is true (task 8.3).
+    let configuredAccountRemoved: Bool
     let isPreview: Bool
 }
 
 // MARK: - Provider
 
-private struct TempoMacProvider: TimelineProvider {
+/// AppIntentTimelineProvider that honors `SelectAccountIntent`. When the
+/// intent's `account` is nil, the provider reads the active-account
+/// snapshot via `TempoWidgetSnapshotStore.read(platform:)`. Otherwise it
+/// loads the pinned per-account snapshot via
+/// `TempoWidgetSnapshotStore.read(accountId:platform:)`.
+///
+/// Task 8.3: when a pinned account's snapshot is missing (the user removed
+/// the account on the Mac, or the snapshot has not yet synced), the
+/// provider transparently falls back to the active-account snapshot and
+/// flags `configuredAccountRemoved = true` on the entry so the view can
+/// render a small "account removed" indicator while still showing useful
+/// data.
+@available(macOS 14.0, *)
+private struct TempoMacProvider: AppIntentTimelineProvider {
+    typealias Intent = SelectAccountIntent
+    typealias Entry = TempoMacEntry
+
     func placeholder(in context: Context) -> TempoMacEntry {
-        TempoMacEntry(date: .now, snapshot: .placeholder, isPreview: true)
+        TempoMacEntry(
+            date: .now,
+            snapshot: .placeholder,
+            configuredAccountId: nil,
+            configuredAccountRemoved: false,
+            isPreview: true
+        )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (TempoMacEntry) -> Void) {
+    func snapshot(for configuration: SelectAccountIntent, in context: Context) async -> TempoMacEntry {
         if context.isPreview {
-            completion(TempoMacEntry(date: .now, snapshot: .placeholder, isPreview: true))
-            return
+            return TempoMacEntry(
+                date: .now,
+                snapshot: .placeholder,
+                configuredAccountId: configuration.account?.id,
+                configuredAccountRemoved: false,
+                isPreview: true
+            )
         }
-        completion(TempoMacEntry(date: .now, snapshot: currentSnapshot(), isPreview: false))
+        let resolved = resolveSnapshot(for: configuration)
+        return TempoMacEntry(
+            date: .now,
+            snapshot: resolved.snapshot,
+            configuredAccountId: configuration.account?.id,
+            configuredAccountRemoved: resolved.configuredAccountRemoved,
+            isPreview: false
+        )
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<TempoMacEntry>) -> Void) {
+    func timeline(for configuration: SelectAccountIntent, in context: Context) async -> Timeline<TempoMacEntry> {
         let entry: TempoMacEntry
         if context.isPreview {
-            entry = TempoMacEntry(date: .now, snapshot: .placeholder, isPreview: true)
+            entry = TempoMacEntry(
+                date: .now,
+                snapshot: .placeholder,
+                configuredAccountId: configuration.account?.id,
+                configuredAccountRemoved: false,
+                isPreview: true
+            )
         } else {
-            entry = TempoMacEntry(date: .now, snapshot: currentSnapshot(), isPreview: false)
+            let resolved = resolveSnapshot(for: configuration)
+            entry = TempoMacEntry(
+                date: .now,
+                snapshot: resolved.snapshot,
+                configuredAccountId: configuration.account?.id,
+                configuredAccountRemoved: resolved.configuredAccountRemoved,
+                isPreview: false
+            )
         }
-        completion(Timeline(entries: [entry], policy: .never))
+        return Timeline(entries: [entry], policy: .never)
     }
 
-    private func currentSnapshot() -> WidgetUsageSnapshot? {
-        TempoWidgetSnapshotStore.read(platform: .macOS)
+    /// Resolve the snapshot for the current configuration, applying the
+    /// task 8.3 fallback: if the user pinned a specific accountId but no
+    /// snapshot exists for that id, read the active-account snapshot
+    /// instead and flag the entry so the view can surface a non-intrusive
+    /// "account removed" indicator.
+    private func resolveSnapshot(
+        for configuration: SelectAccountIntent
+    ) -> (snapshot: WidgetUsageSnapshot?, configuredAccountRemoved: Bool) {
+        guard let pinnedAccountId = configuration.account?.id, !pinnedAccountId.isEmpty else {
+            return (TempoWidgetSnapshotStore.read(platform: .macOS), false)
+        }
+        if let pinned = TempoWidgetSnapshotStore.read(accountId: pinnedAccountId, platform: .macOS) {
+            return (pinned, false)
+        }
+        // Pinned account vanished (signed out, removed, or snapshot not yet
+        // synced). Render the active account's data below a warning badge.
+        return (TempoWidgetSnapshotStore.read(platform: .macOS), true)
     }
 }
 
@@ -54,7 +127,11 @@ struct TempoMacWidgetBundle: WidgetBundle {
 
 private struct TempoMacRingWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: TempoWidgetKind.macOSRing, provider: TempoMacProvider()) { entry in
+        AppIntentConfiguration(
+            kind: TempoWidgetKind.macOSRing,
+            intent: SelectAccountIntent.self,
+            provider: TempoMacProvider()
+        ) { entry in
             TempoMacRingWidgetView(entry: entry)
                 .applyClaudeAppearance(entry.snapshot?.appearanceMode ?? .dark)
         }
@@ -67,7 +144,11 @@ private struct TempoMacRingWidget: Widget {
 
 private struct TempoMacSummaryWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: TempoWidgetKind.macOSSummary, provider: TempoMacProvider()) { entry in
+        AppIntentConfiguration(
+            kind: TempoWidgetKind.macOSSummary,
+            intent: SelectAccountIntent.self,
+            provider: TempoMacProvider()
+        ) { entry in
             TempoMacSummaryWidgetView(entry: entry)
                 .applyClaudeAppearance(entry.snapshot?.appearanceMode ?? .dark)
         }
@@ -80,7 +161,11 @@ private struct TempoMacSummaryWidget: Widget {
 
 private struct TempoMacCompactWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: TempoWidgetKind.macOSCompact, provider: TempoMacProvider()) { entry in
+        AppIntentConfiguration(
+            kind: TempoWidgetKind.macOSCompact,
+            intent: SelectAccountIntent.self,
+            provider: TempoMacProvider()
+        ) { entry in
             TempoMacCompactWidgetView(entry: entry)
                 .applyClaudeAppearance(entry.snapshot?.appearanceMode ?? .dark)
         }
@@ -97,7 +182,13 @@ private struct TempoMacRingWidgetView: View {
     let entry: TempoMacEntry
 
     var body: some View {
-        TempoMacWidgetChrome(snapshot: entry.snapshot, route: .stats, emptySubtitle: "Open Tempo on this Mac", isPreview: entry.isPreview) { snapshot in
+        TempoMacWidgetChrome(
+            snapshot: entry.snapshot,
+            routeKind: .stats,
+            emptySubtitle: "Open Tempo on this Mac",
+            isPreview: entry.isPreview,
+            configuredAccountRemoved: entry.configuredAccountRemoved
+        ) { snapshot in
             TempoMacDualRing(
                 sessionProgress: snapshot.utilization5h,
                 weeklyProgress: snapshot.utilization7d
@@ -111,7 +202,13 @@ private struct TempoMacSummaryWidgetView: View {
     let entry: TempoMacEntry
 
     var body: some View {
-        TempoMacWidgetChrome(snapshot: entry.snapshot, route: .stats, emptySubtitle: "Launch Tempo to start desktop widgets", isPreview: entry.isPreview) { snapshot in
+        TempoMacWidgetChrome(
+            snapshot: entry.snapshot,
+            routeKind: .stats,
+            emptySubtitle: "Launch Tempo to start desktop widgets",
+            isPreview: entry.isPreview,
+            configuredAccountRemoved: entry.configuredAccountRemoved
+        ) { snapshot in
             ViewThatFits(in: .vertical) {
                 summaryContent(snapshot: snapshot, isCompact: false)
                 summaryContent(snapshot: snapshot, isCompact: true)
@@ -160,7 +257,13 @@ private struct TempoMacCompactWidgetView: View {
     let entry: TempoMacEntry
 
     var body: some View {
-        TempoMacWidgetChrome(snapshot: entry.snapshot, route: .stats, emptySubtitle: "Waiting for poll data", isPreview: entry.isPreview) { snapshot in
+        TempoMacWidgetChrome(
+            snapshot: entry.snapshot,
+            routeKind: .stats,
+            emptySubtitle: "Waiting for poll data",
+            isPreview: entry.isPreview,
+            configuredAccountRemoved: entry.configuredAccountRemoved
+        ) { snapshot in
             let sessionColor = UtilizationSeverity(utilization: snapshot.utilization5h).usageColor(normal: ClaudeCodeTheme.Usage.session)
             let weeklyColor = UtilizationSeverity(utilization: snapshot.utilization7d).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
 
@@ -189,9 +292,14 @@ private struct TempoMacCompactWidgetView: View {
 
 private struct TempoMacWidgetChrome<Content: View>: View {
     let snapshot: WidgetUsageSnapshot?
-    let route: TempoWidgetRoute
+    let routeKind: TempoWidgetRoute.Kind
     let emptySubtitle: String
     let isPreview: Bool
+    /// When true, overlay a small "Account removed" badge in the top-right
+    /// corner of the widget chrome. Set by the provider when the pinned
+    /// accountId from `SelectAccountIntent` has no snapshot and the
+    /// provider fell back to the active-account snapshot (task 8.3).
+    let configuredAccountRemoved: Bool
     @ViewBuilder let content: (WidgetUsageSnapshot) -> Content
 
     var body: some View {
@@ -199,14 +307,27 @@ private struct TempoMacWidgetChrome<Content: View>: View {
             if isPreview || snapshot == nil {
                 chrome
             } else {
+                // Embed the rendered snapshot's accountId in the tap URL
+                // so the macOS app re-targets the detail window to that
+                // account (via AccountRegistry.setActive) before showing
+                // the stats surface. When the widget is not pinned the
+                // accountId is the active account, so this is a no-op;
+                // when the widget is pinned via `SelectAccountIntent`
+                // the macOS app flips to the pinned account on tap
+                // (task 8.4).
                 chrome
-                    .widgetURL(route.url)
+                    .widgetURL(
+                        TempoWidgetRoute(
+                            kind: routeKind,
+                            accountId: snapshot?.accountId
+                        ).url
+                    )
             }
         }
     }
 
     private var chrome: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             background
 
             if let snapshot {
@@ -215,6 +336,12 @@ private struct TempoMacWidgetChrome<Content: View>: View {
             } else {
                 waitingView
                     .padding(14)
+            }
+
+            if configuredAccountRemoved {
+                TempoMacAccountRemovedBadge()
+                    .padding(.top, 6)
+                    .padding(.trailing, 6)
             }
         }
         .containerBackground(for: .widget) {
@@ -316,6 +443,30 @@ private struct TempoMacStatusBadge: View {
     }
 }
 
+/// Small non-intrusive badge shown in the top-right of the widget chrome
+/// when the pinned account has been removed and the provider fell back to
+/// the active account (task 8.3). Keeps the underlying widget data visible
+/// so the user still sees something useful.
+private struct TempoMacAccountRemovedBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(ClaudeCodeTheme.warning)
+            Text("Account removed")
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(ClaudeCodeTheme.surface.opacity(0.95), in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Pinned account removed, showing active account")
+    }
+}
+
 private struct TempoMacMetricRow: View {
     let title: String
     let value: String
@@ -379,7 +530,7 @@ private struct TempoMacExtraUsageRow: View {
     }
 
     private var extraColor: Color {
-        UtilizationSeverity(utilization: extraUsageProgress).usageColor(normal: ClaudeCodeTheme.info)
+        UtilizationSeverity(utilization: extraUsageProgress).usageColor(normal: ClaudeCodeTheme.Usage.normal)
     }
 
     var body: some View {
@@ -499,6 +650,10 @@ private struct TempoMacDualRing: View {
 
 private extension WidgetUsageSnapshot {
     static var placeholder: WidgetUsageSnapshot {
-        WidgetUsageSnapshot(usage: .mock, updatedAt: .now)
+        WidgetUsageSnapshot(
+            usage: .mock,
+            updatedAt: .now,
+            accountLabel: "preview@example.com"
+        )
     }
 }
