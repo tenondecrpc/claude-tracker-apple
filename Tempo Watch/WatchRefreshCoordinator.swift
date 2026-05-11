@@ -57,18 +57,54 @@ final class WatchRefreshCoordinator {
             return
         }
 
-        guard WCSession.default.isReachable else {
-            state = .error(reason: "iPhone not reachable")
-            DevLog.trace(
-                "AlertTrace",
-                "WatchRefreshCoordinator.requestRefresh error: iPhone not reachable"
-            )
-            return
-        }
-
         state = .inProgress
         requestSentAt = Date()
+        reachabilityRetryTask?.cancel()
 
+        if WCSession.default.isReachable {
+            sendRefreshMessage()
+        } else {
+            // WCSession.isReachable is often false for a brief moment when
+            // the app returns to foreground. Retry a few times before failing.
+            waitForReachabilityThenSend()
+        }
+    }
+
+    /// Maximum number of reachability poll attempts before giving up.
+    private static let reachabilityMaxAttempts = 5
+    /// Interval between reachability poll attempts (seconds).
+    private static let reachabilityPollInterval: TimeInterval = 0.5
+
+    private var reachabilityRetryTask: Task<Void, Never>?
+
+    private func waitForReachabilityThenSend() {
+        reachabilityRetryTask = Task { @MainActor [weak self] in
+            for attempt in 1...Self.reachabilityMaxAttempts {
+                try? await Task.sleep(for: .milliseconds(Int(Self.reachabilityPollInterval * 1000)))
+                guard !Task.isCancelled else { return }
+                guard let self, self.state.isInProgress else { return }
+
+                if WCSession.default.isReachable {
+                    DevLog.trace(
+                        "AlertTrace",
+                        "WatchRefreshCoordinator reachable after \(attempt) attempt(s)"
+                    )
+                    self.sendRefreshMessage()
+                    return
+                }
+            }
+
+            // Exhausted retries
+            guard let self, self.state.isInProgress else { return }
+            self.resolveWithError("iPhone not reachable")
+            DevLog.trace(
+                "AlertTrace",
+                "WatchRefreshCoordinator.requestRefresh error: iPhone not reachable after retries"
+            )
+        }
+    }
+
+    private func sendRefreshMessage() {
         DevLog.trace(
             "AlertTrace",
             "WatchRefreshCoordinator.requestRefresh sending RequestFreshRelay"
@@ -80,12 +116,16 @@ final class WatchRefreshCoordinator {
                 Task { @MainActor in
                     guard let self else { return }
                     let ok = reply["ok"] as? Bool ?? false
-                    if !ok {
+                    if ok {
+                        // iPhone acknowledged the request. Resolve immediately
+                        // rather than waiting for lastRelayReceivedAt to change,
+                        // because the iPhone may relay the same data (no change
+                        // in timestamp) if nothing has updated since the last relay.
+                        self.resolveWithSuccess()
+                    } else {
                         let reason = reply["reason"] as? String ?? "Unknown error"
                         self.resolveWithError("iPhone rejected: \(reason)")
                     }
-                    // If ok == true, we wait for the relay to arrive
-                    // (detected via lastRelayReceivedAt observation).
                 }
             },
             errorHandler: { [weak self] error in
@@ -124,6 +164,8 @@ final class WatchRefreshCoordinator {
     private func resolveWithSuccess() {
         timeoutTask?.cancel()
         timeoutTask = nil
+        reachabilityRetryTask?.cancel()
+        reachabilityRetryTask = nil
         requestSentAt = nil
         state = .idle
     }
@@ -131,6 +173,8 @@ final class WatchRefreshCoordinator {
     private func resolveWithError(_ reason: String) {
         timeoutTask?.cancel()
         timeoutTask = nil
+        reachabilityRetryTask?.cancel()
+        reachabilityRetryTask = nil
         requestSentAt = nil
         state = .error(reason: reason)
         DevLog.trace(

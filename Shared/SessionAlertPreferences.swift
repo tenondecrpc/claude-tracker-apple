@@ -1,6 +1,6 @@
 import Foundation
 
-struct SessionAlertPreferences: Codable, Equatable {
+nonisolated struct SessionAlertPreferences: Codable, Equatable {
     var iPhoneAlertsEnabled: Bool
     var watchAlertsEnabled: Bool
 
