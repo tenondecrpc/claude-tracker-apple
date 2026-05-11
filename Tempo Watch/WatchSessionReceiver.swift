@@ -5,11 +5,9 @@ import WidgetKit
 final class WatchSessionReceiver: NSObject, WCSessionDelegate {
 
     private let store: TokenStore
-    private let alertManager: WatchAlertManager
 
-    init(store: TokenStore, alertManager: WatchAlertManager) {
+    init(store: TokenStore) {
         self.store = store
-        self.alertManager = alertManager
         super.init()
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
@@ -90,7 +88,6 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             isDoubleLimitPromoActive: nil
         )
 
-        let watchAlertsEnabled = userInfo["watchAlertsEnabled"] as? Bool ?? SessionAlertPreferences.default.watchAlertsEnabled
         let appearanceMode = Self.appearanceMode(from: userInfo)
 
         var snapshots: [UsageHistorySnapshot]? = nil
@@ -107,12 +104,10 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
             self.store.apply(state)
             self.store.applyActiveAccount(id: accountId, label: accountLabel)
             self.store.applyAppearanceMode(appearanceMode)
-            self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
             if let snapshots {
                 self.store.applyHistory(snapshots)
             }
         }
-        alertManager.refreshAlertState(enabledInPreferences: watchAlertsEnabled)
     }
 
     private func applySessionInfo(_ userInfo: [String: Any]) {
@@ -136,7 +131,6 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         let accountId = userInfo["accountId"] as? String ?? AccountIdentifier.unassignedAccountId
         let accountLabel = userInfo["accountLabel"] as? String ?? ""
 
-        let watchAlertsEnabled = userInfo["watchAlertsEnabled"] as? Bool ?? SessionAlertPreferences.default.watchAlertsEnabled
         let appearanceMode = Self.appearanceMode(from: userInfo)
 
         let sessionInfo = SessionInfo(
@@ -150,17 +144,10 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
         )
 
         // Task 7.4: outer receiver-level safety net for mismatched
-        // accountIds. The inner gate in `TokenStore.applySession(_:)`
-        // already protects `pendingCompletion`, but a second SessionInfo
-        // for a non-active account should never have side effects on the
-        // watch at all: no `sessions` history mutation, no local
-        // notification. Exception: `unassigned` (CLI-only) sessions are
-        // always allowed through because they have no owning account.
-        //
-        // The active-account check must run on the main actor because
-        // `store.activeAccountId` is `@MainActor`-isolated. We therefore
-        // move `notifySessionCompletion` inside the Task so both the store
-        // update and the alert delivery are gated by the same read.
+        // accountIds. A SessionInfo for a non-active account should never
+        // have side effects on the watch at all: no `sessions` history
+        // mutation. Exception: `unassigned` (CLI-only) sessions are always
+        // allowed through because they have no owning account.
         Task { @MainActor in
             let isUnassigned = accountId == AccountIdentifier.unassignedAccountId
             if !isUnassigned,
@@ -171,12 +158,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
                     "AlertTrace",
                     "Dropped SessionInfo: session accountId=\(accountId) does not match activeAccountId=\(active)"
                 )
-                // Still let the global preferences/appearance fields that
-                // tagged along catch up so other payload types are not
-                // starved when the iPhone coalesces them into a session
-                // message.
                 self.store.applyAppearanceMode(appearanceMode)
-                self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
                 return
             }
 
@@ -185,12 +167,6 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate {
                 self.store.applyActiveAccount(id: accountId, label: accountLabel)
             }
             self.store.applyAppearanceMode(appearanceMode)
-            self.store.setWatchAlertsEnabledInPreferences(watchAlertsEnabled)
-
-            self.alertManager.notifySessionCompletion(
-                for: sessionInfo,
-                enabledInPreferences: watchAlertsEnabled
-            )
         }
     }
 

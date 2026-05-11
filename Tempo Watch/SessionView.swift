@@ -53,18 +53,6 @@ struct SessionView: View {
             HStack(spacing: 8) {
                 activityIndicator(for: session.timestamp)
                 Spacer()
-                Image(systemName: store.areNotificationsEnabled ? "bell.fill" : "bell.slash")
-                    .font(.system(size: 11))
-                    .foregroundStyle(
-                        store.areNotificationsEnabled
-                        ? ClaudeCodeTheme.accent
-                        : ClaudeCodeTheme.textTertiary
-                    )
-                    .accessibilityLabel(
-                        store.areNotificationsEnabled
-                        ? "Notifications enabled"
-                        : "Notifications disabled"
-                    )
             }
         }
     }

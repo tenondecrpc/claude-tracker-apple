@@ -205,7 +205,7 @@ final class IOSAppStore {
         }
 
         if defaults.object(forKey: Keys.use24HourTime) == nil {
-            use24HourTime = false
+            use24HourTime = true
         } else {
             use24HourTime = defaults.bool(forKey: Keys.use24HourTime)
         }
