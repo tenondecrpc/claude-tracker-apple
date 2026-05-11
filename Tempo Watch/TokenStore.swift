@@ -26,6 +26,23 @@ final class TokenStore {
     /// usage data. Cleared whenever a fresh `UsageState` arrives.
     private(set) var hasNoActiveAccount: Bool = false
 
+    /// Timestamp of the most recent `UsageState` application from any
+    /// WatchConnectivity relay. Drives the "Updated Xm ago" freshness
+    /// indicator on the dashboard and the refresh coordinator's success
+    /// detection (it observes this value to know when a fresh relay
+    /// has arrived after sending `RequestFreshRelay`).
+    private(set) var lastRelayReceivedAt: Date? = nil
+
+    /// Returns `lastRelayReceivedAt` only when the watch has an active
+    /// account and is not in the `NoActiveAccount` state. Used by the
+    /// dashboard freshness label to avoid showing stale timestamps
+    /// from a previous account.
+    var lastRelayReceivedAtForActiveAccount: Date? {
+        guard !hasNoActiveAccount else { return nil }
+        guard activeAccountId != nil else { return nil }
+        return lastRelayReceivedAt
+    }
+
     var lastSession: SessionInfo? {
         sessions.max(by: { $0.timestamp < $1.timestamp })
     }
@@ -41,6 +58,7 @@ final class TokenStore {
     func apply(_ state: UsageState) {
         usageState = state
         activeAccountId = state.accountId
+        lastRelayReceivedAt = Date()
         // Drop any pending completion sheet that belonged to a different
         // account before we commit to the new `activeAccountId`. Per
         // design.md "Watch UX" the completion sheet must only fire for the

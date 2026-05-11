@@ -3,6 +3,8 @@ import Observation
 
 struct ContentView: View {
     @Environment(TokenStore.self) private var store
+    @Environment(WatchRefreshCoordinator.self) private var refreshCoordinator
+    @State private var errorAlertReason: String?
 
     var body: some View {
         Group {
@@ -12,16 +14,40 @@ struct ContentView: View {
                 dashboard
             }
         }
+        .alert(
+            "Refresh failed",
+            isPresented: Binding(
+                get: { errorAlertReason != nil },
+                set: { presented in
+                    if !presented { errorAlertReason = nil }
+                }
+            ),
+            presenting: errorAlertReason
+        ) { _ in
+            Button("Retry") {
+                errorAlertReason = nil
+                refreshCoordinator.requestRefresh()
+            }
+            Button("Dismiss", role: .cancel) {
+                errorAlertReason = nil
+            }
+        } message: { reason in
+            Text(reason)
+        }
     }
 
     // MARK: - Dashboard
 
     private var dashboard: some View {
-        ringLayer
+        VStack(spacing: 0) {
+            ringLayer
+            refreshFooter
+                .padding(.top, 4)
+        }
     }
 
     private var ringLayer: some View {
-        TimelineView(.periodic(from: Date(), by: 60)) { _ in
+        TimelineView(.periodic(from: Date(), by: 60)) { context in
             ZStack {
                 TempoUsageRing(
                     sessionProgress: store.usageState.utilization5h,
@@ -58,17 +84,116 @@ struct ContentView: View {
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(ClaudeCodeTheme.accent)
                     }
+
+                    // Freshness indicator
+                    freshnessLabel(now: context.date)
                 }
             }
         }
     }
 
+    // MARK: - Freshness Indicator
+
+    @ViewBuilder
+    private func freshnessLabel(now: Date) -> some View {
+        if let lastReceived = store.lastRelayReceivedAtForActiveAccount {
+            Text(Self.relativeUpdatedLabel(from: lastReceived, now: now))
+                .font(.system(size: 9, weight: .regular, design: .rounded))
+                .foregroundStyle(ClaudeCodeTheme.textTertiary)
+                .padding(.top, 2)
+        }
+    }
+
+    private static func relativeUpdatedLabel(from date: Date, now: Date) -> String {
+        let delta = now.timeIntervalSince(date)
+        if delta < 60 {
+            return "Updated just now"
+        }
+        let formatter = relativeFormatter
+        let formatted = formatter.localizedString(for: date, relativeTo: now)
+        return "Updated \(formatted)"
+    }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    // MARK: - Refresh Footer
+
+    private var refreshFooter: some View {
+        HStack {
+            Spacer()
+            refreshButton
+            Spacer()
+        }
+    }
+
+    private var refreshButton: some View {
+        Button {
+            handleRefreshTap()
+        } label: {
+            refreshIcon
+        }
+        .buttonStyle(.plain)
+        .disabled(!isRefreshEnabled)
+        .opacity(isRefreshEnabled ? 1.0 : 0.4)
+        .accessibilityLabel("Refresh usage")
+        .accessibilityValue(accessibilityValueForRefresh)
+        .frame(width: 32, height: 32)
+    }
+
+    @ViewBuilder
+    private var refreshIcon: some View {
+        switch refreshCoordinator.state {
+        case .inProgress:
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(ClaudeCodeTheme.accent)
+                .symbolEffect(.rotate, options: .repeating)
+        case .error:
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 7, height: 7)
+                    .offset(x: 2, y: -2)
+                    .accessibilityHidden(true)
+            }
+        case .idle:
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(ClaudeCodeTheme.textPrimary)
+        }
+    }
+
+    private var isRefreshEnabled: Bool {
+        guard !store.hasNoActiveAccount else { return false }
+        return store.activeAccountId != nil
+    }
+
+    private var accessibilityValueForRefresh: String {
+        switch refreshCoordinator.state {
+        case .idle: return "Idle"
+        case .inProgress: return "Refreshing"
+        case .error(let reason): return "Error: \(reason)"
+        }
+    }
+
+    private func handleRefreshTap() {
+        switch refreshCoordinator.state {
+        case .error(let reason):
+            errorAlertReason = reason
+        case .idle, .inProgress:
+            refreshCoordinator.requestRefresh()
+        }
+    }
+
     // MARK: - No Accounts State
 
-    /// Rendered in place of the ring when the iPhone has relayed
-    /// `NoActiveAccount`. Matches design.md "Watch UX": a simple glyph plus
-    /// instructional text pointing the user back to the Mac app, since the
-    /// watch cannot add or pick accounts on its own.
     private var noAccountsState: some View {
         VStack(spacing: 8) {
             Image(systemName: "person.crop.circle.badge.questionmark")
@@ -101,6 +226,8 @@ struct ContentView: View {
 }
 
 #Preview("Dashboard") {
-    ContentView()
-        .environment(TokenStore())
+    let store = TokenStore()
+    return ContentView()
+        .environment(store)
+        .environment(WatchRefreshCoordinator(store: store))
 }
