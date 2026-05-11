@@ -7,13 +7,13 @@ A macOS menu bar app that tracks your Claude Code token and credit usage in real
 [![Security - Dependency Review](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/tenondecrpc/tempo-for-claude/actions/workflows/dependency-review.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Join the beta
+## Download
 
-Want early access to new Tempo builds? You can join the public beta on TestFlight here:
+Tempo is available on the App Store:
 
-**[Join the Tempo beta on TestFlight](https://testflight.apple.com/join/1VJBBtVS)**
+**[Download Tempo for Claude on the App Store](https://apps.apple.com/us/app/tempo-for-claude/id6762001047)**
 
-Install the app, try it on your devices, and send feedback while features are still evolving.
+Install the app on your Apple devices and keep usage tracking in sync through iCloud.
 
 ## Why this repo is trustworthy
 
