@@ -571,7 +571,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Tempo/Tempo-sim.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -592,7 +592,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -618,7 +618,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "Tempo/Tempo-sim.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -639,7 +639,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -664,7 +664,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo Watch/Tempo Watch.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -674,7 +674,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -701,7 +701,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo Watch/Tempo Watch.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -711,7 +711,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -740,7 +740,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -767,7 +767,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = TempoForClaude;
 				REGISTER_APP_GROUPS = YES;
@@ -790,7 +790,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -817,7 +817,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = TempoForClaude;
 				REGISTER_APP_GROUPS = YES;
@@ -838,7 +838,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo iOS Widget/Tempo iOS Widget.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -850,7 +850,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).ioswidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -873,7 +873,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo iOS Widget/Tempo iOS Widget.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -885,7 +885,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).ioswidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -908,7 +908,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo macOS Widget/Tempo macOS Widget.entitlements";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -921,7 +921,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).macwidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -943,7 +943,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Tempo macOS Widget/Tempo macOS Widget.entitlements";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = R245G8D22A;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -956,7 +956,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(TEMPO_BASE_BUNDLE_IDENTIFIER).macwidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
