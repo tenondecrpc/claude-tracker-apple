@@ -135,6 +135,41 @@ final class AppCoordinator {
                 store?.updateWatchState(isPaired: isPaired, isInstalled: isInstalled)
             }
         }
+        relay.onFreshRelayRequested = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                DevLog.trace(
+                    "AlertTrace",
+                    "TempoApp handling RequestFreshRelay from watch"
+                )
+                self.iCloudReader.restart()
+                // Re-send the active account's cached state immediately
+                // so the watch gets data even if the iCloud file hasn't
+                // changed (the restart will fire onUsageState again if
+                // it has). If no active account or no cached usage, send
+                // NoActiveAccount so the watch clears stale state.
+                if let state = self.store.usage {
+                    let appearanceMode = self.store.appearanceMode
+                    self.relay.send(
+                        state,
+                        history: self.store.historySnapshots,
+                        alertPreferences: self.store.sessionAlertPreferences,
+                        appearanceMode: appearanceMode,
+                        accountLabel: state.accountId
+                    )
+                    DevLog.trace(
+                        "AlertTrace",
+                        "TempoApp re-relayed usage for RequestFreshRelay accountId=\(state.accountId)"
+                    )
+                } else {
+                    self.relay.sendNoActiveAccount()
+                    DevLog.trace(
+                        "AlertTrace",
+                        "TempoApp sent NoActiveAccount for RequestFreshRelay (no cached usage)"
+                    )
+                }
+            }
+        }
         store.onSessionAlertPreferencesChange = { [weak relay, weak phoneAlertManager, weak store] preferences in
             DevLog.trace(
                 "AlertTrace",

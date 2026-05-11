@@ -12,16 +12,19 @@ final class WatchAppCoordinator {
     let store: TokenStore
     let alertManager: WatchAlertManager
     let receiver: WatchSessionReceiver
+    let refreshCoordinator: WatchRefreshCoordinator
     private var hasStartedAlerts = false
 
     init() {
         let store = TokenStore()
         let alertManager = WatchAlertManager()
         let receiver = WatchSessionReceiver(store: store, alertManager: alertManager)
+        let refreshCoordinator = WatchRefreshCoordinator(store: store)
 
         self.store = store
         self.alertManager = alertManager
         self.receiver = receiver
+        self.refreshCoordinator = refreshCoordinator
 
         alertManager.onAlertStateChange = { [weak store] enabled in
             Task { @MainActor in
@@ -38,6 +41,13 @@ final class WatchAppCoordinator {
             hasStartedAlerts = true
             alertManager.syncAuthorization(enabledInPreferences: store.watchAlertsEnabledInPreferences)
         }
+
+        // Request fresh data from iPhone on foreground activation.
+        // Per spec scenario "Scene becomes active without account":
+        // do NOT request when activeAccountId is nil or hasNoActiveAccount.
+        if store.activeAccountId != nil, !store.hasNoActiveAccount {
+            refreshCoordinator.requestRefresh()
+        }
     }
 }
 
@@ -51,11 +61,15 @@ struct Tempo_WatchApp: App {
             RootView()
                 .applyClaudeAppearance(coordinator.store.appearanceMode)
                 .environment(coordinator.store)
+                .environment(coordinator.refreshCoordinator)
                 .task {
                     coordinator.onScenePhaseChange(scenePhase)
                 }
                 .onChange(of: scenePhase) { _, phase in
                     coordinator.onScenePhaseChange(phase)
+                }
+                .onChange(of: coordinator.store.lastRelayReceivedAt) { _, _ in
+                    coordinator.refreshCoordinator.checkForFreshRelay()
                 }
         }
     }

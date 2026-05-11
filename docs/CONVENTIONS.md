@@ -162,6 +162,29 @@ The iPhone is the sole source of truth for the watch's active account. `Tempo/Wa
 
 Completion alerts on the watch are gated on an active-account match. Sessions tagged with `AccountIdentifier.unassignedAccountId` (CLI-only) are exempted from the gate because they have no owning account.
 
+### Watch On-Demand Refresh
+
+The watch cannot access iCloud Drive directly (watchOS does not provision ubiquity containers for third-party apps). Instead, the watch requests fresh data from the iPhone via WatchConnectivity `sendMessage`.
+
+**Flow:**
+1. Watch scene becomes `.active` or user taps the refresh button.
+2. `WatchRefreshCoordinator` checks `WCSession.default.isReachable`. If not reachable, transitions to `.error("iPhone not reachable")`.
+3. Watch sends `["type": "RequestFreshRelay"]` via `sendMessage(replyHandler:errorHandler:)`.
+4. iPhone's `WatchRelayManager.session(_:didReceiveMessage:replyHandler:)` receives the message, replies `["ok": true]`, and fires `onFreshRelayRequested`.
+5. `AppCoordinator` handles the callback: calls `iCloudUsageReader.restart()` to pick up any iCloud changes, then immediately re-sends the active account's cached `UsageState` via `relay.send(_:)`.
+6. Watch receives the fresh `UsageState` via the normal `didReceiveApplicationContext` path in `WatchSessionReceiver`, which calls `TokenStore.apply(_:)`.
+7. `WatchRefreshCoordinator` detects that `TokenStore.lastRelayReceivedAt` updated after the request was sent and transitions to `.idle`.
+
+**Timeout:** 10 seconds. If no fresh relay arrives, the coordinator transitions to `.error("No response from iPhone")`.
+
+**UI:** The dashboard shows a centered refresh button below the ring with three visual states (idle/rotating/error with red badge) and a "Updated Xm ago" freshness label inside the ring center.
+
+**Constraints:**
+- Requires iPhone to be reachable (Bluetooth/WiFi range, not in airplane mode).
+- `sendMessage` wakes a suspended iOS app but cannot wake a force-killed app.
+- No timer or background refresh on the watch. Fires only on scene activation and user tap.
+- `SessionInfo` completion events remain `transferUserInfo`-only and are not affected by this mechanism.
+
 ### Widget Snapshots
 
 Widget snapshot storage lives in `Shared/WidgetUsageSnapshot.swift`. Snapshots are per-account, keyed by canonical `accountId`, and a separate pointer file names the active account.
