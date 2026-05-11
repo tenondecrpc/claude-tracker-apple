@@ -45,6 +45,11 @@ final class WatchRelayManager: NSObject {
     /// Called on arbitrary queue when paired/installed state changes.
     var onWatchStateChange: ((_ isPaired: Bool, _ isWatchAppInstalled: Bool) -> Void)?
 
+    /// Called when the watch sends a `RequestFreshRelay` message via
+    /// `sendMessage`. The iPhone should restart its iCloud reader and
+    /// re-relay the active account's usage state.
+    var onFreshRelayRequested: (() -> Void)?
+
     // MARK: - Activation (Task 5.2)
 
     func activate() {
@@ -404,6 +409,28 @@ extension WatchRelayManager: WCSessionDelegate {
         flushPendingNoActiveAccountIfPossible()
         flushPendingAppearanceModeIfPossible()
         flushPendingSessionsIfPossible()
+    }
+
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any],
+        replyHandler: @escaping ([String: Any]) -> Void
+    ) {
+        guard let type = message["type"] as? String else {
+            replyHandler(["ok": false, "reason": "missing type"])
+            return
+        }
+        switch type {
+        case "RequestFreshRelay":
+            DevLog.trace(
+                "AlertTrace",
+                "WatchRelayManager received RequestFreshRelay from watch"
+            )
+            replyHandler(["ok": true])
+            onFreshRelayRequested?()
+        default:
+            replyHandler(["ok": false, "reason": "unknown type"])
+        }
     }
 }
 

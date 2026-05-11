@@ -38,6 +38,7 @@ Important constraints:
 - `Tempo Watch/WatchSessionReceiver.swift` activates `WCSession` and applies usage payloads.
 - `Tempo Watch/TokenStore.swift` owns live usage and usage-history state.
 - `Tempo Watch/ContentView.swift`, `Tempo Watch/TrendView.swift`, and `Tempo Watch Widget/UsageGaugeWidget.swift` surface live usage on the watch.
+- `Tempo Watch/WatchRefreshCoordinator.swift` sends `RequestFreshRelay` to the iPhone on scene activation and user tap, enabling on-demand data refresh without waiting for the next passive relay cycle. The dashboard shows a refresh button with idle/in-progress/error states and a "Updated Xm ago" freshness indicator.
 
 ### Phase 3 - Session completion detection on macOS
 **Status**: Complete
@@ -85,6 +86,7 @@ Scope delivered:
 - watch Trend and Sessions tabs, plus an accessory circular widget.
 - Light mode with Dark / Light / System appearance picker (macOS), synced via iCloud to iOS and watchOS.
 - Instantaneous burn rate display on macOS popover and iOS dashboard.
+- Watch on-demand refresh: refresh button in the dashboard footer, "Updated Xm ago" freshness label, and `RequestFreshRelay` message to iPhone for immediate data pull on scene activation or user tap.
 
 ## Open Roadmap
 
