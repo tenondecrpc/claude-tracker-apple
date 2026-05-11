@@ -26,17 +26,21 @@ When the received `accountId` differs from the `accountId` the watch currently r
 - **WHEN** a context update arrives for the same `accountId` currently displayed
 - **THEN** the usage ring updates but no pending completion sheet is dismissed
 ## Requirements
-### Requirement: Dashboard hosts refresh button footer
-The dashboard SHALL embed the refresh button described in `watch-refresh-ui` in a centered footer row below the usage ring. The footer SHALL be part of the main dashboard layout, not a floating overlay.
+### Requirement: Dashboard hosts compact footer with timestamp and refresh
+The dashboard SHALL embed a compact footer row below the usage ring containing the freshness timestamp on the left and the refresh button on the right. The ring center contains only the percentage and "5H" label (no timestamp inside the ring). This maximizes ring size on the small watch display.
 
-#### Scenario: Footer visible below ring
+#### Scenario: Compact footer visible below ring
 - **WHEN** the dashboard renders with any state
-- **THEN** the refresh button footer is visible below the ring
+- **THEN** a single-line footer with timestamp (left) and refresh icon (right) is visible below the ring
 
-### Requirement: Dashboard shows freshness indicator inside ring center
-The dashboard SHALL display a compact "Updated Xm ago" label inside the ring's center VStack, below the metric labels. The label is driven by `TokenStore.lastRelayReceivedAt`.
+### Requirement: Freshness indicator uses compact format in footer
+The dashboard SHALL display a compact relative time label in the footer (left side) using the format: "now" (< 60s), "Xm" (minutes), "Xh" (hours). A small clock icon precedes the text. The label is driven by `TokenStore.lastRelayReceivedAtForActiveAccount`.
 
-#### Scenario: Freshness label positioned inside ring
-- **WHEN** the dashboard renders with a known last-relay timestamp
-- **THEN** the "Updated Xm ago" label appears inside the ring center below "5H"
+#### Scenario: Freshness label in footer with recent data
+- **WHEN** the last relay was received less than 60 seconds ago
+- **THEN** the footer shows a clock icon followed by "now"
+
+#### Scenario: Freshness label with stale data
+- **WHEN** the last relay was received 5 minutes ago
+- **THEN** the footer shows a clock icon followed by "5m"
 

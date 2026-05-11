@@ -27,7 +27,7 @@ import Foundation
 // are NOT percent-encoded. Percent-encoding is only applied when an
 // `accountId` is used as a directory name via
 // `AccountIdentifier.percentEncodedDirectoryName(for:)`.
-struct AccountsIndexFile: Codable, Equatable {
+nonisolated struct AccountsIndexFile: Codable, Equatable {
     let accountIds: [String]
     let updatedAt: Date
 }

@@ -3,12 +3,12 @@
 ## Purpose
 TBD - created by archiving change watch-on-demand-relay-refresh. Update Purpose after archive.
 ## Requirements
-### Requirement: Dashboard shows a refresh button in a bottom footer
-The watch dashboard SHALL display a refresh icon button (`arrow.clockwise`) centered in a footer row below the usage ring. The button SHALL be visible in all dashboard states but disabled when `activeAccountId` is nil or `hasNoActiveAccount` is true.
+### Requirement: Dashboard shows a refresh button in the compact footer
+The watch dashboard SHALL display a refresh icon button (`arrow.clockwise`) on the right side of a compact footer row below the usage ring. The left side of the footer shows the freshness timestamp. The button SHALL be visible in all dashboard states but disabled when `activeAccountId` is nil or `hasNoActiveAccount` is true.
 
 #### Scenario: Button visible with active account
 - **WHEN** the dashboard renders with a known `activeAccountId`
-- **THEN** the refresh button is visible and enabled
+- **THEN** the refresh button is visible and enabled on the right side of the footer
 
 #### Scenario: Button disabled without active account
 - **WHEN** the dashboard renders with `hasNoActiveAccount` true
@@ -36,20 +36,20 @@ Tapping the refresh button while in `.error` state SHALL present a short alert w
 - **WHEN** the user taps the button while in `.error` state
 - **THEN** an alert shows the error reason and a new `RequestFreshRelay` is sent after dismissal
 
-### Requirement: Dashboard shows freshness indicator
-The dashboard SHALL display a compact "Updated Xm ago" label inside the ring center, below the metric labels. The timestamp is driven by `TokenStore.lastRelayReceivedAt` for the active account.
+### Requirement: Freshness indicator uses compact format in footer
+The dashboard SHALL display a compact relative time label on the left side of the footer row, preceded by a small clock icon. Format: "now" (< 60s), "Xm" (minutes), "Xh" (hours). The timestamp is driven by `TokenStore.lastRelayReceivedAtForActiveAccount`.
 
 #### Scenario: Fresh data
 - **WHEN** the last relay was received less than 60 seconds ago
-- **THEN** the label shows "Updated just now"
+- **THEN** the footer label shows clock icon + "now"
 
 #### Scenario: Stale data
 - **WHEN** the last relay was received 5 minutes ago
-- **THEN** the label shows "Updated 5m ago"
+- **THEN** the footer label shows clock icon + "5m"
 
 #### Scenario: No data ever received
 - **WHEN** no `UsageState` has been applied for the active account
-- **THEN** no freshness label is shown
+- **THEN** no freshness label is shown in the footer
 
 ### Requirement: Accessibility for refresh control
 The refresh button SHALL have `.accessibilityLabel("Refresh usage")` and `.accessibilityValue` reflecting the current state (idle/refreshing/error reason).
