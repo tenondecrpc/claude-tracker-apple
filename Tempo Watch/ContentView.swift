@@ -41,54 +41,62 @@ struct ContentView: View {
     private var dashboard: some View {
         VStack(spacing: 0) {
             ringLayer
-            refreshFooter
+            compactFooter
                 .padding(.top, 4)
         }
     }
 
     private var ringLayer: some View {
-        TimelineView(.periodic(from: Date(), by: 60)) { context in
-            ZStack {
-                TempoUsageRing(
-                    sessionProgress: store.usageState.utilization5h,
-                    weeklyProgress: store.usageState.utilization7d
-                )
-                .padding(4)
-                .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization5h)
-                .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization7d)
+        ZStack {
+            TempoUsageRing(
+                sessionProgress: store.usageState.utilization5h,
+                weeklyProgress: store.usageState.utilization7d
+            )
+            .padding(4)
+            .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization5h)
+            .animation(.easeInOut(duration: 0.4), value: store.usageState.utilization7d)
 
-                VStack(spacing: 2) {
-                    // Large center percentage - primary 5H session metric
-                    Text("\(Int(store.usageState.utilization5h * 100))%")
-                        .font(.system(.title, design: .rounded))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(sessionColor(utilization: store.usageState.utilization5h))
+            VStack(spacing: 2) {
+                // Large center percentage - primary 5H session metric
+                Text("\(Int(store.usageState.utilization5h * 100))%")
+                    .font(.system(.title, design: .rounded))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(sessionColor(utilization: store.usageState.utilization5h))
 
-                    // Metric label - clarifies which ring the % refers to
-                    Text("5H")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(ClaudeCodeTheme.textSecondary)
+                // Metric label - clarifies which ring the % refers to
+                Text("5H")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(ClaudeCodeTheme.textSecondary)
 
-                    // Extra usage badge
-                    if store.usageState.isUsingExtraUsage {
-                        Text("Extra")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(ClaudeCodeTheme.info)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(ClaudeCodeTheme.info.opacity(0.2), in: Capsule())
-                    }
+                // Extra usage badge
+                if store.usageState.isUsingExtraUsage {
+                    Text("Extra")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(ClaudeCodeTheme.info)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(ClaudeCodeTheme.info.opacity(0.2), in: Capsule())
+                }
 
-                    if store.usageState.isMocked {
-                        Text("⚠ mock")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(ClaudeCodeTheme.accent)
-                    }
-
-                    // Freshness indicator
-                    freshnessLabel(now: context.date)
+                if store.usageState.isMocked {
+                    Text("⚠ mock")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(ClaudeCodeTheme.accent)
                 }
             }
+        }
+    }
+
+    // MARK: - Compact Footer (timestamp + refresh)
+
+    private var compactFooter: some View {
+        TimelineView(.periodic(from: Date(), by: 60)) { context in
+            HStack {
+                freshnessLabel(now: context.date)
+                Spacer()
+                refreshButton
+            }
+            .padding(.horizontal, 4)
         }
     }
 
@@ -97,36 +105,27 @@ struct ContentView: View {
     @ViewBuilder
     private func freshnessLabel(now: Date) -> some View {
         if let lastReceived = store.lastRelayReceivedAtForActiveAccount {
-            Text(Self.relativeUpdatedLabel(from: lastReceived, now: now))
-                .font(.system(size: 9, weight: .regular, design: .rounded))
-                .foregroundStyle(ClaudeCodeTheme.textTertiary)
-                .padding(.top, 2)
+            HStack(spacing: 3) {
+                Image(systemName: "clock")
+                    .font(.system(size: 9, weight: .medium))
+                Text(Self.compactRelativeLabel(from: lastReceived, now: now))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            }
+            .foregroundStyle(ClaudeCodeTheme.textTertiary)
         }
     }
 
-    private static func relativeUpdatedLabel(from date: Date, now: Date) -> String {
+    /// Compact relative time label: "now", "2m", "1h", "3h"
+    private static func compactRelativeLabel(from date: Date, now: Date) -> String {
         let delta = now.timeIntervalSince(date)
         if delta < 60 {
-            return "Updated just now"
-        }
-        let formatter = relativeFormatter
-        let formatted = formatter.localizedString(for: date, relativeTo: now)
-        return "Updated \(formatted)"
-    }
-
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter
-    }()
-
-    // MARK: - Refresh Footer
-
-    private var refreshFooter: some View {
-        HStack {
-            Spacer()
-            refreshButton
-            Spacer()
+            return "now"
+        } else if delta < 3600 {
+            let minutes = Int(delta / 60)
+            return "\(minutes)m"
+        } else {
+            let hours = Int(delta / 3600)
+            return "\(hours)h"
         }
     }
 
@@ -141,7 +140,7 @@ struct ContentView: View {
         .opacity(isRefreshEnabled ? 1.0 : 0.4)
         .accessibilityLabel("Refresh usage")
         .accessibilityValue(accessibilityValueForRefresh)
-        .frame(width: 32, height: 32)
+        .frame(width: 28, height: 28)
     }
 
     @ViewBuilder
@@ -149,23 +148,23 @@ struct ContentView: View {
         switch refreshCoordinator.state {
         case .inProgress:
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(ClaudeCodeTheme.accent)
                 .symbolEffect(.rotate, options: .repeating)
         case .error:
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(ClaudeCodeTheme.textPrimary)
                 Circle()
                     .fill(Color.red)
-                    .frame(width: 7, height: 7)
+                    .frame(width: 6, height: 6)
                     .offset(x: 2, y: -2)
                     .accessibilityHidden(true)
             }
         case .idle:
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(ClaudeCodeTheme.textPrimary)
         }
     }

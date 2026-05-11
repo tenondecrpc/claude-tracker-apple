@@ -117,7 +117,7 @@ struct PreferencesWindowView: View {
             }
 
             // Accounts card: list every registered Anthropic account with
-            // per-row sign-out, and a "Switch account..." footer that hands
+            // per-row sign-out, and a "Switch account" footer that hands
             // off to the Welcome window via the existing
             // `authState.requiresExplicitSignIn` onChange hook in
             // `TempoMacApp.swift`.
@@ -152,7 +152,7 @@ struct PreferencesWindowView: View {
                         // already registered).
                         coordinator.authState.requiresExplicitSignIn = true
                     } label: {
-                        Label("Switch account...", systemImage: "person.crop.circle.badge.arrow.forward")
+                        Label("Switch account", systemImage: "person.crop.circle.badge.arrow.forward")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -169,16 +169,6 @@ struct PreferencesWindowView: View {
                         ? "Grant access to your ~/.claude folder before enabling session notifications"
                         : "Show an experimental local iPhone alert when a Claude Code task finishes",
                     toggle: $settings.iPhoneAlertsEnabled,
-                    isDisabled: needsClaudeAccess
-                )
-                Divider().overlay(ClaudeCodeTheme.progressTrack)
-                settingsRow(
-                    icon: "applewatch",
-                    title: "Apple Watch Notifications",
-                    subtitle: needsClaudeAccess
-                        ? "Grant access to your ~/.claude folder before enabling watch relay alerts"
-                        : "Relay experimental local completion alerts from iPhone to Apple Watch",
-                    toggle: $settings.watchAlertsEnabled,
                     isDisabled: needsClaudeAccess
                 )
                 Divider().overlay(ClaudeCodeTheme.progressTrack)

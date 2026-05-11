@@ -262,7 +262,7 @@ struct DashboardPopoverView: View {
                 Divider()
             }
 
-            Button("Switch account...") {
+            Button("Switch account") {
                 // Route through the existing onChange hook in
                 // `TempoMacApp.swift`, which closes the current window and
                 // opens the Welcome window when `requiresExplicitSignIn`
