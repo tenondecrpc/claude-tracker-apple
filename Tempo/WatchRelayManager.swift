@@ -258,7 +258,7 @@ final class WatchRelayManager: NSObject {
     /// callers that do not have an active-account concept still work.
     ///
     /// The `accountLabel` piggybacks on the payload so the watch's
-    /// `CompletionView` can display which account completed (task 7.4).
+    /// session view can display which account completed (task 7.4).
     /// We intentionally use a mutable default to stay source-compatible
     /// with the legacy call sites in `flushPendingSessionsIfPossible`.
     func sendSession(

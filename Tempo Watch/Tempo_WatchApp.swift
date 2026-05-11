@@ -10,37 +10,21 @@ import SwiftUI
 @MainActor
 final class WatchAppCoordinator {
     let store: TokenStore
-    let alertManager: WatchAlertManager
     let receiver: WatchSessionReceiver
     let refreshCoordinator: WatchRefreshCoordinator
-    private var hasStartedAlerts = false
 
     init() {
         let store = TokenStore()
-        let alertManager = WatchAlertManager()
-        let receiver = WatchSessionReceiver(store: store, alertManager: alertManager)
+        let receiver = WatchSessionReceiver(store: store)
         let refreshCoordinator = WatchRefreshCoordinator(store: store)
 
         self.store = store
-        self.alertManager = alertManager
         self.receiver = receiver
         self.refreshCoordinator = refreshCoordinator
-
-        alertManager.onAlertStateChange = { [weak store] enabled in
-            Task { @MainActor in
-                store?.setNotificationsEnabled(enabled)
-            }
-        }
     }
 
     func onScenePhaseChange(_ phase: ScenePhase) {
         guard phase == .active else { return }
-        if hasStartedAlerts {
-            alertManager.refreshAlertState(enabledInPreferences: store.watchAlertsEnabledInPreferences)
-        } else {
-            hasStartedAlerts = true
-            alertManager.syncAuthorization(enabledInPreferences: store.watchAlertsEnabledInPreferences)
-        }
 
         // Request fresh data from iPhone on foreground activation.
         // Per spec scenario "Scene becomes active without account":
@@ -79,7 +63,6 @@ struct RootView: View {
     @Environment(TokenStore.self) private var store
 
     var body: some View {
-        @Bindable var bindableStore = store
         TabView {
             ContentView()
                 .tag(0)
@@ -89,8 +72,5 @@ struct RootView: View {
                 .tag(2)
         }
         .tabViewStyle(.verticalPage)
-        .sheet(item: $bindableStore.pendingCompletion) { (item: SessionInfo) in
-            CompletionView(session: item)
-        }
     }
 }

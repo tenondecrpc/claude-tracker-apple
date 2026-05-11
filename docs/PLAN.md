@@ -11,7 +11,7 @@ This is the single planning document for the project.
 Tempo currently runs three connected flows:
 
 1. **Usage pipeline** - macOS OAuth poller -> iCloud `usage.json` + `usage-history.json` -> iOS `NSMetadataQuery` -> WatchConnectivity -> watch usage surfaces and widgets.
-2. **Session pipeline** - macOS `SessionEventWriter` reads completed Claude Code sessions from `~/.claude/projects/*.jsonl`, writes `latest.json`, iOS relays `SessionInfo`, and iPhone/watchOS present local completion notifications.
+2. **Session pipeline** - macOS `SessionEventWriter` reads completed Claude Code sessions from `~/.claude/projects/*.jsonl`, writes `latest.json` to iCloud, iOS `NSMetadataQuery` detects the file (only while app is alive), `PhoneAlertManager` schedules a local notification, and `WatchRelayManager` relays `SessionInfo` to watchOS for display in the Sessions tab.
 3. **Local stats pipeline** - macOS `ClaudeLocalDBReader` reads `~/.claude/` directly for activity heatmaps, project stats, model totals, and subagent counts in the detail window.
 
 Important constraints:
@@ -19,7 +19,7 @@ Important constraints:
 - The Anthropic OAuth API is the authoritative source for `utilization5h`, `utilization7d`, `resetAt5h`, and `resetAt7d`.
 - Claude local data is the authoritative source for session history and completion detection in the current repo.
 - Tempo OAuth credentials are the preferred source for usage API authentication. A fresh Claude Code CLI access token may be used as a read-only fallback, but Tempo never refreshes, writes, or deletes Claude Code credentials. See `docs/AUTH_FLOW.md`.
-- Tempo does not run a custom backend today. Alerts are local and depend on iCloud sync plus the iPhone/watch relay.
+- Tempo does not run a custom backend today. iPhone notifications are local-only (`UNNotificationRequest` scheduled on-device) and require the iOS app to be alive in memory. There is no push infrastructure, no APNs, and no background wake mechanism. Delivery is unreliable when the app is closed.
 
 ## Completed Foundation
 
@@ -48,18 +48,28 @@ Important constraints:
 - `Tempo macOS/ClaudeLocalDBReader.swift` powers richer local Claude Code stats from `~/.claude/`.
 
 ### Phase 4 - iOS session relay
-**Status**: Complete
+**Status**: Complete (local-only, significant limitations)
 
-- `Tempo/iCloudUsageReader.swift` watches `latest.json`.
+- `Tempo/iCloudUsageReader.swift` watches `latest.json` via `NSMetadataQuery`.
 - `Tempo/WatchRelayManager.swift` relays `SessionInfo` via `transferUserInfo(_:)`.
 - `Tempo/PhoneAlertManager.swift` handles local iPhone completion notifications.
 
-### Phase 5 - watchOS completion alerts
-**Status**: Complete
+**Current notification limitations:**
 
-- `Tempo Watch/WatchSessionReceiver.swift` routes `SessionInfo`.
-- `Tempo Watch/WatchAlertManager.swift` schedules local watch notifications.
-- `Tempo Watch/CompletionView.swift` presents completed-session details.
+The iPhone notification system is local-only and has fundamental delivery constraints:
+
+1. **Requires the iOS app to be alive** - `NSMetadataQuery` only fires while the app process is in memory (foreground or suspended). If the user force-quits the app, or iOS reclaims memory under pressure, no session completion is detected and no notification is scheduled.
+2. **No background wake mechanism** - There is no `BGTaskScheduler`, no silent push, and no background fetch configured. The app has no way to wake itself when a new `latest.json` arrives in iCloud.
+3. **Latency depends on iCloud sync** - Even when the app is alive, delivery depends on iCloud Drive propagation speed, which can range from seconds to minutes depending on network conditions and Apple's sync scheduling.
+4. **Not a real push notification** - Despite appearing as a banner, it is a `UNNotificationRequest` with `trigger: nil` (immediate local delivery). There is no APNs involvement, no device token, and no server-side dispatch.
+5. **Watch delivery only via iOS mirror** - The watch no longer has its own notification system. Watch banners only appear if iOS notification mirroring is enabled in the Watch app settings and the iPhone notification fires while the phone is locked.
+
+In practice, this means notifications are unreliable for the primary use case (knowing when a long-running Claude Code session finishes while away from the Mac). The user must keep the Tempo iOS app in memory for any chance of delivery. See "Desired: CloudKit Push Notifications" in the backlog section for the planned replacement.
+
+### Phase 5 - watchOS completion alerts
+**Status**: Removed
+
+Watch-side local notifications (`WatchAlertManager`) and the in-app completion sheet (`CompletionView`) were removed. The watch still receives `SessionInfo` payloads and displays session data in the Sessions tab, but no longer presents any notification or popup overlay. The rationale: the user can see session data directly in the watch UI without interruption.
 
 ### Multi-account support
 **Status**: Complete
@@ -147,7 +157,6 @@ Scope delivered:
 ## Out Of Scope For Current Phases
 
 - Cross-platform transport replacement for iCloud, if Tempo ever targets Windows or non-Apple sync paths.
-- Dedicated server push delivery for session completion. Current notifications remain local-only.
 
 ## Security Hardening
 
@@ -164,4 +173,57 @@ All findings from the 2026-05-03 security audit (items #1-#9) are implemented. T
 7. **Codex / Claude API key support** - Support usage tracking for users working through raw API keys instead of OAuth.
 8. **All Accounts dashboard** - Aggregate usage across multiple Claude accounts or workspaces in a single combined view. Multi-account support is shipped; this item covers the cross-account aggregation surface that was intentionally left out of scope (no "combined usage" views ship with multi-account).
 9. **Per-account display-name editing** - Allow users to rename an account's display label (accountId itself remains immutable). Surfaced as a future enhancement in the multi-account design.
-10. **Dedicated-server push notifications for Claude Code replies** - Detect Claude Code reply completion on macOS and send the event to a dedicated push server that owns device registration, APNs credentials, and delivery to iPhone and watch. Keep this as a future backlog item, not part of the current committed phases.
+10. **CloudKit push notifications for session completion** - Replace the current local-only notification system with CloudKit subscriptions to deliver real push notifications to iPhone (and by mirror, to Apple Watch) even when the iOS app is fully closed. See "Desired: CloudKit Push Notifications" section below for full design rationale.
+
+## Desired: CloudKit Push Notifications
+
+### Problem
+
+The current notification system relies on `NSMetadataQuery` in the iOS app to detect new session files in iCloud Drive. This only works while the app process is alive (foreground or suspended in memory). If the user kills the app or iOS reclaims memory, no notification is delivered.
+
+### Proposed Solution: CloudKit Subscriptions
+
+Use CloudKit's private database with `CKQuerySubscription` to receive silent push notifications when the macOS app writes a session completion record. This wakes the iOS app in the background to schedule a local `UNNotificationRequest` that the user sees as a real push.
+
+### Why CloudKit
+
+1. **No custom backend required** - CloudKit is Apple infrastructure. No servers to maintain, no uptime to monitor, no deployment pipeline.
+2. **Zero cost for private database** - Data stored in the user's private CloudKit database counts against their personal iCloud storage quota (5 GB free tier or whatever plan they have). Apple never bills the developer for private database usage.
+3. **Privacy by design** - Private database records are encrypted and accessible only by the authenticated Apple ID owner. The developer cannot read them from the CloudKit Dashboard. No third-party access, no data sharing. Same privacy guarantees as iCloud Drive today.
+4. **Native push delivery** - `CKSubscription` triggers a silent push via APNs without needing device token management, a push server, or APNs certificates for the developer to rotate.
+5. **Works with app closed** - Unlike `NSMetadataQuery`, CloudKit silent pushes wake the app via `application(_:didReceiveRemoteNotification:fetchCompletionHandler:)` even when the process is terminated.
+
+### Architecture
+
+```
+macOS app detects session completion
+    |
+    v
+Writes CKRecord (type: "SessionCompletion") to CloudKit private DB
+    |
+    v
+CloudKit fires CKQuerySubscription push to iPhone
+    |
+    v
+iOS app wakes in background (didReceiveRemoteNotification)
+    |
+    v
+Reads the CKRecord, schedules local UNNotificationRequest
+    |
+    v
+iOS delivers notification banner (mirrors to watch if enabled in iOS Settings)
+```
+
+### Implementation Notes
+
+- The macOS app already has iCloud entitlements. Adding CloudKit container access is a capability toggle in Xcode.
+- The iOS app registers a `CKQuerySubscription` on first launch for record type `SessionCompletion` in the private database.
+- Silent pushes are best-effort (iOS may throttle them in Low Power Mode or under heavy system load), but delivery reliability is significantly better than the current `NSMetadataQuery` approach which requires the app to be alive.
+- The existing iCloud Drive sync for `usage.json` and `usage-history.json` remains unchanged. CloudKit is only used for the session completion push trigger.
+- Watch notifications come for free via iOS notification mirroring - no watch-specific code needed.
+
+### Limitations
+
+- Silent pushes are not 100% guaranteed by iOS. Under extreme conditions (Low Power Mode, heavy background activity) they may be delayed or dropped.
+- Requires the user to be signed into iCloud on both macOS and iOS with the same Apple ID (already a requirement for the current iCloud Drive sync).
+- First-time setup requires the iOS app to register the subscription, which means the app must be launched at least once after install.
