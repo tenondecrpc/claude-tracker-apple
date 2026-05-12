@@ -315,36 +315,53 @@ struct ServiceStatusBannerView: View {
     let state: ServiceHealthState
     let serviceName: String?
 
+    @State private var isHovered = false
+
+    private let statusPageURL = URL(string: "https://status.claude.com/")!
+
     var body: some View {
-        HStack(spacing: 10) {
-            Rectangle()
-                .fill(bannerColor)
-                .frame(width: 3)
-                .clipShape(.rect(cornerRadius: 1.5))
+        Button {
+            NSWorkspace.shared.open(statusPageURL)
+        } label: {
+            HStack(spacing: 10) {
+                Rectangle()
+                    .fill(bannerColor)
+                    .frame(width: 3)
+                    .clipShape(.rect(cornerRadius: 1.5))
 
-            Image(systemName: bannerIcon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(bannerColor)
+                Image(systemName: bannerIcon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(bannerColor)
 
-            Text(bannerLabel)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(ClaudeCodeTheme.textPrimary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-                .multilineTextAlignment(.leading)
+                Text(bannerLabel)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(ClaudeCodeTheme.textPrimary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+                    .multilineTextAlignment(.leading)
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
+
+                Image(systemName: "safari")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(ClaudeCodeTheme.textTertiary)
+                    .opacity(isHovered ? 1 : 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(isHovered ? ClaudeCodeTheme.surface : ClaudeCodeTheme.card)
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(bannerColor.opacity(isHovered ? 0.55 : 0.35), lineWidth: 1)
+            }
+            .clipShape(.rect(cornerRadius: 10))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .background(ClaudeCodeTheme.card)
-        .overlay {
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(bannerColor.opacity(0.35), lineWidth: 1)
-        }
-        .clipShape(.rect(cornerRadius: 10))
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Open Claude Code status page")
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
 
     private var bannerColor: Color {
