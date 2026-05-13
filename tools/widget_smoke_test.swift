@@ -12,6 +12,7 @@ struct WidgetSmokeTest {
         try assertAccountRouteParsing()
         try assertSnapshotRoundTrip()
         try assertMultiAccountSnapshots()
+        try assertTimelineRefreshPolicy()
         try assertAccountIntentPlaceholder()
         try assertBuiltMacWidgetBundle()
         print("Widget smoke test passed")
@@ -272,6 +273,51 @@ struct WidgetSmokeTest {
         }
         if TempoWidgetSnapshotStore.readActiveAccountId(platform: .macOS) != nil {
             throw SmokeFailure(message: "readActiveAccountId still returned an id after pointer was cleared")
+        }
+    }
+
+    private static func assertTimelineRefreshPolicy() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let missingRefresh = WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: nil, now: now)
+        guard missingRefresh == now.addingTimeInterval(60) else {
+            throw SmokeFailure(message: "Missing snapshot retry interval was \(missingRefresh.timeIntervalSince(now))")
+        }
+
+        let freshSnapshot = makeSnapshot(
+            accountId: "fresh@example.com",
+            accountLabel: "Fresh",
+            utilization5h: 0.42,
+            updatedAt: now
+        )
+        let freshRefresh = WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: freshSnapshot, now: now)
+        guard freshRefresh == now.addingTimeInterval(5 * 60) else {
+            throw SmokeFailure(message: "Fresh snapshot refresh interval was \(freshRefresh.timeIntervalSince(now))")
+        }
+
+        let almostStaleSnapshot = makeSnapshot(
+            accountId: "almost-stale@example.com",
+            accountLabel: "Almost Stale",
+            utilization5h: 0.42,
+            updatedAt: now.addingTimeInterval(-(WidgetFreshnessPolicy.staleThreshold - 90))
+        )
+        let almostStaleRefresh = WidgetTimelineRefreshPolicy.nextRefreshDate(
+            snapshot: almostStaleSnapshot,
+            now: now
+        )
+        guard almostStaleRefresh == now.addingTimeInterval(90) else {
+            throw SmokeFailure(message: "Almost stale snapshot refresh interval was \(almostStaleRefresh.timeIntervalSince(now))")
+        }
+
+        let staleSnapshot = makeSnapshot(
+            accountId: "stale@example.com",
+            accountLabel: "Stale",
+            utilization5h: 0.42,
+            updatedAt: now.addingTimeInterval(-(WidgetFreshnessPolicy.staleThreshold + 1))
+        )
+        let staleRefresh = WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: staleSnapshot, now: now)
+        guard staleRefresh == now.addingTimeInterval(15 * 60) else {
+            throw SmokeFailure(message: "Stale snapshot refresh interval was \(staleRefresh.timeIntervalSince(now))")
         }
     }
 

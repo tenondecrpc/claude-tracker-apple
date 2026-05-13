@@ -253,8 +253,7 @@ struct DashboardPopoverView: View {
                     ForEach(accounts) { account in
                         if account.accountId != activeId {
                             Button("Set as active: \(accountMenuLabel(for: account))") {
-                                coordinator.registry.setActive(accountId: account.accountId)
-                                coordinator.poller.syncWorkers()
+                                coordinator.setActiveAccount(accountId: account.accountId)
                             }
                         }
                     }

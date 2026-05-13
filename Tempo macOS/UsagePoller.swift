@@ -78,6 +78,10 @@ final class UsagePoller {
     /// Starts polling for every known account.
     func start() {
         isRunning = true
+        DevLog.trace(
+            "AuthTrace",
+            "UsagePoller start workers=\(workers.count) activeAccountId=\(registry.activeAccountId ?? "nil")"
+        )
         for worker in workers.values {
             worker.start()
         }
@@ -148,6 +152,10 @@ final class UsagePoller {
         for addedId in currentIds.subtracting(existingIds) {
             let worker = makeWorker(for: addedId)
             workers[addedId] = worker
+            DevLog.trace(
+                "AuthTrace",
+                "UsagePoller added worker accountId=\(addedId) isRunning=\(isRunning)"
+            )
             if isRunning {
                 worker.start()
             }

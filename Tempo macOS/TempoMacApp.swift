@@ -133,6 +133,7 @@ final class MacAppCoordinator {
                 self.serviceStatusMonitor.stop()
             }
 
+            self.propagateActiveAccountSelection()
             self.isDemoMode = false
             DevLog.trace(
                 "AuthTrace",
@@ -213,6 +214,7 @@ final class MacAppCoordinator {
             // has data before the first poll lands.
             history.loadAll(accountIds: registry.accounts.map { $0.accountId })
             poller.syncWorkers()
+            propagateActiveAccountSelection()
             poller.start()
             updateServiceStatusMonitoring()
         }
@@ -230,6 +232,7 @@ final class MacAppCoordinator {
         poller.start()
         accountMirror.writeMirror(for: registry)
         history.loadAll(accountIds: registry.accounts.map { $0.accountId })
+        propagateActiveAccountSelection()
         updateServiceStatusMonitoring()
     }
 
@@ -261,6 +264,7 @@ final class MacAppCoordinator {
             extraUsage: nil,
             isDoubleLimitPromoActive: nil
         )
+        propagateActiveAccountSelection()
     }
 
     func exitDemoMode() {
@@ -269,6 +273,13 @@ final class MacAppCoordinator {
         poller.latestUsage = nil
         registry.remove(accountId: Self.demoAccountId)
         poller.syncWorkers()
+        propagateActiveAccountSelection()
+    }
+
+    func setActiveAccount(accountId: String?) {
+        registry.setActive(accountId: accountId)
+        poller.syncWorkers()
+        propagateActiveAccountSelection()
     }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) {
@@ -296,6 +307,10 @@ final class MacAppCoordinator {
     }
 
     private func publishWidgetSnapshot(from usage: UsageState, updatedAt: Date) {
+        DevLog.trace(
+            "AuthTrace",
+            "Publishing macOS widget snapshot accountId=\(usage.accountId) activeAccountId=\(registry.activeAccountId ?? "nil") utilization5h=\(usage.utilization5h) utilization7d=\(usage.utilization7d)"
+        )
         // Resolve the display label from the registry so the widget header
         // can identify which account the snapshot belongs to. Falls back
         // to the raw `accountId` when the account is not (yet) in the
@@ -327,6 +342,42 @@ final class MacAppCoordinator {
             )
         }
         if wroteSnapshot || wrotePointer {
+            TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+        }
+    }
+
+    private func propagateActiveAccountSelection() {
+        guard let activeId = registry.activeAccountId else {
+            DevLog.trace("AuthTrace", "Propagating widget active account cleared")
+            if TempoWidgetSnapshotStore.write(activeAccountId: nil, platform: .macOS) {
+                TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+            }
+            return
+        }
+
+        if let usage = poller.worker(for: activeId)?.latestUsage {
+            DevLog.trace(
+                "AuthTrace",
+                "Propagating widget active account from worker cache accountId=\(activeId)"
+            )
+            publishWidgetSnapshot(from: usage, updatedAt: Date())
+            return
+        }
+
+        if let usage = readLatestUsageFromICloudMirror() {
+            DevLog.trace(
+                "AuthTrace",
+                "Propagating widget active account from iCloud mirror accountId=\(activeId)"
+            )
+            publishWidgetSnapshot(from: usage, updatedAt: Date())
+            return
+        }
+
+        DevLog.trace(
+            "AuthTrace",
+            "Propagating widget active account pointer only accountId=\(activeId)"
+        )
+        if TempoWidgetSnapshotStore.write(activeAccountId: activeId, platform: .macOS) {
             TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
         }
     }
@@ -459,7 +510,7 @@ struct TempoMacApp: App {
                           coordinator.registry.accounts.contains(where: { $0.accountId == accountId }),
                           coordinator.registry.activeAccountId != accountId
                     else { return }
-                    coordinator.registry.setActive(accountId: accountId)
+                    coordinator.setActiveAccount(accountId: accountId)
                 }
         }
         .windowResizability(.contentSize)

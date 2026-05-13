@@ -155,6 +155,28 @@ enum WidgetFreshnessPolicy {
     }
 }
 
+enum WidgetTimelineRefreshPolicy {
+    static let missingSnapshotRetryInterval: TimeInterval = 60
+    static let freshSnapshotRefreshInterval: TimeInterval = 5 * 60
+    static let staleSnapshotRefreshInterval: TimeInterval = 15 * 60
+
+    static func nextRefreshDate(snapshot: WidgetUsageSnapshot?, now: Date = Date()) -> Date {
+        guard let snapshot else {
+            return now.addingTimeInterval(missingSnapshotRetryInterval)
+        }
+
+        switch WidgetFreshnessPolicy.status(updatedAt: snapshot.updatedAt, now: now) {
+        case .fresh:
+            let nextPeriodicRefresh = now.addingTimeInterval(freshSnapshotRefreshInterval)
+            let staleAt = snapshot.updatedAt.addingTimeInterval(WidgetFreshnessPolicy.staleThreshold)
+            let nextRefresh = min(nextPeriodicRefresh, staleAt)
+            return max(now.addingTimeInterval(missingSnapshotRetryInterval), nextRefresh)
+        case .stale:
+            return now.addingTimeInterval(staleSnapshotRefreshInterval)
+        }
+    }
+}
+
 // MARK: - TempoWidgetSnapshotStore
 
 /// Pointer file body describing which accountId widgets should render when
@@ -304,6 +326,10 @@ enum TempoWidgetSnapshotStore {
     static func write(_ snapshot: WidgetUsageSnapshot, platform: TempoWidgetPlatform) -> Bool {
         guard !snapshot.accountId.isEmpty,
               let snapshotURL = snapshotURL(accountId: snapshot.accountId, platform: platform) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot write skipped platform=\(platform.debugName) accountId=\(snapshot.accountId) reason=no-url"
+            )
             return false
         }
 
@@ -311,6 +337,10 @@ enum TempoWidgetSnapshotStore {
         encoder.dateEncodingStrategy = .iso8601
 
         guard let data = try? encoder.encode(snapshot) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot write skipped platform=\(platform.debugName) accountId=\(snapshot.accountId) reason=encode-failed"
+            )
             return false
         }
 
@@ -319,8 +349,16 @@ enum TempoWidgetSnapshotStore {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try data.write(to: snapshotURL, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: snapshotURL.path)
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot wrote platform=\(platform.debugName) path=\(snapshotURL.path) accountId=\(snapshot.accountId) updatedAt=\(snapshot.updatedAt)"
+            )
             return true
         } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot write failed platform=\(platform.debugName) accountId=\(snapshot.accountId) error=\(error.localizedDescription)"
+            )
             return false
         }
     }
@@ -339,6 +377,10 @@ enum TempoWidgetSnapshotStore {
     @discardableResult
     static func write(activeAccountId: String?, platform: TempoWidgetPlatform) -> Bool {
         guard let pointerURL = activeAccountPointerURL(for: platform) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer write skipped platform=\(platform.debugName) accountId=\(activeAccountId ?? "nil") reason=no-url"
+            )
             return false
         }
 
@@ -351,14 +393,26 @@ enum TempoWidgetSnapshotStore {
                 if FileManager.default.fileExists(atPath: pointerURL.path) {
                     try FileManager.default.removeItem(at: pointerURL)
                 }
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget active pointer cleared platform=\(platform.debugName) path=\(pointerURL.path)"
+                )
                 return true
             } catch {
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget active pointer clear failed platform=\(platform.debugName) error=\(error.localizedDescription)"
+                )
                 return false
             }
         }
 
         let encoder = JSONEncoder()
         guard let data = try? encoder.encode(TempoActiveAccountPointer(activeAccountId: normalizedId)) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer write skipped platform=\(platform.debugName) accountId=\(normalizedId ?? "nil") reason=encode-failed"
+            )
             return false
         }
 
@@ -367,8 +421,16 @@ enum TempoWidgetSnapshotStore {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try data.write(to: pointerURL, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: pointerURL.path)
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer wrote platform=\(platform.debugName) path=\(pointerURL.path) accountId=\(normalizedId ?? "nil")"
+            )
             return true
         } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer write failed platform=\(platform.debugName) accountId=\(normalizedId ?? "nil") error=\(error.localizedDescription)"
+            )
             return false
         }
     }
@@ -422,8 +484,23 @@ enum TempoWidgetSnapshotStore {
     #if canImport(WidgetKit)
     static func reloadTimelines(for platform: TempoWidgetPlatform) {
         for kind in platform.widgetKinds {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget timeline reload requested platform=\(platform.debugName) kind=\(kind)"
+            )
             WidgetCenter.shared.reloadTimelines(ofKind: kind)
         }
     }
     #endif
+}
+
+private extension TempoWidgetPlatform {
+    var debugName: String {
+        switch self {
+        case .iOS:
+            "iOS"
+        case .macOS:
+            "macOS"
+        }
+    }
 }
