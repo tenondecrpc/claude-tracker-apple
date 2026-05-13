@@ -152,7 +152,7 @@ struct PreferencesWindowView: View {
                         // already registered).
                         coordinator.authState.requiresExplicitSignIn = true
                     } label: {
-                        Label("Switch account", systemImage: "person.crop.circle.badge.arrow.forward")
+                        Label("Switch account", systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
