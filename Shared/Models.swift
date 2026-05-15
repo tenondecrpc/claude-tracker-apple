@@ -130,6 +130,17 @@ struct UsageState: Codable {
     var isMocked: Bool
     var extraUsage: ExtraUsage?
     var isDoubleLimitPromoActive: Bool?
+    /// Wall-clock moment when this state was successfully polled from the
+    /// Anthropic API. Set by `AccountPollingWorker` on every successful
+    /// poll and persisted to iCloud `usage.json` so downstream consumers
+    /// (iOS widget, watch glance, dashboard freshness labels) report the
+    /// real server-fetch time instead of the local read time.
+    ///
+    /// Optional for backward compatibility: payloads written before this
+    /// field existed decode with `polledAt == nil`, and consumers fall
+    /// back to `Date()` (the legacy behavior) until the next successful
+    /// poll rewrites the file with a stamped value.
+    var polledAt: Date? = nil
 
     var isUsingExtraUsage5h: Bool {
         extraUsage?.isEnabled == true && utilization5h >= 0.999
@@ -142,6 +153,13 @@ struct UsageState: Codable {
     var isUsingExtraUsage: Bool {
         isUsingExtraUsage5h || isUsingExtraUsage7d
     }
+
+    /// Effective freshness timestamp: the real `polledAt` when present,
+    /// falling back to `Date()` for legacy payloads. Widget snapshots and
+    /// dashboard freshness labels MUST use this value (or `polledAt`
+    /// directly with their own fallback) so the "last fetch" surface only
+    /// advances on successful polls.
+    var freshnessTimestamp: Date { polledAt ?? Date() }
 
     static var mock: UsageState {
         UsageState(
@@ -157,7 +175,8 @@ struct UsageState: Codable {
                 monthlyLimit: 2000,
                 utilization: 0
             ),
-            isDoubleLimitPromoActive: false
+            isDoubleLimitPromoActive: false,
+            polledAt: nil
         )
     }
 }
