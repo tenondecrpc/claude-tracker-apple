@@ -51,7 +51,15 @@ final class MacAppCoordinator {
         // pre-Keychain JSON credential cache. Runs before polling / API
         // wiring so no restore path accidentally reads them.
         LegacyCredentialsCleanup.sweep()
-        registry.remove(accountId: Self.demoAccountId)
+        // Synthetic demo account must never persist across launches. Use
+        // the full removal service so any leftover iCloud
+        // `Tempo/accounts/demo@tempo.local/` directory and App Group
+        // widget snapshot (from a prior run that crashed before
+        // `exitDemoMode` could fire) are cleaned up too. Bare
+        // `registry.remove` only purged the in-memory list and left the
+        // iCloud directory, which iOS kept re-decoding on every
+        // metadata refresh.
+        accountRemovalService.removeAccount(accountId: Self.demoAccountId)
 
         let authState = MacAuthState()
         let client = MacOSAPIClient(
@@ -133,6 +141,7 @@ final class MacAppCoordinator {
                 self.serviceStatusMonitor.stop()
             }
 
+            self.propagateActiveAccountSelection()
             self.isDemoMode = false
             DevLog.trace(
                 "AuthTrace",
@@ -141,7 +150,7 @@ final class MacAppCoordinator {
         }
         poller.onUsageState = { [weak self, weak history] state in
             history?.append(usage: state)
-            self?.publishWidgetSnapshot(from: state, updatedAt: Date())
+            self?.publishWidgetSnapshot(from: state)
         }
 
         settings.onServiceStatusMonitoringChanged = { [weak self] _ in
@@ -179,6 +188,10 @@ final class MacAppCoordinator {
 
         seedInitialWidgetSnapshotIfNeeded()
         syncAppearanceModeToICloud(settings.appearanceMode)
+        // Sweep widget snapshots before the appearance refresh so we
+        // don't waste a write on each orphan only to delete the
+        // directory immediately afterwards.
+        reconcileWidgetSnapshotsWithRegistry()
         refreshPublishedWidgetAppearance()
     }
 
@@ -213,6 +226,7 @@ final class MacAppCoordinator {
             // has data before the first poll lands.
             history.loadAll(accountIds: registry.accounts.map { $0.accountId })
             poller.syncWorkers()
+            propagateActiveAccountSelection()
             poller.start()
             updateServiceStatusMonitoring()
         }
@@ -230,6 +244,7 @@ final class MacAppCoordinator {
         poller.start()
         accountMirror.writeMirror(for: registry)
         history.loadAll(accountIds: registry.accounts.map { $0.accountId })
+        propagateActiveAccountSelection()
         updateServiceStatusMonitoring()
     }
 
@@ -261,14 +276,36 @@ final class MacAppCoordinator {
             extraUsage: nil,
             isDoubleLimitPromoActive: nil
         )
+        propagateActiveAccountSelection()
     }
 
     func exitDemoMode() {
         isDemoMode = false
         authState.isAuthenticated = false
         poller.latestUsage = nil
-        registry.remove(accountId: Self.demoAccountId)
+        // Use the full removal service so the demo account leaves no
+        // trace in iCloud. `registry.remove(accountId:)` alone keeps the
+        // App Group snapshot (handled later by reconcile) but does
+        // nothing about the iCloud `Tempo/accounts/demo@tempo.local/`
+        // directory, which would otherwise sync forever to iOS and
+        // surface as log spam from `iCloudUsageReader.queryDidUpdate`
+        // re-decoding the same orphaned `usage.json` /
+        // `usage-history.json` on every metadata refresh. Keychain step
+        // is a no-op for the demo account because no credentials were
+        // ever stored under that id.
+        accountRemovalService.removeAccount(accountId: Self.demoAccountId)
         poller.syncWorkers()
+        propagateActiveAccountSelection()
+        // Defensive sweep in case other orphans crept in. The
+        // `removeAccount` call above already handled the demo's App
+        // Group slot, so this is a no-op in the common case.
+        reconcileWidgetSnapshotsWithRegistry()
+    }
+
+    func setActiveAccount(accountId: String?) {
+        registry.setActive(accountId: accountId)
+        poller.syncWorkers()
+        propagateActiveAccountSelection()
     }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) {
@@ -295,7 +332,21 @@ final class MacAppCoordinator {
         } catch {}
     }
 
-    private func publishWidgetSnapshot(from usage: UsageState, updatedAt: Date) {
+    private func publishWidgetSnapshot(from usage: UsageState) {
+        // The `updatedAt` timestamp on the widget snapshot is the
+        // freshness signal driving the "just now" label and the timeline
+        // refresh policy. It MUST only advance on successful polls, so
+        // we always derive it from `usage.polledAt` (set by
+        // `AccountPollingWorker.doPoll` only on success). When the
+        // payload predates the `polledAt` field (legacy iCloud snapshot
+        // written by an older build) we fall back to the existing
+        // widget snapshot's `updatedAt` so we don't pretend old data was
+        // just refreshed.
+        let updatedAt = resolveUpdatedAt(for: usage)
+        DevLog.trace(
+            "AuthTrace",
+            "Publishing macOS widget snapshot accountId=\(usage.accountId) activeAccountId=\(registry.activeAccountId ?? "nil") utilization5h=\(usage.utilization5h) utilization7d=\(usage.utilization7d) updatedAt=\(updatedAt)"
+        )
         // Resolve the display label from the registry so the widget header
         // can identify which account the snapshot belongs to. Falls back
         // to the raw `accountId` when the account is not (yet) in the
@@ -331,11 +382,82 @@ final class MacAppCoordinator {
         }
     }
 
+    /// Pick the `updatedAt` that should land on a freshly-written widget
+    /// snapshot for `usage`.
+    ///
+    /// Precedence:
+    /// 1. `usage.polledAt` when present (only set by a successful poll).
+    /// 2. The existing on-disk widget snapshot's `updatedAt` for the
+    ///    same accountId, so re-seeding from iCloud or propagating an
+    ///    active-account change does NOT advance the freshness label.
+    /// 3. `usage.resetAt5h - 5h` as a coarse lower bound when neither of
+    ///    the above is available. This is conservative (i.e., older
+    ///    than the next hourly refresh) so the widget still renders the
+    ///    "stale" footer instead of pretending the data is fresh.
+    private func resolveUpdatedAt(for usage: UsageState) -> Date {
+        if let polledAt = usage.polledAt { return polledAt }
+        if let existing = TempoWidgetSnapshotStore.read(
+            accountId: usage.accountId,
+            platform: .macOS
+        ) {
+            return existing.updatedAt
+        }
+        return usage.resetAt5h.addingTimeInterval(-5 * 3600)
+    }
+
+    private func propagateActiveAccountSelection() {
+        guard let activeId = registry.activeAccountId else {
+            DevLog.trace("AuthTrace", "Propagating widget active account cleared")
+            if TempoWidgetSnapshotStore.write(activeAccountId: nil, platform: .macOS) {
+                TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+            }
+            return
+        }
+
+        if let usage = poller.worker(for: activeId)?.latestUsage {
+            DevLog.trace(
+                "AuthTrace",
+                "Propagating widget active account from worker cache accountId=\(activeId)"
+            )
+            // The worker's `latestUsage` carries `polledAt` from its last
+            // successful poll, so `publishWidgetSnapshot` will preserve
+            // the real freshness timestamp instead of stamping `Date()`.
+            publishWidgetSnapshot(from: usage)
+            return
+        }
+
+        if let usage = readLatestUsageFromICloudMirror() {
+            DevLog.trace(
+                "AuthTrace",
+                "Propagating widget active account from iCloud mirror accountId=\(activeId)"
+            )
+            // Pre-multi-account iCloud payloads may not have `polledAt`;
+            // `publishWidgetSnapshot` falls back to the existing widget
+            // snapshot's `updatedAt` (or a conservative bound) so the
+            // freshness label does NOT jump to "just now" on relaunch.
+            publishWidgetSnapshot(from: usage)
+            return
+        }
+
+        DevLog.trace(
+            "AuthTrace",
+            "Propagating widget active account pointer only accountId=\(activeId)"
+        )
+        if TempoWidgetSnapshotStore.write(activeAccountId: activeId, platform: .macOS) {
+            TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+        }
+    }
+
     private func refreshPublishedWidgetAppearance() {
-        // Refresh every per-account snapshot (not just the active one) so
-        // widgets pinned to a specific account via `SelectAccountIntent`
-        // (task 8.2) reflect the appearance change too.
-        let accountIds = TempoWidgetSnapshotStore.knownAccountIds(platform: .macOS)
+        // Only refresh snapshots for accounts that still exist in the
+        // registry. Iterating `knownAccountIds(platform:)` would pick up
+        // orphan directories left by previous builds or abandoned demo
+        // sessions and re-stamp them with a current appearance, which
+        // both wastes I/O and resurrects accounts that the user has
+        // already removed. The startup reconcile + per-removal cleanup
+        // keep the App Group tree pruned, so iterating the registry is
+        // the safe source of truth.
+        let accountIds = registry.accounts.map { $0.accountId }
         guard !accountIds.isEmpty else { return }
 
         var didWriteAny = false
@@ -357,6 +479,29 @@ final class MacAppCoordinator {
         }
     }
 
+    /// Reconciles the App Group widget snapshot tree with the current
+    /// registry: any per-account directory whose accountId is no longer
+    /// present in `registry.accounts` is removed, and the active-account
+    /// pointer is cleared when it references a removed account. Called
+    /// once at startup to clean up orphans left by previous builds or
+    /// abandoned demo sessions, and after every registry mutation
+    /// (sign-out, demo enter/exit, active-account change) to keep the
+    /// widget store in lockstep with the registry.
+    private func reconcileWidgetSnapshotsWithRegistry() {
+        let keep = Set(registry.accounts.map { $0.accountId })
+        let removed = TempoWidgetSnapshotStore.reconcile(
+            keepAccountIds: keep,
+            platform: .macOS
+        )
+        if removed > 0 {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot reconcile removed \(removed) orphan(s); keep=\(keep.sorted())"
+            )
+            TempoWidgetSnapshotStore.reloadTimelines(for: .macOS)
+        }
+    }
+
     private func syncAppearanceModeToICloud(_ appearanceMode: AppearanceMode) {
         do {
             try AppearanceModeSync.write(appearanceMode)
@@ -367,7 +512,13 @@ final class MacAppCoordinator {
         guard TempoWidgetSnapshotStore.read(platform: .macOS) == nil else { return }
 
         if let usage = readLatestUsageFromICloudMirror() {
-            publishWidgetSnapshot(from: usage, updatedAt: Date())
+            // Seeding from iCloud at app launch must NOT advance the
+            // widget's freshness label: that label is only allowed to
+            // advance on a successful poll. `publishWidgetSnapshot`
+            // uses `usage.polledAt` when present, otherwise falls back
+            // to the existing widget snapshot (none, since this is the
+            // initial seed) or a conservative lower bound.
+            publishWidgetSnapshot(from: usage)
             return
         }
 
@@ -459,7 +610,7 @@ struct TempoMacApp: App {
                           coordinator.registry.accounts.contains(where: { $0.accountId == accountId }),
                           coordinator.registry.activeAccountId != accountId
                     else { return }
-                    coordinator.registry.setActive(accountId: accountId)
+                    coordinator.setActiveAccount(accountId: accountId)
                 }
         }
         .windowResizability(.contentSize)

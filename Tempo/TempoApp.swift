@@ -31,7 +31,7 @@ final class AppCoordinator {
         iCloudReader.onUsageState = { [weak self, weak relay, weak store] (state: UsageState) in
             DevLog.trace(
                 "AlertTrace",
-                "TempoApp received usage state accountId=\(state.accountId) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)"
+                "TempoApp received usage state accountId=\(state.accountId) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d) polledAt=\(state.polledAt.map(String.init(describing:)) ?? "nil")"
             )
             // Only the active account drives the watch relay and widget
             // snapshot, per design.md ("iOS relays only the active
@@ -45,7 +45,27 @@ final class AppCoordinator {
                 )
                 return
             }
-            let updatedAt = Date()
+            // The "last fetch" surface (widget freshness footer, watch
+            // glance label) MUST only advance on a successful poll, so
+            // we use the `polledAt` carried by the state. iOS reads
+            // `usage.json` via NSMetadataQuery, which fires on iCloud
+            // sync events that may be unrelated to a fresh fetch (for
+            // example a no-op directory touch). Treating every iCloud
+            // arrival as "just now" caused the iOS widget to flash a
+            // fresh timestamp over stale data. Falling back to the
+            // existing widget snapshot's `updatedAt` keeps legacy
+            // payloads that lack `polledAt` from spuriously refreshing
+            // the label.
+            let updatedAt: Date = {
+                if let polledAt = state.polledAt { return polledAt }
+                if let existing = TempoWidgetSnapshotStore.read(
+                    accountId: state.accountId,
+                    platform: .iOS
+                ) {
+                    return existing.updatedAt
+                }
+                return state.resetAt5h.addingTimeInterval(-5 * 3600)
+            }()
             let appearanceMode = store.appearanceMode
             let snapshot = WidgetUsageSnapshot(
                 usage: state,
@@ -195,7 +215,8 @@ final class AppCoordinator {
         // update tells iOS to move its selection (to the first remaining
         // account, or `nil` if there are none). This keeps iOS coherent
         // without requiring an explicit sign-out signal from macOS.
-        iCloudReader.onAccountsIndexUpdated = { [weak store] accountIds in
+        iCloudReader.onAccountsIndexUpdated = { [weak self, weak store] accountIds in
+            self?.reconcileWidgetSnapshotsWithIndex(accountIds: accountIds)
             guard let store else { return }
             if let currentId = store.activeAccountId,
                accountIds.contains(currentId) {
@@ -258,11 +279,15 @@ final class AppCoordinator {
     }
 
     private func refreshWidgetAppearance(_ appearanceMode: AppearanceMode) {
-        // Refresh every per-account snapshot we know about so widgets
-        // configured with `SelectAccountIntent` (task 8.2) pick up the
-        // new appearance too, not just the default active-account
-        // surface.
-        let accountIds = TempoWidgetSnapshotStore.knownAccountIds(platform: .iOS)
+        // Refresh snapshots only for accounts that the iCloud reader has
+        // discovered. Iterating `knownAccountIds(platform: .iOS)` would
+        // pick up orphan App Group directories from removed accounts and
+        // re-stamp their appearance, which both wastes writes and
+        // resurrects accounts the user no longer owns. The
+        // `onAccountsIndexUpdated` reconcile keeps the App Group tree
+        // pruned, so iterating the iCloud index is the safe source of
+        // truth here.
+        let accountIds = iCloudReader.knownAccountIds
         guard !accountIds.isEmpty else { return }
 
         var didWriteAny = false
@@ -284,6 +309,32 @@ final class AppCoordinator {
         }
     }
 
+    /// Reconciles the iOS App Group widget snapshot tree against the
+    /// authoritative `accounts/index.json` published by macOS. Called
+    /// every time the iCloud reader emits a fresh accounts index, so
+    /// sign-outs that happen on macOS clean up iOS widgets without an
+    /// extra signal channel.
+    ///
+    /// Skipped when `accountIds` is empty so a transient empty index
+    /// (for example, before the first ubiquity download lands) does not
+    /// wipe still-valid snapshots. The first non-empty update is
+    /// authoritative.
+    private func reconcileWidgetSnapshotsWithIndex(accountIds: [String]) {
+        guard !accountIds.isEmpty else { return }
+        let keep = Set(accountIds)
+        let removed = TempoWidgetSnapshotStore.reconcile(
+            keepAccountIds: keep,
+            platform: .iOS
+        )
+        if removed > 0 {
+            DevLog.trace(
+                "AlertTrace",
+                "iOS widget snapshot reconcile removed \(removed) orphan(s); keep=\(accountIds)"
+            )
+            TempoWidgetSnapshotStore.reloadTimelines(for: .iOS)
+        }
+    }
+
     /// Publishes the current active account's usage to the watch relay
     /// and the iOS widget snapshot.
     ///
@@ -298,9 +349,27 @@ final class AppCoordinator {
     private func propagateActiveAccountChange() {
         let appearanceMode = store.appearanceMode
         if let state = store.usage {
+            // Active-account flips are NOT a freshness event: we are
+            // re-publishing a previously-fetched `UsageState` to a new
+            // active-account slot. The widget's "last fetch" label MUST
+            // only advance when a successful poll lands, so we keep the
+            // payload's `polledAt` if present (it traveled with the
+            // state from macOS poll -> iCloud -> iOS read), or fall
+            // back to the existing snapshot's `updatedAt` for legacy
+            // payloads. We never stamp `Date()` here.
+            let updatedAt: Date = {
+                if let polledAt = state.polledAt { return polledAt }
+                if let existing = TempoWidgetSnapshotStore.read(
+                    accountId: state.accountId,
+                    platform: .iOS
+                ) {
+                    return existing.updatedAt
+                }
+                return state.resetAt5h.addingTimeInterval(-5 * 3600)
+            }()
             let snapshot = WidgetUsageSnapshot(
                 usage: state,
-                updatedAt: Date(),
+                updatedAt: updatedAt,
                 accountLabel: state.accountId,
                 appearanceMode: appearanceMode
             )

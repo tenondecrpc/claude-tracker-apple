@@ -94,6 +94,14 @@ final class AccountRemovalService {
 
         // Step 5: Refresh the iCloud index.
         mirror.writeMirror(for: registry)
+
+        // Step 6: Remove the per-account widget snapshot from the App
+        // Group container so widgets do not keep rendering the
+        // signed-out account's data and the `SelectAccountIntent`
+        // suggestion list does not surface a removed account. Clears
+        // the active-account pointer too when it still references the
+        // signed-out account.
+        TempoWidgetSnapshotStore.delete(accountId: accountId, platform: .macOS)
     }
 
     // MARK: - Private
