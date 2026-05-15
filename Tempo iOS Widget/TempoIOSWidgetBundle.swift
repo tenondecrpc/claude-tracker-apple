@@ -70,10 +70,11 @@ private struct TempoIOSProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: SelectAccountIntent, in context: Context) async -> Timeline<TempoIOSEntry> {
+        let now = Date()
         let entry: TempoIOSEntry
         if context.isPreview {
             entry = TempoIOSEntry(
-                date: .now,
+                date: now,
                 snapshot: .placeholder,
                 configuredAccountId: configuration.account?.id,
                 configuredAccountRemoved: false,
@@ -82,14 +83,17 @@ private struct TempoIOSProvider: AppIntentTimelineProvider {
         } else {
             let resolved = resolveSnapshot(for: configuration)
             entry = TempoIOSEntry(
-                date: .now,
+                date: now,
                 snapshot: resolved.snapshot,
                 configuredAccountId: configuration.account?.id,
                 configuredAccountRemoved: resolved.configuredAccountRemoved,
                 isPreview: false
             )
         }
-        return Timeline(entries: [entry], policy: .never)
+        return Timeline(
+            entries: [entry],
+            policy: .after(WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: entry.snapshot, now: now))
+        )
     }
 
     /// Resolve the snapshot for the current configuration, applying the

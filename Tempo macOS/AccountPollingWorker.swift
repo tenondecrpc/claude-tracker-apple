@@ -88,6 +88,7 @@ final class AccountPollingWorker {
         stop()
         isRunning = true
         refreshFeedback = nil
+        DevLog.trace("AuthTrace", "Usage worker start accountId=\(accountId)")
 
         if scheduleActiveRateLimitIfNeeded() {
             return
@@ -161,14 +162,30 @@ final class AccountPollingWorker {
         isPolling = true
         defer { isPolling = false }
         do {
-            let state = try await fetchUsage()
+            DevLog.trace(
+                "AuthTrace",
+                "Usage poll starting accountId=\(accountId) manual=\(isManualRefresh)"
+            )
+            var state = try await fetchUsage()
             currentInterval = 900
             rateLimitRetryAt = nil
-            lastPollAt = Date()
+            let polledAt = Date()
+            // Stamp the successful-fetch timestamp on the state itself so
+            // downstream consumers (iOS widget, watch glance, dashboard
+            // freshness label) report the real server-fetch time even
+            // after the data round-trips through iCloud or App Group
+            // storage. Updating `lastPollAt` to the same instant keeps
+            // the popover surface in lockstep.
+            state.polledAt = polledAt
+            lastPollAt = polledAt
             lastPollError = nil
             latestUsage = state
-            try writeToiCloud(state)
             onUsageState?(state)
+            writeToiCloud(state)
+            DevLog.trace(
+                "AuthTrace",
+                "Usage poll applied accountId=\(accountId) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d) polledAt=\(polledAt)"
+            )
             if isManualRefresh {
                 showRefreshFeedback(.success, message: "Updated usage just now")
             }
@@ -228,6 +245,10 @@ final class AccountPollingWorker {
         let message = rateLimitMessage(retryAt: retryAt)
         lastPollError = message
         scheduleTimer(interval: remaining)
+        DevLog.trace(
+            "AuthTrace",
+            "Usage worker honoring rate limit accountId=\(accountId) retryAt=\(retryAt)"
+        )
 
         if isManualRefresh {
             showRefreshFeedback(.failure, message: "Usage is rate limited - retry in \(retryDelayLabel(until: retryAt))")
@@ -390,7 +411,7 @@ final class AccountPollingWorker {
 
     // MARK: - iCloud Write (per account)
 
-    private func writeToiCloud(_ state: UsageState) throws {
+    private func writeToiCloud(_ state: UsageState) {
         guard let fileURL = TempoICloud.usageFileURL(for: accountId),
               let accountDir = TempoICloud.accountDirectoryURL(for: accountId)
         else {
@@ -399,16 +420,23 @@ final class AccountPollingWorker {
             return
         }
 
-        if !FileManager.default.fileExists(atPath: accountDir.path) {
-            try FileManager.default.createDirectory(
-                at: accountDir,
-                withIntermediateDirectories: true
+        do {
+            if !FileManager.default.fileExists(atPath: accountDir.path) {
+                try FileManager.default.createDirectory(
+                    at: accountDir,
+                    withIntermediateDirectories: true
+                )
+            }
+
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(state)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Usage iCloud write failed accountId=\(accountId) error=\(error.localizedDescription)"
             )
         }
-
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(state)
-        try data.write(to: fileURL, options: .atomic)
     }
 }
