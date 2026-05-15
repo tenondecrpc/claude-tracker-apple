@@ -249,35 +249,112 @@ enum TempoWidgetSnapshotStore {
     static func read(platform: TempoWidgetPlatform) -> WidgetUsageSnapshot? {
         guard let activeAccountId = readActiveAccountId(platform: platform),
               !activeAccountId.isEmpty else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read via pointer aborted platform=\(platform.debugName) reason=no-active-pointer"
+            )
             return nil
         }
+        DevLog.trace(
+            "AuthTrace",
+            "Widget snapshot read via pointer platform=\(platform.debugName) activeAccountId=\(activeAccountId)"
+        )
         return read(accountId: activeAccountId, platform: platform)
     }
 
     /// Reads a specific account's snapshot from its per-account slot.
     /// Returns `nil` when no snapshot exists yet or decoding fails.
     static func read(accountId: String, platform: TempoWidgetPlatform) -> WidgetUsageSnapshot? {
-        guard !accountId.isEmpty,
-              let snapshotURL = snapshotURL(accountId: accountId, platform: platform),
-              let data = try? Data(contentsOf: snapshotURL) else {
+        guard !accountId.isEmpty else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read skipped platform=\(platform.debugName) reason=empty-accountId"
+            )
+            return nil
+        }
+        guard let snapshotURL = snapshotURL(accountId: accountId, platform: platform) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read skipped platform=\(platform.debugName) accountId=\(accountId) reason=no-url"
+            )
+            return nil
+        }
+        guard FileManager.default.fileExists(atPath: snapshotURL.path) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read missing file platform=\(platform.debugName) accountId=\(accountId) path=\(snapshotURL.path)"
+            )
+            return nil
+        }
+        let data: Data
+        do {
+            data = try Data(contentsOf: snapshotURL)
+        } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read failed platform=\(platform.debugName) accountId=\(accountId) path=\(snapshotURL.path) error=\(error.localizedDescription)"
+            )
             return nil
         }
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(WidgetUsageSnapshot.self, from: data)
+        do {
+            let snapshot = try decoder.decode(WidgetUsageSnapshot.self, from: data)
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot read ok platform=\(platform.debugName) accountId=\(accountId) updatedAt=\(snapshot.updatedAt) utilization5h=\(snapshot.utilization5h) utilization7d=\(snapshot.utilization7d) bytes=\(data.count)"
+            )
+            return snapshot
+        } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget snapshot decode failed platform=\(platform.debugName) accountId=\(accountId) path=\(snapshotURL.path) error=\(error.localizedDescription)"
+            )
+            return nil
+        }
     }
 
     /// Returns the accountId stored in the pointer file, or `nil` when the
     /// pointer is absent, malformed, or explicitly cleared.
     static func readActiveAccountId(platform: TempoWidgetPlatform) -> String? {
-        guard let pointerURL = activeAccountPointerURL(for: platform),
-              let data = try? Data(contentsOf: pointerURL) else {
+        guard let pointerURL = activeAccountPointerURL(for: platform) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer read skipped platform=\(platform.debugName) reason=no-url"
+            )
+            return nil
+        }
+        guard FileManager.default.fileExists(atPath: pointerURL.path) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer read missing platform=\(platform.debugName) path=\(pointerURL.path)"
+            )
+            return nil
+        }
+        let data: Data
+        do {
+            data = try Data(contentsOf: pointerURL)
+        } catch {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer read failed platform=\(platform.debugName) path=\(pointerURL.path) error=\(error.localizedDescription)"
+            )
             return nil
         }
         let decoder = JSONDecoder()
         let pointer = try? decoder.decode(TempoActiveAccountPointer.self, from: data)
-        guard let id = pointer?.activeAccountId, !id.isEmpty else { return nil }
+        guard let id = pointer?.activeAccountId, !id.isEmpty else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget active pointer empty/cleared platform=\(platform.debugName) path=\(pointerURL.path)"
+            )
+            return nil
+        }
+        DevLog.trace(
+            "AuthTrace",
+            "Widget active pointer ok platform=\(platform.debugName) accountId=\(id)"
+        )
         return id
     }
 
@@ -559,6 +636,10 @@ enum TempoWidgetSnapshotStore {
         guard let containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: platform.appGroupIdentifier
         ) else {
+            DevLog.trace(
+                "AuthTrace",
+                "Widget store root unavailable platform=\(platform.debugName) appGroup=\(platform.appGroupIdentifier) reason=container-nil"
+            )
             return nil
         }
 

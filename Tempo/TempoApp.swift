@@ -56,36 +56,18 @@ final class AppCoordinator {
             // existing widget snapshot's `updatedAt` keeps legacy
             // payloads that lack `polledAt` from spuriously refreshing
             // the label.
-            let updatedAt: Date = {
-                if let polledAt = state.polledAt { return polledAt }
-                if let existing = TempoWidgetSnapshotStore.read(
-                    accountId: state.accountId,
-                    platform: .iOS
-                ) {
-                    return existing.updatedAt
-                }
-                return state.resetAt5h.addingTimeInterval(-5 * 3600)
-            }()
             let appearanceMode = store.appearanceMode
-            let snapshot = WidgetUsageSnapshot(
-                usage: state,
-                updatedAt: updatedAt,
-                accountLabel: state.accountId,
-                appearanceMode: appearanceMode
-            )
             // Per-account snapshot is written to its own slot, and the
             // pointer is updated so the default widgets render this
             // account (which is the active one by the earlier guard).
-            // Both writes are gated together: if the snapshot write
-            // fails we avoid pointing the widgets at a missing file.
-            let wroteSnapshot = TempoWidgetSnapshotStore.write(snapshot, platform: .iOS)
-            let wrotePointer = TempoWidgetSnapshotStore.write(
-                activeAccountId: state.accountId,
-                platform: .iOS
+            // The helper coalesces redundant `reloadTimelines` calls so
+            // pure no-op iCloud arrivals do not burn the WidgetKit
+            // daily reload budget.
+            self?.publishWidgetSnapshot(
+                for: state,
+                appearanceMode: appearanceMode,
+                reason: "iCloudUsageState"
             )
-            if wroteSnapshot || wrotePointer {
-                TempoWidgetSnapshotStore.reloadTimelines(for: .iOS)
-            }
             relay?.send(
                 state,
                 history: store.historySnapshots,
@@ -207,7 +189,13 @@ final class AppCoordinator {
             }
             do {
                 try AlertPreferencesSync.write(preferences)
-            } catch {}
+            } catch {
+                DiagnosticsCenter.shared.warning(
+                    kind: "icloud.alert-preferences.write",
+                    message: "Couldn't sync alert preferences to iCloud",
+                    error: error
+                )
+            }
         }
         // Reconcile the persisted iOS active account against the set of
         // accounts discovered from iCloud. When the user removes the
@@ -276,6 +264,124 @@ final class AppCoordinator {
         }
         iCloudReader.restart()
         store.refreshStaleness()
+    }
+
+    /// Publishes a snapshot for the given active-account `state` to the
+    /// shared App Group store and asks WidgetKit to reload only when the
+    /// rendered output would actually change. Returns the snapshot that
+    /// was published so callers that need to relay the same `UsageState`
+    /// to the watch can read its `accountLabel` / `appearanceMode`.
+    ///
+    /// Reload coalescing rationale: WidgetKit applies a daily reload
+    /// budget per extension and silently drops further reload requests
+    /// once the budget is exhausted. Reloading on every iCloud arrival
+    /// (active-account change, redundant `usage.json` write,
+    /// no-op metadata fire) burns budget that real usage changes will
+    /// need later in the day. We therefore reload only when the visual
+    /// fields differ from the previously-stored snapshot for this same
+    /// accountId, OR when the active-account pointer is genuinely
+    /// flipping to a different accountId. Pure freshness label drift
+    /// (`updatedAt`) is handled by the widget's own timeline policy.
+    @discardableResult
+    private func publishWidgetSnapshot(
+        for state: UsageState,
+        appearanceMode: AppearanceMode,
+        reason: String
+    ) -> WidgetUsageSnapshot {
+        // Active-account flips and re-publishes from cached payloads
+        // must NOT reset the freshness label. We use `state.polledAt`
+        // when present (only set by macOS on a successful poll), then
+        // the existing snapshot's `updatedAt` (round-trip through
+        // iCloud might have stripped `polledAt`), and finally a
+        // conservative lower bound that keeps the widget in its "stale"
+        // footer rather than pretending the data is fresh.
+        let updatedAt: Date = {
+            if let polledAt = state.polledAt { return polledAt }
+            if let existing = TempoWidgetSnapshotStore.read(
+                accountId: state.accountId,
+                platform: .iOS
+            ) {
+                return existing.updatedAt
+            }
+            return state.resetAt5h.addingTimeInterval(-5 * 3600)
+        }()
+        let snapshot = WidgetUsageSnapshot(
+            usage: state,
+            updatedAt: updatedAt,
+            accountLabel: state.accountId,
+            appearanceMode: appearanceMode
+        )
+
+        // Snapshot the previous values BEFORE writing so coalescing can
+        // tell idempotent re-writes from real visual changes.
+        let previousSnapshot = TempoWidgetSnapshotStore.read(
+            accountId: state.accountId,
+            platform: .iOS
+        )
+        let previousActiveAccountId = TempoWidgetSnapshotStore.readActiveAccountId(platform: .iOS)
+        let diff = previousSnapshot.flatMap { firstVisualWidgetDifference(previous: $0, next: snapshot) }
+        let visuallyChanged = previousSnapshot == nil || diff != nil
+        let pointerWillFlip = previousActiveAccountId != state.accountId
+        if let diff {
+            DevLog.trace(
+                "AlertTrace",
+                "iOS widget visual diff accountId=\(state.accountId) field=\(diff) reason=\(reason)"
+            )
+        }
+
+        let wroteSnapshot = TempoWidgetSnapshotStore.write(snapshot, platform: .iOS)
+        // Always re-write the pointer to maintain the post-condition
+        // (pointer file exists and points to the active account). The
+        // reload decision below uses `pointerWillFlip` instead of the
+        // write's return value to avoid treating idempotent re-writes
+        // as visual changes.
+        _ = TempoWidgetSnapshotStore.write(
+            activeAccountId: state.accountId,
+            platform: .iOS
+        )
+
+        let shouldReload = pointerWillFlip || (wroteSnapshot && visuallyChanged)
+        if shouldReload {
+            DevLog.trace(
+                "AlertTrace",
+                "iOS widget reload triggered accountId=\(state.accountId) reason=\(pointerWillFlip ? "pointer-flip" : "visual-change") trigger=\(reason)"
+            )
+            TempoWidgetSnapshotStore.reloadTimelines(for: .iOS)
+        } else {
+            DevLog.trace(
+                "AlertTrace",
+                "iOS widget reload skipped accountId=\(state.accountId) reason=no-visual-change wroteSnapshot=\(wroteSnapshot) pointerWillFlip=\(pointerWillFlip) previousActive=\(previousActiveAccountId ?? "nil") trigger=\(reason)"
+            )
+        }
+        return snapshot
+    }
+
+    /// Returns the name of the first visually-meaningful field where
+    /// `previous` and `next` disagree, or `nil` when the two snapshots
+    /// would render identically. Mirror of the macOS coalescer in
+    /// `Tempo macOS/TempoMacApp.swift`; the shared rationale lives there.
+    /// Date fields use a 1-second tolerance because `JSONEncoder.iso8601`
+    /// truncates fractional seconds while the server returns them, so
+    /// every successful poll re-introduces sub-second precision that
+    /// disappears on round-trip and would otherwise look like a change.
+    private func firstVisualWidgetDifference(
+        previous: WidgetUsageSnapshot,
+        next: WidgetUsageSnapshot
+    ) -> String? {
+        if previous.accountId != next.accountId { return "accountId" }
+        if previous.accountLabel != next.accountLabel { return "accountLabel" }
+        if previous.utilization5h != next.utilization5h { return "utilization5h" }
+        if previous.utilization7d != next.utilization7d { return "utilization7d" }
+        if abs(previous.resetAt5h.timeIntervalSince(next.resetAt5h)) >= 1.0 { return "resetAt5h" }
+        if abs(previous.resetAt7d.timeIntervalSince(next.resetAt7d)) >= 1.0 { return "resetAt7d" }
+        if previous.isMocked != next.isMocked { return "isMocked" }
+        if previous.isDoubleLimitPromoActive != next.isDoubleLimitPromoActive { return "isDoubleLimitPromoActive" }
+        if previous.extraUsageEnabled != next.extraUsageEnabled { return "extraUsageEnabled" }
+        if previous.extraUsageUsedAmountUSD != next.extraUsageUsedAmountUSD { return "extraUsageUsedAmountUSD" }
+        if previous.extraUsageLimitAmountUSD != next.extraUsageLimitAmountUSD { return "extraUsageLimitAmountUSD" }
+        if previous.extraUsageUtilizationPercent != next.extraUsageUtilizationPercent { return "extraUsageUtilizationPercent" }
+        if previous.appearanceModeRawValue != next.appearanceModeRawValue { return "appearanceModeRawValue" }
+        return nil
     }
 
     private func refreshWidgetAppearance(_ appearanceMode: AppearanceMode) {
@@ -351,39 +457,15 @@ final class AppCoordinator {
         if let state = store.usage {
             // Active-account flips are NOT a freshness event: we are
             // re-publishing a previously-fetched `UsageState` to a new
-            // active-account slot. The widget's "last fetch" label MUST
-            // only advance when a successful poll lands, so we keep the
-            // payload's `polledAt` if present (it traveled with the
-            // state from macOS poll -> iCloud -> iOS read), or fall
-            // back to the existing snapshot's `updatedAt` for legacy
-            // payloads. We never stamp `Date()` here.
-            let updatedAt: Date = {
-                if let polledAt = state.polledAt { return polledAt }
-                if let existing = TempoWidgetSnapshotStore.read(
-                    accountId: state.accountId,
-                    platform: .iOS
-                ) {
-                    return existing.updatedAt
-                }
-                return state.resetAt5h.addingTimeInterval(-5 * 3600)
-            }()
-            let snapshot = WidgetUsageSnapshot(
-                usage: state,
-                updatedAt: updatedAt,
-                accountLabel: state.accountId,
-                appearanceMode: appearanceMode
+            // active-account slot. The helper preserves `polledAt` (or
+            // falls back to the existing snapshot's `updatedAt`) so
+            // the freshness label does NOT advance, and coalesces the
+            // reload to a real pointer flip.
+            publishWidgetSnapshot(
+                for: state,
+                appearanceMode: appearanceMode,
+                reason: "activeAccountChange"
             )
-            // Write the snapshot to the per-account slot first so the
-            // pointer never references a missing file, then flip the
-            // pointer so the default widgets render this account.
-            let wroteSnapshot = TempoWidgetSnapshotStore.write(snapshot, platform: .iOS)
-            let wrotePointer = TempoWidgetSnapshotStore.write(
-                activeAccountId: state.accountId,
-                platform: .iOS
-            )
-            if wroteSnapshot || wrotePointer {
-                TempoWidgetSnapshotStore.reloadTimelines(for: .iOS)
-            }
             relay.send(
                 state,
                 history: store.historySnapshots,
@@ -430,9 +512,15 @@ struct TempoApp: App {
     @State private var widgetRoute: TempoWidgetRoute?
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Process-wide diagnostics sink. Held as `@State` so SwiftUI keeps
+    /// the same `@Observable` reference across rebuilds and any view in
+    /// the hierarchy can observe it via `@Environment(DiagnosticsCenter.self)`.
+    @State private var diagnostics = DiagnosticsCenter.shared
+
     var body: some Scene {
         WindowGroup {
             rootView
+                .environment(diagnostics)
                 .onChange(of: scenePhase) { _, phase in
                     DevLog.trace("AlertTrace", "TempoApp scenePhase changed to \(String(describing: phase))")
                     if phase == .active {

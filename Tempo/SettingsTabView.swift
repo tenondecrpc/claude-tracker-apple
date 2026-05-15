@@ -8,6 +8,7 @@ struct SettingsTabView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 diagnosticsCard
+                recentDiagnosticsCard
                 helpCard
             }
             .padding(16)
@@ -77,6 +78,17 @@ struct SettingsTabView: View {
             Text("Keep Tempo open on Mac to receive frequent updates on iPhone and Apple Watch.")
                 .font(.subheadline)
                 .foregroundStyle(ClaudeCodeTheme.textSecondary)
+        }
+    }
+
+    /// Surfaces recent diagnostic events recorded by `DiagnosticsCenter`.
+    /// This is broader than `diagnosticsCard` (which only reflects iCloud
+    /// read errors): a critical iCloud-write failure on macOS that
+    /// silently propagated to iOS or a watch relay error will surface
+    /// here too.
+    private var recentDiagnosticsCard: some View {
+        card(title: "Recent issues") {
+            DiagnosticsRecentEventsList()
         }
     }
 

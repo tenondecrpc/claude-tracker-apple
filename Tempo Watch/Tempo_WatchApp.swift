@@ -38,6 +38,7 @@ final class WatchAppCoordinator {
 @main
 struct Tempo_WatchApp: App {
     @State private var coordinator = WatchAppCoordinator()
+    @State private var diagnostics = DiagnosticsCenter.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -46,6 +47,7 @@ struct Tempo_WatchApp: App {
                 .applyClaudeAppearance(coordinator.store.appearanceMode)
                 .environment(coordinator.store)
                 .environment(coordinator.refreshCoordinator)
+                .environment(diagnostics)
                 .task {
                     coordinator.onScenePhaseChange(scenePhase)
                 }

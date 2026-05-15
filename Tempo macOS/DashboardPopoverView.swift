@@ -20,6 +20,10 @@ struct DashboardPopoverView: View {
                 trailingAccessory: { accountAccessory }
             )
 
+            DiagnosticsBannerView()
+                .padding(.horizontal, 17)
+                .padding(.top, 8)
+
             if let feedback = coordinator.poller.refreshFeedback {
                 RefreshFeedbackBannerView(feedback: feedback)
                     .padding(.horizontal, 17)

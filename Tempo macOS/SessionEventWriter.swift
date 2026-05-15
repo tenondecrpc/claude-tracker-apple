@@ -5,6 +5,15 @@ import CommonCrypto
 final class SessionEventWriter {
     private enum DefaultsKey {
         static let lastWrittenSessionID = "session-writer.lastWrittenSessionID"
+        /// Last `timestamp` (as iso8601 seconds since 1970) we wrote
+        /// for `lastWrittenSessionID`. Used to detect new activity on
+        /// an already-seen sessionId: Claude Code keeps the same JSONL
+        /// (and thus the same `sessionId`) for an entire conversation,
+        /// so deduping on `sessionId` alone hides every prompt after
+        /// the first. Comparing against the latest assistant timestamp
+        /// lets us emit one event per turn while still skipping pure
+        /// no-op rescans.
+        static let lastWrittenSessionTimestamp = "session-writer.lastWrittenSessionTimestamp"
     }
 
     nonisolated private struct SessionCandidate {
@@ -28,6 +37,14 @@ final class SessionEventWriter {
     /// `Tempo/accounts/unassigned/latest.json` bucket per design.md
     /// ("Session ingestion per account").
     private let registry: AccountRegistry?
+
+    /// Invoked on the MainActor whenever a new (non-duplicate) session has
+    /// just been written to iCloud. Receives the `accountId` the session
+    /// was tagged with so the coordinator can trigger an immediate usage
+    /// poll for that account, which keeps the popover and macOS widget
+    /// snapshot in sync with Claude Code activity without waiting for the
+    /// next 15-minute scheduled poll.
+    var onSessionWritten: ((String) -> Void)?
 
     private var timer: Timer?
     private var isPolling = false
@@ -80,14 +97,38 @@ final class SessionEventWriter {
             // `accounts/unassigned/latest.json` for CLI-only sessions).
             let latestSession = taggedSession(from: parsedSession)
 
-            guard latestSession.sessionId != lastWrittenSessionID else {
-                DevLog.trace("AlertTrace", "SessionWriter skipped duplicate session id=\(latestSession.sessionId)")
+            // Dedup on sessionId + latest timestamp. Claude Code keeps the
+            // same `sessionId` across every turn of a conversation, so
+            // dedup-by-sessionId alone would only fire on the first turn
+            // and silently skip all the follow-ups. Comparing the latest
+            // assistant timestamp catches new activity on the same id.
+            let isSameSession = latestSession.sessionId == lastWrittenSessionID
+            let isSameTimestamp = isSameSession
+                && lastWrittenSessionTimestamp.map { abs($0.timeIntervalSince(latestSession.timestamp)) < 1.0 } ?? false
+            guard !isSameTimestamp else {
+                DevLog.trace(
+                    "AlertTrace",
+                    "SessionWriter skipped duplicate session id=\(latestSession.sessionId) timestamp=\(latestSession.timestamp)"
+                )
                 return
             }
 
             try writeLatestSessionToICloud(latestSession)
             lastWrittenSessionID = latestSession.sessionId
-        } catch {}
+            lastWrittenSessionTimestamp = latestSession.timestamp
+            // Notify the coordinator so it can trigger an immediate
+            // usage poll for the active account. This is the bridge
+            // between "Claude Code session just ended" and "macOS widget
+            // shows fresh data": without it, the widget would have to
+            // wait for the next 15-minute scheduled poll.
+            onSessionWritten?(latestSession.accountId)
+        } catch {
+            DiagnosticsCenter.shared.warning(
+                kind: "session.write",
+                message: "Couldn't save Claude session to iCloud",
+                error: error
+            )
+        }
     }
 
     /// Returns a copy of `session` whose `accountId` is set to the
@@ -163,6 +204,20 @@ final class SessionEventWriter {
     private var lastWrittenSessionID: String? {
         get { defaults.string(forKey: DefaultsKey.lastWrittenSessionID) }
         set { defaults.setValue(newValue, forKey: DefaultsKey.lastWrittenSessionID) }
+    }
+
+    private var lastWrittenSessionTimestamp: Date? {
+        get {
+            let stored = defaults.double(forKey: DefaultsKey.lastWrittenSessionTimestamp)
+            return stored > 0 ? Date(timeIntervalSince1970: stored) : nil
+        }
+        set {
+            if let newValue {
+                defaults.set(newValue.timeIntervalSince1970, forKey: DefaultsKey.lastWrittenSessionTimestamp)
+            } else {
+                defaults.removeObject(forKey: DefaultsKey.lastWrittenSessionTimestamp)
+            }
+        }
     }
 
     nonisolated private static func readLatestCompletedSession(now: Date = Date()) throws -> SessionInfo? {

@@ -111,6 +111,11 @@ struct DashboardTabView: View {
         let sessionColor = UtilizationSeverity(utilization: usage.utilization5h).usageColor(normal: ClaudeCodeTheme.Usage.session)
         let weeklyColor = UtilizationSeverity(utilization: usage.utilization7d).usageColor(normal: ClaudeCodeTheme.Usage.weekly)
 
+        // Surface critical diagnostics ABOVE the existing usage-read /
+        // staleness cards. Only renders when `lastCritical` is set; the
+        // banner is dismissible by the user via its own button.
+        DiagnosticsBannerView()
+
         if case .stale(let since) = store.usageSyncStatus {
             statusCard(
                 title: "Mac App Not Responding",

@@ -43,6 +43,8 @@ struct ContentView: View {
             ringLayer
             compactFooter
                 .padding(.top, 4)
+            DiagnosticsBannerView()
+                .padding(.top, 4)
         }
     }
 
