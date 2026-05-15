@@ -166,17 +166,25 @@ final class AccountPollingWorker {
                 "AuthTrace",
                 "Usage poll starting accountId=\(accountId) manual=\(isManualRefresh)"
             )
-            let state = try await fetchUsage()
+            var state = try await fetchUsage()
             currentInterval = 900
             rateLimitRetryAt = nil
-            lastPollAt = Date()
+            let polledAt = Date()
+            // Stamp the successful-fetch timestamp on the state itself so
+            // downstream consumers (iOS widget, watch glance, dashboard
+            // freshness label) report the real server-fetch time even
+            // after the data round-trips through iCloud or App Group
+            // storage. Updating `lastPollAt` to the same instant keeps
+            // the popover surface in lockstep.
+            state.polledAt = polledAt
+            lastPollAt = polledAt
             lastPollError = nil
             latestUsage = state
             onUsageState?(state)
             writeToiCloud(state)
             DevLog.trace(
                 "AuthTrace",
-                "Usage poll applied accountId=\(accountId) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d)"
+                "Usage poll applied accountId=\(accountId) utilization5h=\(state.utilization5h) utilization7d=\(state.utilization7d) polledAt=\(polledAt)"
             )
             if isManualRefresh {
                 showRefreshFeedback(.success, message: "Updated usage just now")

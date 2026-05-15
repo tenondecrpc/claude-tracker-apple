@@ -135,10 +135,14 @@ final class iCloudUsageReader: NSObject {
         let q = NSMetadataQuery()
         // Filename-based predicate. All per-account payloads have stable
         // filenames and live under `Tempo/accounts/...`, while the two
-        // global files live at `Tempo/`. NSMetadataQuery filters by
-        // filename cheaply and handles deep directory hierarchies, so the
-        // predicate doesn't need a path component.
-        q.predicate = NSPredicate(
+        // global files live at `Tempo/`. We narrow by both filename and
+        // path component so the query never matches FileProvider's
+        // internal tombstones (for example
+        // `/Library/Application Support/FileProvider/<id>/wharf/wharf/delete/<uuid>`),
+        // which can briefly appear with the same filenames during an
+        // iCloud deletion sync and would otherwise trigger spurious
+        // ubiquitous-download requests for files outside our scope.
+        let nameFilter = NSPredicate(
             format: "%K IN %@",
             NSMetadataItemFSNameKey,
             [
@@ -150,6 +154,14 @@ final class iCloudUsageReader: NSObject {
                 AlertPreferencesSync.fileName,
                 AppearanceModeSync.fileName
             ]
+        )
+        let pathFilter = NSPredicate(
+            format: "%K CONTAINS %@",
+            NSMetadataItemPathKey,
+            "/Documents/Tempo/"
+        )
+        q.predicate = NSCompoundPredicate(
+            andPredicateWithSubpredicates: [nameFilter, pathFilter]
         )
         q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
         if let documentsScope {

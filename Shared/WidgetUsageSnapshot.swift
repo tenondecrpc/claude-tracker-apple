@@ -366,6 +366,9 @@ enum TempoWidgetSnapshotStore {
     /// Updates the active-account pointer. Passing `nil` removes the
     /// pointer file so subsequent `read(platform:)` calls return `nil` and
     /// the default widgets render their "no active account" state.
+    /// Updates the active-account pointer. Passing `nil` removes the
+    /// pointer file so subsequent `read(platform:)` calls return `nil` and
+    /// the default widgets render their "no active account" state.
     ///
     /// The pointer is intentionally decoupled from snapshot writes so the
     /// host apps can:
@@ -433,6 +436,111 @@ enum TempoWidgetSnapshotStore {
             )
             return false
         }
+    }
+
+    /// Removes the per-account widget snapshot directory and clears the
+    /// active-account pointer when it still references the deleted
+    /// account. Used by sign-out / account-removal flows to keep the App
+    /// Group container in lockstep with the registry, and by a one-shot
+    /// startup sweep that removes orphans left behind by previous builds
+    /// or aborted sign-outs.
+    ///
+    /// Returns `true` when at least one filesystem mutation succeeded
+    /// (snapshot directory removed, pointer cleared, or both). Missing
+    /// directories are not failures; the function is intentionally
+    /// idempotent so repeat calls with the same `accountId` are safe.
+    @discardableResult
+    static func delete(accountId: String, platform: TempoWidgetPlatform) -> Bool {
+        guard !accountId.isEmpty else { return false }
+
+        var didMutate = false
+
+        if let directoryURL = accountDirectoryURL(accountId: accountId, platform: platform),
+           FileManager.default.fileExists(atPath: directoryURL.path) {
+            do {
+                try FileManager.default.removeItem(at: directoryURL)
+                didMutate = true
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget snapshot directory removed platform=\(platform.debugName) path=\(directoryURL.path) accountId=\(accountId)"
+                )
+            } catch {
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget snapshot directory removal failed platform=\(platform.debugName) accountId=\(accountId) error=\(error.localizedDescription)"
+                )
+            }
+        }
+
+        if readActiveAccountId(platform: platform) == accountId {
+            if write(activeAccountId: nil, platform: platform) {
+                didMutate = true
+            }
+        }
+
+        return didMutate
+    }
+
+    /// Removes per-account snapshot directories whose accountIds are NOT
+    /// in `keepAccountIds`. Idempotent and safe to call on every cold
+    /// launch; legacy accounts or sign-outs that did not propagate here
+    /// (older builds, manual deletions of the registry, abandoned demo
+    /// sessions) are cleaned up so the widget store stays in lockstep
+    /// with the registry.
+    ///
+    /// The pointer file is preserved unless it currently references an
+    /// accountId not in `keepAccountIds`, in which case it is cleared so
+    /// the default widgets fall back to their "no active account" state
+    /// instead of silently flipping to whatever directory still happens
+    /// to exist.
+    @discardableResult
+    static func reconcile(keepAccountIds: Set<String>, platform: TempoWidgetPlatform) -> Int {
+        guard let accountsDirectory = accountsDirectoryURL(for: platform),
+              let entries = try? FileManager.default.contentsOfDirectory(
+                  at: accountsDirectory,
+                  includingPropertiesForKeys: [.isDirectoryKey],
+                  options: [.skipsHiddenFiles]
+              ) else {
+            return 0
+        }
+
+        var removed = 0
+        for url in entries {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else { continue }
+
+            let directoryName = url.lastPathComponent
+            let canonicalAccountId = directoryName.removingPercentEncoding ?? directoryName
+
+            if keepAccountIds.contains(canonicalAccountId) { continue }
+
+            do {
+                try FileManager.default.removeItem(at: url)
+                removed += 1
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget snapshot orphan removed platform=\(platform.debugName) path=\(url.path) accountId=\(canonicalAccountId)"
+                )
+            } catch {
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget snapshot orphan removal failed platform=\(platform.debugName) path=\(url.path) error=\(error.localizedDescription)"
+                )
+            }
+        }
+
+        if let pointerAccountId = readActiveAccountId(platform: platform),
+           !keepAccountIds.contains(pointerAccountId) {
+            if write(activeAccountId: nil, platform: platform) {
+                DevLog.trace(
+                    "AuthTrace",
+                    "Widget active pointer cleared during reconcile platform=\(platform.debugName) staleAccountId=\(pointerAccountId)"
+                )
+            }
+        }
+
+        return removed
     }
 
     // MARK: URL helpers
