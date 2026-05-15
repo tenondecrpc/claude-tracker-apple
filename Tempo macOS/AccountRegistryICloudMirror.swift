@@ -143,6 +143,11 @@ final class AccountRegistryICloudMirror {
                 "AccountMirror",
                 "writeAccountMetadata failed path=\(fileURL.path) accountId=\(account.accountId) error=\(error.localizedDescription)"
             )
+            DiagnosticsCenter.shared.warning(
+                kind: "icloud.write.account-metadata",
+                message: "Couldn't sync account info to iCloud",
+                error: error
+            )
         }
     }
 
@@ -221,6 +226,11 @@ final class AccountRegistryICloudMirror {
             DevLog.trace(
                 "AccountMirror",
                 "writeIndex failed path=\(indexURL.path) count=\(accountIds.count) error=\(error.localizedDescription)"
+            )
+            DiagnosticsCenter.shared.warning(
+                kind: "icloud.write.accounts-index",
+                message: "Couldn't sync accounts index to iCloud",
+                error: error
             )
         }
     }

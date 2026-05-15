@@ -60,6 +60,10 @@ private struct TempoMacProvider: AppIntentTimelineProvider {
             )
         }
         let resolved = resolveSnapshot(for: configuration)
+        DevLog.trace(
+            "AuthTrace",
+            "Widget provider snapshot platform=macOS configuredAccountId=\(configuration.account?.id ?? "nil") rendered=\(resolved.snapshot.map { "\($0.accountId)@\($0.updatedAt) util5h=\($0.utilization5h)" } ?? "nil") fallback=\(resolved.configuredAccountRemoved)"
+        )
         return TempoMacEntry(
             date: .now,
             snapshot: resolved.snapshot,
@@ -90,9 +94,14 @@ private struct TempoMacProvider: AppIntentTimelineProvider {
                 isPreview: false
             )
         }
+        let nextRefresh = WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: entry.snapshot, now: now)
+        DevLog.trace(
+            "AuthTrace",
+            "Widget provider timeline platform=macOS configuredAccountId=\(configuration.account?.id ?? "nil") rendered=\(entry.snapshot.map { "\($0.accountId)@\($0.updatedAt) util5h=\($0.utilization5h)" } ?? "nil") nextRefresh=\(nextRefresh)"
+        )
         return Timeline(
             entries: [entry],
-            policy: .after(WidgetTimelineRefreshPolicy.nextRefreshDate(snapshot: entry.snapshot, now: now))
+            policy: .after(nextRefresh)
         )
     }
 

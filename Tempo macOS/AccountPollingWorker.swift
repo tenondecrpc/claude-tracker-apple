@@ -415,8 +415,15 @@ final class AccountPollingWorker {
         guard let fileURL = TempoICloud.usageFileURL(for: accountId),
               let accountDir = TempoICloud.accountDirectoryURL(for: accountId)
         else {
-            // iCloud ubiquity container is unavailable. Skip the write silently
-            // (matches the single-account poller's tolerance of offline state).
+            // iCloud ubiquity container is unavailable. This is a
+            // critical state for the cross-device pipeline (iOS won't
+            // see usage updates), so surface it in the diagnostics
+            // banner. The user typically fixes this by signing back
+            // into iCloud or enabling iCloud Drive for the app.
+            DiagnosticsCenter.shared.critical(
+                kind: "icloud.unavailable",
+                message: "iCloud is unavailable. Usage won't sync to your other devices."
+            )
             return
         }
 
@@ -436,6 +443,11 @@ final class AccountPollingWorker {
             DevLog.trace(
                 "AuthTrace",
                 "Usage iCloud write failed accountId=\(accountId) error=\(error.localizedDescription)"
+            )
+            DiagnosticsCenter.shared.warning(
+                kind: "icloud.write.usage",
+                message: "Couldn't save latest usage to iCloud",
+                error: error
             )
         }
     }

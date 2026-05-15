@@ -258,6 +258,10 @@ struct PreferencesWindowView: View {
                     toggle: $settings.serviceStatusMonitoring
                 )
             }
+
+            preferencesCard(title: "Diagnostics") {
+                DiagnosticsRecentEventsList()
+            }
         }
     }
 

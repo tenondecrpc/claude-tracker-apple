@@ -175,6 +175,10 @@ final class iCloudUsageReader: NSObject {
             historyReadError = message
             Self.debugPrint("iCloudUsageReader start without container URL; queryScope=ubiquitousDocuments")
             DevLog.trace("AlertTrace", "iCloudUsageReader falling back to ubiquitous documents scope; container unavailable")
+            DiagnosticsCenter.shared.critical(
+                kind: "icloud.unavailable",
+                message: "iCloud is unavailable. Usage won't sync across your devices."
+            )
         }
 
         NotificationCenter.default.addObserver(
@@ -496,11 +500,21 @@ final class iCloudUsageReader: NSObject {
             } catch {
                 usageReadError = error.localizedDescription
                 DevLog.trace("AlertTrace", "iCloudUsageReader failed to decode usage file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
+                DiagnosticsCenter.shared.warning(
+                    kind: "icloud.read.usage.decode",
+                    message: "Couldn't decode usage from iCloud",
+                    error: error
+                )
                 refreshStaleness()
             }
         case .failure(let error):
             usageReadError = error.localizedDescription
             DevLog.trace("AlertTrace", "iCloudUsageReader failed to read usage file path=\(url.path) accountId=\(accountId) error=\(error.localizedDescription)")
+            DiagnosticsCenter.shared.warning(
+                kind: "icloud.read.usage",
+                message: "Couldn't read usage from iCloud",
+                error: error
+            )
             refreshStaleness()
         }
     }

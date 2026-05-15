@@ -205,21 +205,44 @@ final class UsageHistory {
         guard let url = TempoICloud.usageHistoryFileURL(for: accountId),
               let accountDir = TempoICloud.accountDirectoryURL(for: accountId)
         else {
-            // iCloud ubiquity container is unavailable. Skip the write
-            // silently (matches `AccountPollingWorker.writeToiCloud`).
+            // iCloud ubiquity container is unavailable. The
+            // `AccountPollingWorker` already raised a critical
+            // diagnostic when its own write hit the same condition, so
+            // we don't escalate again here.
             return
         }
 
         if !FileManager.default.fileExists(atPath: accountDir.path) {
-            try? FileManager.default.createDirectory(
-                at: accountDir,
-                withIntermediateDirectories: true
-            )
+            do {
+                try FileManager.default.createDirectory(
+                    at: accountDir,
+                    withIntermediateDirectories: true
+                )
+            } catch {
+                Task { @MainActor in
+                    DiagnosticsCenter.shared.warning(
+                        kind: "icloud.write.usage-history",
+                        message: "Couldn't create iCloud folder for usage history",
+                        error: error
+                    )
+                }
+                return
+            }
         }
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(snapshots) else { return }
-        try? data.write(to: url, options: .atomic)
+        do {
+            let data = try encoder.encode(snapshots)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            Task { @MainActor in
+                DiagnosticsCenter.shared.warning(
+                    kind: "icloud.write.usage-history",
+                    message: "Couldn't save usage history to iCloud",
+                    error: error
+                )
+            }
+        }
     }
 }
